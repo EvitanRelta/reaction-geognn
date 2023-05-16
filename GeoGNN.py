@@ -10,16 +10,16 @@ class GeoGNNBlock(nn.Module):
     """
     GeoGNN Block
     """
-    def __init__(self, embed_dim, dropout_rate, last_act):
+    def __init__(self, embed_dim:int=32, dropout_rate:float=0.5, has_last_act:bool=True):
         super(GeoGNNBlock, self).__init__()
 
         self.embed_dim = embed_dim
-        self.last_act = last_act
+        self.has_last_act = has_last_act
 
         self.gnn = GIN(embed_dim)
         self.norm = nn.LayerNorm(embed_dim)
         self.graph_norm = GraphNorm()
-        if last_act:
+        if has_last_act:
             self.act = nn.ReLU()
         self.dropout = nn.Dropout(p=dropout_rate)
     
@@ -28,7 +28,7 @@ class GeoGNNBlock(nn.Module):
         out = self.gnn(graph, node_hidden, edge_hidden)
         out = self.norm(out)
         out = self.graph_norm(graph, out)
-        if self.last_act:
+        if self.has_last_act:
             out = self.act(out)
         out = self.dropout(out)
         out = out + node_hidden
@@ -72,9 +72,9 @@ class GeoGNNModel(nn.Layer):
             self.bond_angle_float_rbf_list.append(
                     BondAngleFloatRBF(self.bond_angle_float_names, self.embed_dim))
             self.atom_bond_block_list.append(
-                    GeoGNNBlock(self.embed_dim, self.dropout_rate, last_act=(layer_id != self.layer_num - 1)))
+                    GeoGNNBlock(self.embed_dim, self.dropout_rate, has_last_act=(layer_id != self.layer_num - 1)))
             self.bond_angle_block_list.append(
-                    GeoGNNBlock(self.embed_dim, self.dropout_rate, last_act=(layer_id != self.layer_num - 1)))
+                    GeoGNNBlock(self.embed_dim, self.dropout_rate, has_last_act=(layer_id != self.layer_num - 1)))
         
         # TODO: use self-implemented MeanPool due to pgl bug.
         if self.readout == 'mean':
