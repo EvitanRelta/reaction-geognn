@@ -16,7 +16,13 @@ class GeoGNNBlock(nn.Module):
         self.embed_dim = embed_dim
         self.has_last_act = has_last_act
 
-        self.gnn = GIN(embed_dim)
+        gin_mlp = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 2),
+            nn.ReLU(),
+            nn.Linear(embed_dim * 2, embed_dim)
+        )
+        self.gnn = GINConv(gin_mlp)
+
         self.norm = nn.LayerNorm(embed_dim)
         self.graph_norm = GraphNorm()
         if has_last_act:
