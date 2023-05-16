@@ -2,19 +2,8 @@
 This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
 """
 
-import numpy as np
-
-import paddle
-import paddle.nn as nn
-import pgl
-from pgl.nn import GraphPool
-
-from pahelix.networks.gnn_block import GIN
-from pahelix.networks.compound_encoder import AtomEmbedding, BondEmbedding, \
-        BondFloatRBF, BondAngleFloatRBF
-from pahelix.utils.compound_tools import CompoundKit
-from pahelix.networks.gnn_block import MeanPool, GraphNorm
-from pahelix.networks.basic_block import MLP
+from torch import nn
+from torch_geometric.nn import GINConv
 
 
 class GeoGNNBlock(nn.Layer):
