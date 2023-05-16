@@ -6,7 +6,7 @@ from torch import nn
 from torch_geometric.nn import GINConv
 
 
-class GeoGNNBlock(nn.Layer):
+class GeoGNNBlock(nn.Module):
     """
     GeoGNN Block
     """
