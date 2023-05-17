@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from typing import Optional
-from torch_geometric.utils import scatter
+from torch_geometric.nn.pool import global_add_pool
 
 
 class SqrtGraphNorm(torch.nn.Module):
@@ -31,9 +31,7 @@ class SqrtGraphNorm(torch.nn.Module):
         if batch is None:
             batch = x.new_zeros(x.size(0), dtype=torch.long)
 
-        batch_size = int(batch.max()) + 1
-
-        num_nodes = scatter(torch.ones_like(x), batch, 0, batch_size, reduce='sum')
+        num_nodes = global_add_pool(torch.ones_like(x), batch)
         norm_factor = num_nodes.sqrt().index_select(0, batch).clamp(min=1)
         return x / norm_factor
 
