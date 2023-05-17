@@ -4,6 +4,7 @@ This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
 
 from torch import nn
 from torch_geometric.nn import GINConv
+from SqrtGraphNorm import SqrtGraphNorm
 
 
 class GeoGNNBlock(nn.Module):
@@ -24,7 +25,7 @@ class GeoGNNBlock(nn.Module):
         self.gnn = GINConv(gin_mlp)
 
         self.norm = nn.LayerNorm(embed_dim)
-        self.graph_norm = GraphNorm()
+        self.graph_norm = SqrtGraphNorm()
         if has_last_act:
             self.act = nn.ReLU()
         self.dropout = nn.Dropout(p=dropout_rate)
