@@ -3,7 +3,7 @@ This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
 """
 
 from torch import nn
-from torch_geometric.nn import GINConv
+from torch_geometric.nn import GINEConv
 from SqrtGraphNorm import SqrtGraphNorm
 
 
@@ -22,7 +22,7 @@ class GeoGNNBlock(nn.Module):
             nn.ReLU(),
             nn.Linear(embed_dim * 2, embed_dim)
         )
-        self.gnn = GINConv(gin_mlp)
+        self.gnn = GINEConv(gin_mlp)
 
         self.norm = nn.LayerNorm(embed_dim)
         self.graph_norm = SqrtGraphNorm()
