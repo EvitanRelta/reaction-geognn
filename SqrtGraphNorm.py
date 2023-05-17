@@ -1,32 +1,41 @@
-import paddle
-import paddle.nn as nn
-import pgl
+import torch
+from torch import Tensor
+from typing import Optional
+from torch_geometric.utils import scatter
 
 
-class GraphNorm(nn.Layer):
-    """Implementation of graph normalization. Each node features is divied by sqrt(num_nodes) per graphs.
-    
-    Args:
-        graph: the graph object from (:code:`Graph`)
-        feature: A tensor with shape (num_nodes, feature_size).
-
-    Return:
-        A tensor with shape (num_nodes, hidden_size)
-
-    References:
-
-    [1] BENCHMARKING GRAPH NEURAL NETWORKS. https://arxiv.org/abs/2003.00982
-
+class SqrtGraphNorm(torch.nn.Module):
     """
+    Applies graph normalization, where each node features is divided by 
+    sqrt(num_nodes) for each graph.
+    
+    This is a Pytorch equivalent of GeoGNN's `GraphNorm`:
+    https://github.com/PaddlePaddle/PaddleHelix/blob/dev/pahelix/networks/gnn_block.py#L26
+    
+    Adapted from:
+    https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/norm/graph_norm.html#GraphNorm
+    """
+    def __init__(self) -> None:
+        super().__init__()
 
-    def __init__(self):
-        super(GraphNorm, self).__init__()
-        self.graph_pool = pgl.nn.GraphPool(pool_type="sum")
+    def forward(self, x: Tensor, batch: Optional[Tensor] = None) -> Tensor:
+        """
+        Args:
+            x (Tensor): The source tensor.
+            batch (Optional[Tensor], optional): The batch vector, which assigns
+                each element to a specific example. (default: `None`)
 
-    def forward(self, graph, feature):
-        """graph norm"""
-        nodes = paddle.ones(shape=[graph.num_nodes, 1], dtype="float32")
-        norm = self.graph_pool(graph, nodes)
-        norm = paddle.sqrt(norm)
-        norm = paddle.gather(norm, graph.graph_node_id)
-        return feature / norm
+        Returns:
+            Tensor: _description_
+        """
+        if batch is None:
+            batch = x.new_zeros(x.size(0), dtype=torch.long)
+
+        batch_size = int(batch.max()) + 1
+
+        num_nodes = scatter(torch.ones_like(x), batch, 0, batch_size, reduce='sum')
+        norm_factor = num_nodes.sqrt().index_select(0, batch).clamp(min=1)
+        return x / norm_factor
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}'
