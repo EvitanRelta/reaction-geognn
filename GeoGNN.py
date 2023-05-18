@@ -3,8 +3,8 @@ This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
 """
 
 from torch import nn
-from torch_geometric.nn import GINEConv
 from SqrtGraphNorm import SqrtGraphNorm
+from SimpleGIN import SimpleGIN
 
 
 class GeoGNNBlock(nn.Module):
@@ -16,14 +16,7 @@ class GeoGNNBlock(nn.Module):
 
         self.embed_dim = embed_dim
         self.has_last_act = has_last_act
-
-        gin_mlp = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim * 2),
-            nn.ReLU(),
-            nn.Linear(embed_dim * 2, embed_dim)
-        )
-        self.gnn = GINEConv(gin_mlp)
-
+        self.gnn = SimpleGIN(embed_dim)
         self.norm = nn.LayerNorm(embed_dim)
         self.graph_norm = SqrtGraphNorm()
         if has_last_act:
