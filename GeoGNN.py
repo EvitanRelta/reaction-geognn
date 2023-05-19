@@ -5,6 +5,7 @@ This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
 from torch import nn, Tensor
 from SqrtGraphNorm import SqrtGraphNorm
 from SimpleGIN import SimpleGIN
+from typing import List
 
 
 class GeoGNNBlock(nn.Module):
@@ -33,25 +34,35 @@ class GeoGNNBlock(nn.Module):
         return out
 
 
-class GeoGNNModel(nn.Layer):
+class GeoGNNModel(nn.Module):
     """
     The GeoGNN Model used in GEM.
 
     Args:
         model_config(dict): a dict of model configurations.
     """
-    def __init__(self, model_config={}):
+    def __init__(
+        self,
+        embed_dim: int = 32,
+        dropout_rate: float = 0.2,
+        layer_num: int = 8,
+        readout: str = 'mean',
+        atom_names: List[str] = ["atomic_num", "formal_charge", "degree", "chiral_tag", "total_numHs", "is_aromatic", "hybridization"],
+        bond_names: List[str] = ["bond_dir", "bond_type", "is_in_ring"],
+        bond_float_names: List[str] = ["bond_length"],
+        bond_angle_float_names: List[str] = ["bond_angle"]
+    ) -> None:
         super(GeoGNNModel, self).__init__()
 
-        self.embed_dim = model_config.get('embed_dim', 32)
-        self.dropout_rate = model_config.get('dropout_rate', 0.2)
-        self.layer_num = model_config.get('layer_num', 8)
-        self.readout = model_config.get('readout', 'mean')
+        self.embed_dim = embed_dim
+        self.dropout_rate = dropout_rate
+        self.layer_num = layer_num
+        self.readout = readout
 
-        self.atom_names = model_config['atom_names']
-        self.bond_names = model_config['bond_names']
-        self.bond_float_names = model_config['bond_float_names']
-        self.bond_angle_float_names = model_config['bond_angle_float_names']
+        self.atom_names = atom_names
+        self.bond_names = bond_names
+        self.bond_float_names = bond_float_names
+        self.bond_angle_float_names = bond_angle_float_names
 
         self.init_atom_embedding = AtomEmbedding(self.atom_names, self.embed_dim)
         self.init_bond_embedding = BondEmbedding(self.bond_names, self.embed_dim)
