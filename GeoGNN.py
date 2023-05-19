@@ -2,7 +2,7 @@
 This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
 """
 
-from torch import nn
+from torch import nn, Tensor
 from SqrtGraphNorm import SqrtGraphNorm
 from SimpleGIN import SimpleGIN
 
@@ -23,15 +23,13 @@ class GeoGNNBlock(nn.Module):
             self.act = nn.ReLU()
         self.dropout = nn.Dropout(p=dropout_rate)
     
-    def forward(self, graph, node_hidden, edge_hidden):
-        """tbd"""
-        out = self.gnn(graph, node_hidden, edge_hidden)
-        out = self.norm(out)
-        out = self.graph_norm(graph, out)
+    def forward(self, x: Tensor, edge_index: Tensor, edge_attr: Tensor) -> Tensor:
+        out = self.gnn.forward(x, edge_index, edge_attr)
+        out = self.norm.forward(out)
+        out = self.graph_norm.forward(x)
         if self.has_last_act:
-            out = self.act(out)
-        out = self.dropout(out)
-        out = out + node_hidden
+            out = self.act.forward(out)
+        out = self.dropout.forward(out)
         return out
 
 
