@@ -5,8 +5,9 @@ This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
 from torch import nn, Tensor
 from SqrtGraphNorm import SqrtGraphNorm
 from SimpleGIN import SimpleGIN
-from typing import List
-
+from typing import List, Dict, Any, no_type_check, cast
+from rdkit.Chem import rdchem
+from enum import Enum
 
 class GeoGNNBlock(nn.Module):
     """
@@ -33,6 +34,37 @@ class GeoGNNBlock(nn.Module):
         out = self.dropout.forward(out)
         return out
 
+@no_type_check
+def rdchem_enum_to_list(rdchem_enum: Enum) -> List[Enum]:
+    """
+    Converts an enum from `rdkit.Chem.rdchem` (eg. `rdchem.ChiralType`) to a list.
+
+    Args:
+        rdchem_enum (Enum): An enum defined in `rdkit.Chem`.
+
+    Returns:
+        List[Enum]: The enum values but in a list.
+    """
+    return [rdchem_enum.values[i] for i in range(len(rdchem_enum.values))]
+
+FeatureName = str
+OneHotHeaders = List[Any]
+features: Dict[str, Dict[FeatureName, OneHotHeaders]] = {
+    'atom_feats': {
+        'atomic_num': list(range(1, 119)) + ['misc'],
+        'chiral_tag': rdchem_enum_to_list(rdchem.ChiralType),
+        'degree': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
+        'formal_charge': [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
+        'hybridization': rdchem_enum_to_list(rdchem.HybridizationType),
+        'is_aromatic': [0, 1],
+        'total_numHs': [0, 1, 2, 3, 4, 5, 6, 7, 8, 'misc'],
+    },
+    'bond_feats': {
+        "bond_dir": rdchem_enum_to_list(rdchem.BondDir),
+        "bond_type": rdchem_enum_to_list(rdchem.BondType),
+        "is_in_ring": [0, 1],
+    }
+}
 
 class GeoGNNModel(nn.Module):
     """
@@ -47,8 +79,8 @@ class GeoGNNModel(nn.Module):
         dropout_rate: float = 0.2,
         layer_num: int = 8,
         readout: str = 'mean',
-        atom_names: List[str] = ["atomic_num", "formal_charge", "degree", "chiral_tag", "total_numHs", "is_aromatic", "hybridization"],
-        bond_names: List[str] = ["bond_dir", "bond_type", "is_in_ring"],
+        atom_names: List[str] = list(features['atom_feats'].keys()),
+        bond_names: List[str] = list(features['bond_feats'].keys()),
         bond_float_names: List[str] = ["bond_length"],
         bond_angle_float_names: List[str] = ["bond_angle"]
     ) -> None:
@@ -64,8 +96,31 @@ class GeoGNNModel(nn.Module):
         self.bond_float_names = bond_float_names
         self.bond_angle_float_names = bond_angle_float_names
 
-        self.init_atom_embedding = AtomEmbedding(self.atom_names, self.embed_dim)
-        self.init_bond_embedding = BondEmbedding(self.bond_names, self.embed_dim)
+        def init_weights(module: nn.Module) -> None:
+            """
+            Init the weights of `module` using Xavier Uniform initialisation.
+            """
+            nn.init.xavier_uniform_(cast(Tensor, module.weights))
+
+        extra_embedding_dim = 5
+        self.init_atom_embedding = nn.ModuleList([
+            nn.Embedding(len(feat_onehot_list) + extra_embedding_dim, embed_dim) \
+                for feat_onehot_list in features['atom_feats'].values()
+        ])
+        self.init_atom_embedding.apply(init_weights)
+
+        self.init_bond_embedding = nn.ModuleList([
+            nn.Embedding(len(feat_onehot_list) + extra_embedding_dim, embed_dim) \
+                for feat_onehot_list in features['bond_feats'].values()
+        ])
+        self.init_bond_embedding.apply(init_weights)
+
+        self.init_bond_float_rbf = nn.ModuleList([
+            nn.Embedding(len(feat_onehot_list) + extra_embedding_dim, embed_dim) \
+                for feat_onehot_list in features['bond_feats'].values()
+        ])
+        self.init_bond_float_rbf.apply(init_weights)
+        
         self.init_bond_float_rbf = BondFloatRBF(self.bond_float_names, self.embed_dim)
         
         self.bond_embedding_list = nn.LayerList()
