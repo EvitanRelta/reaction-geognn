@@ -1,31 +1,43 @@
 from torch import nn, Tensor
-from torch_geometric import nn as gnn
-from torch_geometric.nn.conv import MessagePassing
-from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size
-from typing import Union
+from dgl import DGLGraph, function as fn
 
 
-class SimpleGIN(MessagePassing):
+class SimpleGIN(nn.Module):
     """
-    Implementation of Graph Isomorphism Network (GIN) layer with edge features.
+    Implementation of Graph Isomorphism Network (GIN) layer
+    for undirected graphs, that accounts for with edge features.
     """
-    def __init__(self, embed_dim: int):
-        super().__init__(aggr='add')
+    def __init__(self, hidden_size: int) -> None:
+        super(SimpleGIN, self).__init__()
         self.mlp = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim * 2),
+            nn.Linear(hidden_size, hidden_size * 2),
             nn.ReLU(),
-            nn.Linear(embed_dim * 2, embed_dim)
+            nn.Linear(hidden_size * 2, hidden_size)
         )
 
-    def forward(
-        self,
-        x: Union[Tensor, OptPairTensor], 
-        edge_index: Adj, 
-        edge_attr: OptTensor = None, 
-        size: Size = None
-    ) -> Tensor:
-        out = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=size)
-        return self.mlp(out)
+    def reset_parameters(self) -> None:
+        """
+        Reset/Initialize the weights using Xavier Uniform initialisation.
+        """
+        gain = nn.init.calculate_gain('relu')
+        nn.init.xavier_uniform_(self.mlp[0].weight, gain=gain)
+        self.mlp[0].bias.data.fill_(0)
+        nn.init.xavier_uniform_(self.mlp[2].weight, gain=gain)
+        self.mlp[2].bias.data.fill_(0)
 
-    def message(self, x_j: Tensor, edge_attr: Tensor) -> Tensor:    
-        return x_j + edge_attr
+    def forward(self, graph: DGLGraph, node_feats: Tensor, edge_feats: Tensor) -> Tensor:
+        """
+        Args:
+            graph (DGLGraph): The input graph.
+            node_feat (Tensor): The input node features.
+            edge_feats (Tensor): The input edge features.
+        """
+        with graph.local_scope():
+            graph.ndata["h"] = node_feats
+            graph.edata["h"] = edge_feats
+            graph.update_all(
+                message_func=fn.u_add_e('h', 'h', 'm'),
+                reduce_func=fn.sum("m", "h_out"),
+            )
+            output_node_feats = graph.ndata["h_out"]
+            return self.mlp.forward(output_node_feats)
