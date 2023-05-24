@@ -2,6 +2,7 @@ import dgl, torch, numpy as np
 from rdkit import Chem
 from rdkit.Chem import rdchem, AllChem
 from dgl import DGLGraph
+from dgl.transforms.functional import add_reverse_edges, to_simple
 from typing import TypeAlias, Any, Callable, Literal
 from dataclasses import dataclass
 
@@ -10,6 +11,20 @@ Atom: TypeAlias = rdchem.Atom
 Bond: TypeAlias = rdchem.Bond
 Mol: TypeAlias = rdchem.Mol
 Conformer: TypeAlias = rdchem.Conformer
+
+def to_bidirected_copy(g: DGLGraph) -> DGLGraph:
+    """Exactly the same as `dgl.to_bidirected`, but copies both node and edge
+    features.
+
+    Args:
+        g (DGLGraph): The input directed graph.
+
+    Returns:
+        DGLGraph: Graph `g` but bidirected and with copied node/edge features.
+    """
+    g = add_reverse_edges(g, copy_ndata=True, copy_edata=True)
+    g = to_simple(g, return_counts=None, copy_ndata=True, copy_edata=True)
+    return g
 
 class Utils:
     RdChemEnum: TypeAlias = Any     # RdChem's enums have no proper typings.
@@ -114,7 +129,7 @@ class Utils:
         for feat_name, feat in Utils.FEATURES['bond_feats'].items():
             graph.edata[feat_name] = torch.tensor([feat.get_value(bond) for bond in mol.GetBonds()])
 
-        graph = dgl.to_bidirected(graph, copy_ndata=True)   # Convert to undirected graph.
+        graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to('cuda:0')  # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
         return graph
 
