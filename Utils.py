@@ -12,6 +12,16 @@ Bond: TypeAlias = rdchem.Bond
 Mol: TypeAlias = rdchem.Mol
 Conformer: TypeAlias = rdchem.Conformer
 
+FeatureCategory: TypeAlias = Literal['atom_feats', 'bond_feats']
+FeatureName: TypeAlias = str
+
+@dataclass
+class Feature:
+    get_value: Callable[[Atom | Bond], Any]
+    """Gets the feature value from an `rdchem.Atom` / `rdchem.Bond` instance."""
+    possible_values: list[Any]
+    """All possible values this feature can take on."""
+
 def to_bidirected_copy(g: DGLGraph) -> DGLGraph:
     """Exactly the same as `dgl.to_bidirected`, but copies both node and edge
     features.
@@ -40,18 +50,6 @@ class Utils:
             list[RdChemEnum]: All possible enum values in a list.
         """
         return [rdchem_enum.values[i] for i in range(len(rdchem_enum.values))]
-
-
-    FeatureCategory: TypeAlias = Literal['atom_feats', 'bond_feats']
-    FeatureName: TypeAlias = str
-    GetValueFn: TypeAlias = Callable[[Atom], Bond]
-
-    @dataclass
-    class Feature:
-        get_value: Callable[[Atom | Bond], Any]
-        """Gets the feature value from an `rdchem.Atom` / `rdchem.Bond` instance."""
-        possible_values: list[Any]
-        """All possible values this feature can take on."""
 
     FEATURES: dict[FeatureCategory, dict[FeatureName, Feature]] = {
         'atom_feats': {
