@@ -1,39 +1,26 @@
 import torch
-from torch import Tensor
-from typing import Optional
-from torch_geometric.nn.pool import global_add_pool
+from torch import Tensor, IntTensor
+from dgl import DGLGraph
 
 
 class SqrtGraphNorm(torch.nn.Module):
     """
     Applies graph normalization, where each node features is divided by 
-    sqrt(num_nodes) for each graph.
+    sqrt(num_of_nodes) for each graph in batched graph created by `dgl.batch`.
     
     This is a Pytorch equivalent of GeoGNN's `GraphNorm`:
     https://github.com/PaddlePaddle/PaddleHelix/blob/dev/pahelix/networks/gnn_block.py#L26
-    
-    Adapted from:
-    https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/norm/graph_norm.html#GraphNorm
     """
-    def __init__(self) -> None:
-        super().__init__()
-
-    def forward(self, x: Tensor, batch: Optional[Tensor] = None) -> Tensor:
+    def forward(self, batched_graph: DGLGraph, node_feats: Tensor) -> Tensor:
         """
         Args:
-            x (Tensor): The source tensor.
-            batch (Optional[Tensor], optional): The batch vector, which assigns
-                each element to a specific example. (default: `None`)
+            batched_graph (DGLGraph): Batched (or unbatched) DGL graph created by `dgl.batch` (or `dgl.graph` for unbatched).
+            node_feats (Tensor): The input node features.
 
         Returns:
-            Tensor: _description_
+            Tensor: The node features that's been normalized via dividing by sqrt(num_of_nodes) for each graph.
         """
-        if batch is None:
-            batch = x.new_zeros(x.size(0), dtype=torch.long)
-
-        num_nodes = global_add_pool(torch.ones_like(x), batch)
-        norm_factor = num_nodes.sqrt().index_select(0, batch).clamp(min=1)
-        return x / norm_factor
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}'
+        batch_num_of_nodes: IntTensor = batched_graph.batch_num_nodes()
+        norm_factors = torch.sqrt(batch_num_of_nodes.float())
+        norm_factors = norm_factors.repeat_interleave(batched_graph.batch_num_nodes()).reshape(-1, 1)
+        return node_feats / norm_factors
