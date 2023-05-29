@@ -31,7 +31,10 @@ class FeaturesEmbedding(nn.Module):
         super(FeaturesEmbedding, self).__init__()
 
         self.embed_dim = embed_dim
-        self.feat_names, self.feats = zip(*feat_dict.items())
+
+        # Temp. variable for fixing type hints.
+        temp: tuple[tuple[FeatureName, ...], tuple[Feature, ...]] = zip(*feat_dict.items()) # type: ignore
+        self.feat_names, self.feats = temp
 
         get_input_dim: Callable[[Feature], int] = \
             lambda feat: len(feat.possible_values) + feat_padding
