@@ -53,7 +53,8 @@ class FeaturesEmbedding(nn.Module):
         """
         feat_values = list(feat_tensor_dict.values())
         num_of_elements = len(feat_values[0])
-        output_embed = torch.zeros(num_of_elements, self.embed_dim, dtype=torch.float32)
+        device = next(self.parameters()).device
+        output_embed = torch.zeros(num_of_elements, self.embed_dim, dtype=torch.float32, device=device)
 
         for i, feat_name in enumerate(self.feat_names):
             embedding_layer: nn.Embedding = self.embed_list[i]
