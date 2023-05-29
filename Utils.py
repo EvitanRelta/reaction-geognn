@@ -97,6 +97,15 @@ class Utils:
             ),
         }
     }
+    """
+    Features as defined in GeoGNN's utility functions/classes:
+    https://github.com/PaddlePaddle/PaddleHelix/blob/dev/pahelix/utils/compound_tools.py
+
+    Not all features in the above `compound_tools.py` are included, as not all
+    was actually used by the GeoGNN model. Only those specified in the GeoGNN's
+    config are included:
+    https://github.com/PaddlePaddle/PaddleHelix/blob/dev/apps/pretrained_compound/ChemRL/GEM/model_configs/geognn_l8.json
+    """
 
     @staticmethod
     def smiles_to_graph(smiles: str) -> DGLGraph:
