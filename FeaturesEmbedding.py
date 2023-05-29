@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor, nn
 from Utils import Feature, FeatureName
-from typing import Callable
+from typing import Callable, cast
 
 
 class FeaturesEmbedding(nn.Module):
@@ -32,9 +32,9 @@ class FeaturesEmbedding(nn.Module):
 
         self.embed_dim = embed_dim
 
-        # Temp. variable for fixing type hints.
-        temp: tuple[tuple[FeatureName, ...], tuple[Feature, ...]] = zip(*feat_dict.items()) # type: ignore
-        self.feat_names, self.feats = temp
+        # Temp. type for fixing type hints.
+        _ZippedType = tuple[tuple[FeatureName, ...], tuple[Feature, ...]]
+        self.feat_names, self.feats = cast(_ZippedType, zip(*feat_dict.items()))
 
         get_input_dim: Callable[[Feature], int] = \
             lambda feat: len(feat.possible_values) + feat_padding
