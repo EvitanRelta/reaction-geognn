@@ -9,7 +9,7 @@ class SqrtGraphNorm(torch.nn.Module):
     sqrt(num_of_nodes) for each graph in batched graph created by `dgl.batch`.
     
     This is a Pytorch equivalent of GeoGNN's `GraphNorm`:
-    https://github.com/PaddlePaddle/PaddleHelix/blob/dev/pahelix/networks/gnn_block.py#L26
+    https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/gnn_block.py#L26
     """
     def forward(self, batched_graph: DGLGraph, node_feats: Tensor) -> Tensor:
         """
