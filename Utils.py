@@ -5,7 +5,7 @@ from dgl import DGLGraph
 from dgl.transforms.functional import add_reverse_edges, to_simple
 from typing import TypeAlias, Any, Callable, Literal
 from dataclasses import dataclass
-
+from torch import Tensor
 
 Atom: TypeAlias = rdchem.Atom
 Bond: TypeAlias = rdchem.Bond
@@ -14,6 +14,12 @@ Conformer: TypeAlias = rdchem.Conformer
 
 FeatureCategory: TypeAlias = Literal['atom_feats', 'bond_feats']
 FeatureName: TypeAlias = str
+
+RBFFeatureCategory: TypeAlias = Literal['bond', 'bond_angle']
+RBFCenters: TypeAlias = Tensor
+"""1D tensor of all the RBF centers for a feature."""
+RBFGamma: TypeAlias = float
+"""Hyperparameter for controlling the spread of the RBF's Gaussian basis function."""
 
 @dataclass
 class Feature:
