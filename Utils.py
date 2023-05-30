@@ -22,6 +22,42 @@ class Feature:
     possible_values: list[Any]
     """All possible values this feature can take on."""
 
+    def get_encoded_feat_value(self, x: Atom | Bond) -> int:
+        """
+        Gets the label-encoded value of the feature from `x`.
+
+        For the feature value of `x` obtained by `self.get_value`, get the index
+        of said value relative to the `self.possible_values` list, and +1 to it.
+
+        For example:
+        ```
+        possible_values = ['a', 'b', 'c']
+        value = get_value(x)  # if value == 'b', ie. index 1
+        get_index(x)  # then `get_index` returns 1+1 = 2
+        ```
+
+        ## Note:
+
+        The +1 is modelled after the +1 to the atom/bond ID in GeoGNN's
+        preprocessing:
+        https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/utils/compound_tools.py#L609
+
+        But idk what the +1 is for. It seems to be an index reserved for
+        Out-Of-Vocabulary (OOV) values based on the GeoGNN comment `# 0: OOV`.
+        But since `safe_index` returns the last index (which is the `"misc"`
+        label of the features), unknown/unseen feature values are already mapped
+        to the last index. So the "OOV" 0-th index will completely unused?
+
+        Args:
+            x (Atom | Bond): The `rdchem.Atom` / `rdchem.Bond` instance.
+
+        Returns:
+            int: Index of feature value, relative to the `self.possible_values` list.
+        """
+        value = self.get_value(x)
+        return self.possible_values.index(value) + 1
+
+
 def to_bidirected_copy(g: DGLGraph) -> DGLGraph:
     """Exactly the same as `dgl.to_bidirected`, but copies both node and edge
     features.
@@ -130,11 +166,11 @@ class Utils:
 
         # Add node features.
         for feat_name, feat in Utils.FEATURES['atom_feats'].items():
-            graph.ndata[feat_name] = torch.tensor([feat.get_value(atom) for atom in mol.GetAtoms()])
+            graph.ndata[feat_name] = torch.tensor([feat.get_encoded_feat_value(atom) for atom in mol.GetAtoms()])
 
         # Add edge features.
         for feat_name, feat in Utils.FEATURES['bond_feats'].items():
-            graph.edata[feat_name] = torch.tensor([feat.get_value(bond) for bond in mol.GetBonds()])
+            graph.edata[feat_name] = torch.tensor([feat.get_encoded_feat_value(bond) for bond in mol.GetBonds()])
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to('cuda:0')  # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
