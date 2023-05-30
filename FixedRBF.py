@@ -17,8 +17,14 @@ class FixedRBF(nn.Module):
             gamma (Tensor): Hyperparameter for controlling the spread of the RBF's Gaussian basis function.
         """
         super(FixedRBF, self).__init__()
-        self.centers = torch.reshape(centers.float(), [1, -1])
+
+        self.centers: Tensor
         """2D row-tensor containing the RBF centers. Has shape `(1, num_of_centers)`."""
+        # Registering `self.centers` so that it gets dynamically converted to
+        # the corresponding devices when `.cuda()` / `.cpu()` are called;
+        # and so that it gets saved/loaded with the model.
+        self.register_buffer('centers', torch.reshape(centers.float(), [1, -1]))
+
         self.gamma = gamma
         """Hyperparameter for controlling the spread of the RBF's Gaussian basis function."""
     
