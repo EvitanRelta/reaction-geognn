@@ -50,6 +50,16 @@ class FeaturesEmbedding(nn.Module):
                 for feat in self.feats
         ])
 
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        """
+        Resets the weights of all the `nn.Embedding` submodules by reinitializing
+        each of their weights using Xavier Uniform initialisation.
+        """
+        for embedding in self.embed_list:
+            nn.init.xavier_uniform_(embedding.weight)
+
     def forward(self, feat_tensor_dict: dict[FeatureName, Tensor]) -> Tensor:
         """
         Args:

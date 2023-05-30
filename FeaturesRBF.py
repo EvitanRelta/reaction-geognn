@@ -46,6 +46,14 @@ class FeaturesRBF(nn.Module):
             )
             self.module_list.append(layer)
 
+    def reset_parameters(self) -> None:
+        """
+        Resets the weights of all the `nn.Linear` submodules by calling
+        `nn.Linear.reset_parameters()` on each of them.
+        """
+        for sequential in self.module_list:
+            cast(nn.Linear, sequential[1]).reset_parameters()
+
     def forward(self, feat_tensor_dict: dict[FeatureName, Tensor]) -> Tensor:
         """
         Args:
