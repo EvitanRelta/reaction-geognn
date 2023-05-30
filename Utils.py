@@ -149,6 +149,31 @@ class Utils:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/model_configs/geognn_l8.json
     """
 
+    RBF_PARAMS: dict[RBFFeatureCategory, dict[FeatureName, tuple[RBFCenters, RBFGamma]]] = {
+        'bond': {
+            # Defined in GeoGNN's `BondFloatRBF` layer:
+            # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L131
+            'bond_length': (torch.arange(0, 2, 0.1), 10.0)
+        },
+        'bond_angle': {
+            # Defined in GeoGNN's `BondAngleFloatRBF` layer:
+            # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L168
+            'bond_angle': (torch.arange(0, torch.pi, 0.1), 10.0)
+        }
+    }
+    """
+    Parameters used in RBF neural network layers, specifically the center values
+    and the gamma values, where:
+
+    - `centers` is a 1D tensor of all the RBF centers for a feature.
+    - `gamma` is a hyperparameter for controlling the spread of the RBF's \
+        Gaussian basis function.
+
+    These values are defined in the constructor of `BondFloatRBF` and
+    `BondAngleFloatRBF` in:
+    https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py
+    """
+
     @staticmethod
     def smiles_to_graph(smiles: str) -> DGLGraph:
         """Convert a molecule's SMILES string into a DGL graph.
@@ -160,7 +185,7 @@ class Utils:
             DGLGraph: The molecule in graph form.
         """
         mol = AllChem.MolFromSmiles(smiles)
-        # mol, conf = Utils._generate_conformer(mol)
+        mol, conf = Utils._generate_conformer(mol)
 
         # Create an undirected DGL graph with all the molecule's nodes and edges.
         num_bonds = mol.GetNumBonds()
@@ -177,6 +202,7 @@ class Utils:
         # Add edge features.
         for feat_name, feat in Utils.FEATURES['bond_feats'].items():
             graph.edata[feat_name] = torch.tensor([feat.get_encoded_feat_value(bond) for bond in mol.GetBonds()])
+        graph.edata['bond_length'] = Utils._get_bond_lengths(mol, conf, graph.edges())
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to('cuda:0')  # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
@@ -192,3 +218,48 @@ class Utils:
         index = np.argmin([x[1] for x in res])
         conf = new_mol.GetConformer(id=int(index))
         return new_mol, conf
+
+    @staticmethod
+    def _get_atom_positions(mol: Mol, conf: Conformer) -> Tensor:
+        """
+        Gets the 3D-coords of all atoms.
+
+        Args:
+            mol (Mol): The `rdchem.Mol` of the molecule.
+            conf (Conformer): The `rdchem.Conformer` of the molecule.
+
+        Returns:
+            Tensor: 3D-coords of all atoms, shape `(num_of_atoms, 3)`, dtype=float32.
+        """
+        # Convert to float32 Tensor, from float64 Numpy array.
+        raw_atom_positions = torch.from_numpy(conf.GetPositions()).float()
+
+        # Truncate tensor as `mol` likely won't have Hydrogen atoms, 
+        # while `conf` likely will. Since the H atoms are placed after the 
+        # non-H atoms in the tensor, the H atoms positions will be truncated.
+        return raw_atom_positions[:mol.GetNumAtoms()]
+
+    @staticmethod
+    def _get_bond_lengths(mol: Mol, conf: Conformer, edges_tuple: tuple[Tensor, Tensor]) -> Tensor:
+        """
+        Gets all the bond lengths in a molecule.
+
+        Args:
+            mol (Mol): The `rdchem.Mol` of the molecule.
+            conf (Conformer): The `rdchem.Conformer` of the molecule.
+            edges_tuple (tuple[Tensor, Tensor]): Tuple containing the tensors \
+                the source and destination node indexes of all the edges, \
+                returned by `DGLGraph.edges()`.
+
+        Returns:
+            Tensor: Bond lengths of all the bonds in the molecule.
+        """
+        atom_positions = Utils._get_atom_positions(mol, conf)
+
+        # Move tensors to CPU first before splitting, else it'll throw an error later.
+        src_node_idx, dst_node_idx = edges_tuple
+
+        # To use as tensor indexes, these index tensors needs to be dtype=long.
+        src_node_idx, dst_node_idx = src_node_idx.long(), dst_node_idx.long()
+
+        return torch.norm(atom_positions[dst_node_idx] - atom_positions[src_node_idx], dim=1)
