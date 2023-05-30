@@ -1,5 +1,6 @@
 from torch import nn, Tensor
 from dgl import DGLGraph, function as fn
+from typing import cast
 
 
 class SimpleGIN(nn.Module):
@@ -16,14 +17,9 @@ class SimpleGIN(nn.Module):
         )
 
     def reset_parameters(self) -> None:
-        """
-        Reset/Initialize the weights using Xavier Uniform initialisation.
-        """
-        gain = nn.init.calculate_gain('relu')
-        nn.init.xavier_uniform_(self.mlp[0].weight, gain=gain)
-        self.mlp[0].bias.data.fill_(0)
-        nn.init.xavier_uniform_(self.mlp[2].weight, gain=gain)
-        self.mlp[2].bias.data.fill_(0)
+        """Resets the weights of `self.mlp`."""
+        cast(nn.Linear, self.mlp[0]).reset_parameters()
+        cast(nn.Linear, self.mlp[2]).reset_parameters()
 
     def forward(self, graph: DGLGraph, node_feats: Tensor, edge_feats: Tensor) -> Tensor:
         """
