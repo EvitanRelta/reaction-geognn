@@ -12,6 +12,12 @@ class FeaturesEmbedding(nn.Module):
     It works by first converting each feature into an embedding of size
     `(num_elements, self.embed_dim)`, then summing all the features' embeddings
     into one embedding.
+
+    This is a generalised Pytorch equivalent of GeoGNN's `AtomEmbedding`:
+    https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L28-L52
+
+    and `BondEmbedding`:
+    https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L94-L118
     """
 
     def __init__(

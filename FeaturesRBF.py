@@ -13,6 +13,10 @@ class FeaturesRBF(nn.Module):
     It works by first converting each feature into a tensor of size
     `(num_elements, self.output_dim)`, then summing all the features' tensors
     into one tensor.
+
+    This is a generalised Pytorch equivalent of GeoGNN's `BondFloatRBF` and
+    `BondAngleFloatRBF`:
+    https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L121-L192
     """
 
     def __init__(
