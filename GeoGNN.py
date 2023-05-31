@@ -5,9 +5,13 @@ This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
 from torch import nn, Tensor
 from SqrtGraphNorm import SqrtGraphNorm
 from SimpleGIN import SimpleGIN
-from typing import List, Dict, Any, no_type_check, cast
-from rdkit.Chem import rdchem
-from enum import Enum
+from FeaturesEmbedding import FeaturesEmbedding
+from FeaturesRBF import FeaturesRBF
+from Utils import Feature, FeatureName, RBFCenters, RBFGamma, Utils
+from dgl import DGLGraph
+from dgl.nn.pytorch.glob import AvgPooling
+from typing import cast
+
 
 class GeoGNNBlock(nn.Module):
     """
@@ -24,301 +28,249 @@ class GeoGNNBlock(nn.Module):
         if has_last_act:
             self.act = nn.ReLU()
         self.dropout = nn.Dropout(p=dropout_rate)
-    
-    def forward(self, x: Tensor, edge_index: Tensor, edge_attr: Tensor) -> Tensor:
-        out = self.gnn.forward(x, edge_index, edge_attr)
+
+    def reset_parameters(self) -> None:
+        self.gnn.reset_parameters()
+        self.norm.reset_parameters()
+
+    def forward(self, graph: DGLGraph, node_feats: Tensor, edge_feats: Tensor) -> Tensor:
+        out = self.gnn.forward(graph, node_feats, edge_feats)
         out = self.norm.forward(out)
-        out = self.graph_norm.forward(x)
+        out = self.graph_norm.forward(graph, out)
         if self.has_last_act:
             out = self.act.forward(out)
         out = self.dropout.forward(out)
+        out = out + node_feats
         return out
 
-@no_type_check
-def rdchem_enum_to_list(rdchem_enum: Enum) -> List[Enum]:
-    """
-    Converts an enum from `rdkit.Chem.rdchem` (eg. `rdchem.ChiralType`) to a list.
 
-    Args:
-        rdchem_enum (Enum): An enum defined in `rdkit.Chem`.
+class GeoGNNLayer(nn.Module):
+    def __init__(
+        self,
+        embed_dim: int = 32,
+        dropout_rate: float = 0.2,
+        has_last_act: bool = True,
+        atom_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['atom_feats'],
+        bond_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['bond_feats'],
+        bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond'],
+        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle']
+    ) -> None:
+        super(GeoGNNLayer, self).__init__()
 
-    Returns:
-        List[Enum]: The enum values but in a list.
-    """
-    return [rdchem_enum.values[i] for i in range(len(rdchem_enum.values))]
+        self.embed_dim = embed_dim
+        self.dropout_rate = dropout_rate
 
-FeatureName = str
-OneHotHeaders = List[Any]
-features: Dict[str, Dict[FeatureName, OneHotHeaders]] = {
-    'atom_feats': {
-        'atomic_num': list(range(1, 119)) + ['misc'],
-        'chiral_tag': rdchem_enum_to_list(rdchem.ChiralType),
-        'degree': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
-        'formal_charge': [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
-        'hybridization': rdchem_enum_to_list(rdchem.HybridizationType),
-        'is_aromatic': [0, 1],
-        'total_numHs': [0, 1, 2, 3, 4, 5, 6, 7, 8, 'misc'],
-    },
-    'bond_feats': {
-        "bond_dir": rdchem_enum_to_list(rdchem.BondDir),
-        "bond_type": rdchem_enum_to_list(rdchem.BondType),
-        "is_in_ring": [0, 1],
-    }
-}
+        self.bond_embedding = FeaturesEmbedding(bond_feat_dict, embed_dim)
+        self.bond_rbf = FeaturesRBF(bond_rbf_param_dict, embed_dim)
+        self.bond_angle_rbf = FeaturesRBF(bond_angle_rbf_param_dict, embed_dim)
+        self.atom_bond_gnn_block = GeoGNNBlock(embed_dim, dropout_rate, has_last_act)
+        self.bond_angle_gnn_block = GeoGNNBlock(embed_dim, dropout_rate, has_last_act)
+
+    def reset_parameters(self) -> None:
+        self.bond_embedding.reset_parameters()
+        self.bond_rbf.reset_parameters()
+        self.bond_angle_rbf.reset_parameters()
+        self.atom_bond_gnn_block.reset_parameters()
+        self.bond_angle_gnn_block.reset_parameters()
+
+    def forward(
+        self,
+        atom_bond_graph: DGLGraph,
+        bond_angle_graph: DGLGraph,
+        node_feats: Tensor,
+        edge_feats: Tensor
+    ) -> tuple[Tensor, Tensor]:
+        node_out = self.atom_bond_gnn_block.forward(atom_bond_graph, node_feats, edge_feats)
+
+        bond_embed = self.bond_embedding.forward(atom_bond_graph.edata) \
+            + self.bond_rbf.forward(atom_bond_graph.edata)
+        bond_angle_embed = self.bond_angle_rbf.forward(bond_angle_graph.edata)
+        edge_out = self.bond_angle_gnn_block.forward(bond_angle_graph, bond_embed, bond_angle_embed)
+
+        return node_out, edge_out
+
 
 class GeoGNNModel(nn.Module):
     """
     The GeoGNN Model used in GEM.
-
-    Args:
-        model_config(dict): a dict of model configurations.
     """
     def __init__(
         self,
         embed_dim: int = 32,
         dropout_rate: float = 0.2,
-        layer_num: int = 8,
-        readout: str = 'mean',
-        atom_names: List[str] = list(features['atom_feats'].keys()),
-        bond_names: List[str] = list(features['bond_feats'].keys()),
-        bond_float_names: List[str] = ["bond_length"],
-        bond_angle_float_names: List[str] = ["bond_angle"]
+        num_of_layers: int = 8,
+        atom_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['atom_feats'],
+        bond_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['bond_feats'],
+        bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond'],
+        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle']
     ) -> None:
         super(GeoGNNModel, self).__init__()
 
         self.embed_dim = embed_dim
         self.dropout_rate = dropout_rate
-        self.layer_num = layer_num
-        self.readout = readout
+        self.num_of_layers = num_of_layers
 
-        self.atom_names = atom_names
-        self.bond_names = bond_names
-        self.bond_float_names = bond_float_names
-        self.bond_angle_float_names = bond_angle_float_names
+        self.init_atom_embedding = FeaturesEmbedding(atom_feat_dict, embed_dim)
+        self.init_bond_embedding = FeaturesEmbedding(bond_feat_dict, embed_dim)
+        self.init_bond_rbf = FeaturesRBF(bond_rbf_param_dict, embed_dim)
 
-        def init_weights(module: nn.Module) -> None:
-            """
-            Init the weights of `module` using Xavier Uniform initialisation.
-            """
-            nn.init.xavier_uniform_(cast(Tensor, module.weights))
-
-        extra_embedding_dim = 5
-        self.init_atom_embedding = nn.ModuleList([
-            nn.Embedding(len(feat_onehot_list) + extra_embedding_dim, embed_dim) \
-                for feat_onehot_list in features['atom_feats'].values()
+        is_not_last_layer = lambda layer_idx: layer_idx != num_of_layers
+        dicts = (atom_feat_dict, bond_feat_dict, bond_rbf_param_dict, bond_angle_rbf_param_dict)
+        self.gnn_layer_list = nn.ModuleList([
+            GeoGNNLayer(embed_dim, dropout_rate, is_not_last_layer(i), *dicts) \
+                for i in range(num_of_layers)
         ])
-        self.init_atom_embedding.apply(init_weights)
 
-        self.init_bond_embedding = nn.ModuleList([
-            nn.Embedding(len(feat_onehot_list) + extra_embedding_dim, embed_dim) \
-                for feat_onehot_list in features['bond_feats'].values()
-        ])
-        self.init_bond_embedding.apply(init_weights)
+        self.graph_pool = AvgPooling()
 
-        self.init_bond_float_rbf = nn.ModuleList([
-            nn.Embedding(len(feat_onehot_list) + extra_embedding_dim, embed_dim) \
-                for feat_onehot_list in features['bond_feats'].values()
-        ])
-        self.init_bond_float_rbf.apply(init_weights)
+    def reset_parameters(self) -> None:
+        self.init_atom_embedding.reset_parameters()
+        self.init_bond_embedding.reset_parameters()
+        self.init_bond_rbf.reset_parameters()
+
+        for gnn_layer in self.gnn_layer_list:
+            cast(GeoGNNLayer, gnn_layer).reset_parameters()
+
+    def forward(
+        self,
+        atom_bond_graph: DGLGraph,
+        bond_angle_graph: DGLGraph
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        node_embeddings = self.init_atom_embedding.forward(atom_bond_graph.ndata)
+        edge_embeddings = self.init_bond_embedding.forward(atom_bond_graph.edata) \
+            + self.init_bond_rbf.forward(atom_bond_graph.edata)
+
+        node_out = node_embeddings
+        edge_out = edge_embeddings
+        for gnn_layer in self.gnn_layer_list:
+            cast(GeoGNNLayer, gnn_layer).forward(atom_bond_graph, bond_angle_graph, node_out, edge_out)
+
+        graph_repr = self.graph_pool.forward(atom_bond_graph, node_out)
+        return node_out, edge_out, graph_repr
+
+
+# class GeoPredModel(nn.Layer):
+#     """tbd"""
+#     def __init__(self, model_config, compound_encoder):
+#         super(GeoPredModel, self).__init__()
+#         self.compound_encoder = compound_encoder
         
-        self.init_bond_float_rbf = BondFloatRBF(self.bond_float_names, self.embed_dim)
+#         self.hidden_size = model_config['hidden_size']
+#         self.dropout_rate = model_config['dropout_rate']
+#         self.act = model_config['act']
+#         self.pretrain_tasks = model_config['pretrain_tasks']
         
-        self.bond_embedding_list = nn.LayerList()
-        self.bond_float_rbf_list = nn.LayerList()
-        self.bond_angle_float_rbf_list = nn.LayerList()
-        self.atom_bond_block_list = nn.LayerList()
-        self.bond_angle_block_list = nn.LayerList()
-        for layer_id in range(self.layer_num):
-            self.bond_embedding_list.append(
-                    BondEmbedding(self.bond_names, self.embed_dim))
-            self.bond_float_rbf_list.append(
-                    BondFloatRBF(self.bond_float_names, self.embed_dim))
-            self.bond_angle_float_rbf_list.append(
-                    BondAngleFloatRBF(self.bond_angle_float_names, self.embed_dim))
-            self.atom_bond_block_list.append(
-                    GeoGNNBlock(self.embed_dim, self.dropout_rate, has_last_act=(layer_id != self.layer_num - 1)))
-            self.bond_angle_block_list.append(
-                    GeoGNNBlock(self.embed_dim, self.dropout_rate, has_last_act=(layer_id != self.layer_num - 1)))
-        
-        # TODO: use self-implemented MeanPool due to pgl bug.
-        if self.readout == 'mean':
-            self.graph_pool = MeanPool()
-        else:
-            self.graph_pool = pgl.nn.GraphPool(pool_type=self.readout)
+#         # context mask
+#         if 'Cm' in self.pretrain_tasks:
+#             self.Cm_vocab = model_config['Cm_vocab']
+#             self.Cm_linear = nn.Linear(compound_encoder.embed_dim, self.Cm_vocab + 3)
+#             self.Cm_loss = nn.CrossEntropyLoss()
+#         # functinal group
+#         self.Fg_linear = nn.Linear(compound_encoder.embed_dim, model_config['Fg_size']) # 494
+#         self.Fg_loss = nn.BCEWithLogitsLoss()
+#         # bond angle with regression
+#         if 'Bar' in self.pretrain_tasks:
+#             self.Bar_mlp = MLP(2,
+#                     hidden_size=self.hidden_size,
+#                     act=self.act,
+#                     in_size=compound_encoder.embed_dim * 3,
+#                     out_size=1,
+#                     dropout_rate=self.dropout_rate)
+#             self.Bar_loss = nn.SmoothL1Loss()
+#         # bond length with regression
+#         if 'Blr' in self.pretrain_tasks:
+#             self.Blr_mlp = MLP(2,
+#                     hidden_size=self.hidden_size,
+#                     act=self.act,
+#                     in_size=compound_encoder.embed_dim * 2,
+#                     out_size=1,
+#                     dropout_rate=self.dropout_rate)
+#             self.Blr_loss = nn.SmoothL1Loss()
+#         # atom distance with classification
+#         if 'Adc' in self.pretrain_tasks:
+#             self.Adc_vocab = model_config['Adc_vocab']
+#             self.Adc_mlp = MLP(2,
+#                     hidden_size=self.hidden_size,
+#                     in_size=self.compound_encoder.embed_dim * 2,
+#                     act=self.act,
+#                     out_size=self.Adc_vocab + 3,
+#                     dropout_rate=self.dropout_rate)
+#             self.Adc_loss = nn.CrossEntropyLoss()
 
-        print('[GeoGNNModel] embed_dim:%s' % self.embed_dim)
-        print('[GeoGNNModel] dropout_rate:%s' % self.dropout_rate)
-        print('[GeoGNNModel] layer_num:%s' % self.layer_num)
-        print('[GeoGNNModel] readout:%s' % self.readout)
-        print('[GeoGNNModel] atom_names:%s' % str(self.atom_names))
-        print('[GeoGNNModel] bond_names:%s' % str(self.bond_names))
-        print('[GeoGNNModel] bond_float_names:%s' % str(self.bond_float_names))
-        print('[GeoGNNModel] bond_angle_float_names:%s' % str(self.bond_angle_float_names))
+#         print('[GeoPredModel] pretrain_tasks:%s' % str(self.pretrain_tasks))
 
-    @property
-    def node_dim(self):
-        """the out dim of graph_repr"""
-        return self.embed_dim
+#     def _get_Cm_loss(self, feed_dict, node_repr):
+#         masked_node_repr = paddle.gather(node_repr, feed_dict['Cm_node_i'])
+#         logits = self.Cm_linear(masked_node_repr)
+#         loss = self.Cm_loss(logits, feed_dict['Cm_context_id'])
+#         return loss
 
-    @property
-    def graph_dim(self):
-        """the out dim of graph_repr"""
-        return self.embed_dim
+#     def _get_Fg_loss(self, feed_dict, graph_repr):
+#         fg_label = paddle.concat(
+#                 [feed_dict['Fg_morgan'], 
+#                 feed_dict['Fg_daylight'], 
+#                 feed_dict['Fg_maccs']], 1)
+#         logits = self.Fg_linear(graph_repr)
+#         loss = self.Fg_loss(logits, fg_label)
+#         return loss
 
-    def forward(self, atom_bond_graph, bond_angle_graph):
-        """
-        Build the network.
-        """
-        node_hidden = self.init_atom_embedding(atom_bond_graph.node_feat)
-        bond_embed = self.init_bond_embedding(atom_bond_graph.edge_feat)
-        edge_hidden = bond_embed + self.init_bond_float_rbf(atom_bond_graph.edge_feat)
+#     def _get_Bar_loss(self, feed_dict, node_repr):
+#         node_i_repr = paddle.gather(node_repr, feed_dict['Ba_node_i'])
+#         node_j_repr = paddle.gather(node_repr, feed_dict['Ba_node_j'])
+#         node_k_repr = paddle.gather(node_repr, feed_dict['Ba_node_k'])
+#         node_ijk_repr = paddle.concat([node_i_repr, node_j_repr, node_k_repr], 1)
+#         pred = self.Bar_mlp(node_ijk_repr)
+#         loss = self.Bar_loss(pred, feed_dict['Ba_bond_angle'] / np.pi)
+#         return loss
 
-        node_hidden_list = [node_hidden]
-        edge_hidden_list = [edge_hidden]
-        for layer_id in range(self.layer_num):
-            node_hidden = self.atom_bond_block_list[layer_id](
-                    atom_bond_graph,
-                    node_hidden_list[layer_id],
-                    edge_hidden_list[layer_id])
-            
-            cur_edge_hidden = self.bond_embedding_list[layer_id](atom_bond_graph.edge_feat)
-            cur_edge_hidden = cur_edge_hidden + self.bond_float_rbf_list[layer_id](atom_bond_graph.edge_feat)
-            cur_angle_hidden = self.bond_angle_float_rbf_list[layer_id](bond_angle_graph.edge_feat)
-            edge_hidden = self.bond_angle_block_list[layer_id](
-                    bond_angle_graph,
-                    cur_edge_hidden,
-                    cur_angle_hidden)
-            node_hidden_list.append(node_hidden)
-            edge_hidden_list.append(edge_hidden)
-        
-        node_repr = node_hidden_list[-1]
-        edge_repr = edge_hidden_list[-1]
-        graph_repr = self.graph_pool(atom_bond_graph, node_repr)
-        return node_repr, edge_repr, graph_repr
+#     def _get_Blr_loss(self, feed_dict, node_repr):
+#         node_i_repr = paddle.gather(node_repr, feed_dict['Bl_node_i'])
+#         node_j_repr = paddle.gather(node_repr, feed_dict['Bl_node_j'])
+#         node_ij_repr = paddle.concat([node_i_repr, node_j_repr], 1)
+#         pred = self.Blr_mlp(node_ij_repr)
+#         loss = self.Blr_loss(pred, feed_dict['Bl_bond_length'])
+#         return loss
 
+#     def _get_Adc_loss(self, feed_dict, node_repr):
+#         node_i_repr = paddle.gather(node_repr, feed_dict['Ad_node_i'])
+#         node_j_repr = paddle.gather(node_repr, feed_dict['Ad_node_j'])
+#         node_ij_repr = paddle.concat([node_i_repr, node_j_repr], 1)
+#         logits = self.Adc_mlp.forward(node_ij_repr)
+#         atom_dist = paddle.clip(feed_dict['Ad_atom_dist'], 0.0, 20.0)
+#         atom_dist_id = paddle.cast(atom_dist / 20.0 * self.Adc_vocab, 'int64')
+#         loss = self.Adc_loss(logits, atom_dist_id)
+#         return loss
 
-class GeoPredModel(nn.Layer):
-    """tbd"""
-    def __init__(self, model_config, compound_encoder):
-        super(GeoPredModel, self).__init__()
-        self.compound_encoder = compound_encoder
-        
-        self.hidden_size = model_config['hidden_size']
-        self.dropout_rate = model_config['dropout_rate']
-        self.act = model_config['act']
-        self.pretrain_tasks = model_config['pretrain_tasks']
-        
-        # context mask
-        if 'Cm' in self.pretrain_tasks:
-            self.Cm_vocab = model_config['Cm_vocab']
-            self.Cm_linear = nn.Linear(compound_encoder.embed_dim, self.Cm_vocab + 3)
-            self.Cm_loss = nn.CrossEntropyLoss()
-        # functinal group
-        self.Fg_linear = nn.Linear(compound_encoder.embed_dim, model_config['Fg_size']) # 494
-        self.Fg_loss = nn.BCEWithLogitsLoss()
-        # bond angle with regression
-        if 'Bar' in self.pretrain_tasks:
-            self.Bar_mlp = MLP(2,
-                    hidden_size=self.hidden_size,
-                    act=self.act,
-                    in_size=compound_encoder.embed_dim * 3,
-                    out_size=1,
-                    dropout_rate=self.dropout_rate)
-            self.Bar_loss = nn.SmoothL1Loss()
-        # bond length with regression
-        if 'Blr' in self.pretrain_tasks:
-            self.Blr_mlp = MLP(2,
-                    hidden_size=self.hidden_size,
-                    act=self.act,
-                    in_size=compound_encoder.embed_dim * 2,
-                    out_size=1,
-                    dropout_rate=self.dropout_rate)
-            self.Blr_loss = nn.SmoothL1Loss()
-        # atom distance with classification
-        if 'Adc' in self.pretrain_tasks:
-            self.Adc_vocab = model_config['Adc_vocab']
-            self.Adc_mlp = MLP(2,
-                    hidden_size=self.hidden_size,
-                    in_size=self.compound_encoder.embed_dim * 2,
-                    act=self.act,
-                    out_size=self.Adc_vocab + 3,
-                    dropout_rate=self.dropout_rate)
-            self.Adc_loss = nn.CrossEntropyLoss()
+#     def forward(self, graph_dict, feed_dict, return_subloss=False):
+#         """
+#         Build the network.
+#         """
+#         node_repr, edge_repr, graph_repr = self.compound_encoder.forward(
+#                 graph_dict['atom_bond_graph'], graph_dict['bond_angle_graph'])
+#         masked_node_repr, masked_edge_repr, masked_graph_repr = self.compound_encoder.forward(
+#                 graph_dict['masked_atom_bond_graph'], graph_dict['masked_bond_angle_graph'])
 
-        print('[GeoPredModel] pretrain_tasks:%s' % str(self.pretrain_tasks))
+#         sub_losses = {}
+#         if 'Cm' in self.pretrain_tasks:
+#             sub_losses['Cm_loss'] = self._get_Cm_loss(feed_dict, node_repr)
+#             sub_losses['Cm_loss'] += self._get_Cm_loss(feed_dict, masked_node_repr)
+#         if 'Fg' in self.pretrain_tasks:
+#             sub_losses['Fg_loss'] = self._get_Fg_loss(feed_dict, graph_repr)
+#             sub_losses['Fg_loss'] += self._get_Fg_loss(feed_dict, masked_graph_repr)
+#         if 'Bar' in self.pretrain_tasks:
+#             sub_losses['Bar_loss'] = self._get_Bar_loss(feed_dict, node_repr)
+#             sub_losses['Bar_loss'] += self._get_Bar_loss(feed_dict, masked_node_repr)
+#         if 'Blr' in self.pretrain_tasks:
+#             sub_losses['Blr_loss'] = self._get_Blr_loss(feed_dict, node_repr)
+#             sub_losses['Blr_loss'] += self._get_Blr_loss(feed_dict, masked_node_repr)
+#         if 'Adc' in self.pretrain_tasks:
+#             sub_losses['Adc_loss'] = self._get_Adc_loss(feed_dict, node_repr)
+#             sub_losses['Adc_loss'] += self._get_Adc_loss(feed_dict, masked_node_repr)
 
-    def _get_Cm_loss(self, feed_dict, node_repr):
-        masked_node_repr = paddle.gather(node_repr, feed_dict['Cm_node_i'])
-        logits = self.Cm_linear(masked_node_repr)
-        loss = self.Cm_loss(logits, feed_dict['Cm_context_id'])
-        return loss
-
-    def _get_Fg_loss(self, feed_dict, graph_repr):
-        fg_label = paddle.concat(
-                [feed_dict['Fg_morgan'], 
-                feed_dict['Fg_daylight'], 
-                feed_dict['Fg_maccs']], 1)
-        logits = self.Fg_linear(graph_repr)
-        loss = self.Fg_loss(logits, fg_label)
-        return loss
-
-    def _get_Bar_loss(self, feed_dict, node_repr):
-        node_i_repr = paddle.gather(node_repr, feed_dict['Ba_node_i'])
-        node_j_repr = paddle.gather(node_repr, feed_dict['Ba_node_j'])
-        node_k_repr = paddle.gather(node_repr, feed_dict['Ba_node_k'])
-        node_ijk_repr = paddle.concat([node_i_repr, node_j_repr, node_k_repr], 1)
-        pred = self.Bar_mlp(node_ijk_repr)
-        loss = self.Bar_loss(pred, feed_dict['Ba_bond_angle'] / np.pi)
-        return loss
-
-    def _get_Blr_loss(self, feed_dict, node_repr):
-        node_i_repr = paddle.gather(node_repr, feed_dict['Bl_node_i'])
-        node_j_repr = paddle.gather(node_repr, feed_dict['Bl_node_j'])
-        node_ij_repr = paddle.concat([node_i_repr, node_j_repr], 1)
-        pred = self.Blr_mlp(node_ij_repr)
-        loss = self.Blr_loss(pred, feed_dict['Bl_bond_length'])
-        return loss
-
-    def _get_Adc_loss(self, feed_dict, node_repr):
-        node_i_repr = paddle.gather(node_repr, feed_dict['Ad_node_i'])
-        node_j_repr = paddle.gather(node_repr, feed_dict['Ad_node_j'])
-        node_ij_repr = paddle.concat([node_i_repr, node_j_repr], 1)
-        logits = self.Adc_mlp.forward(node_ij_repr)
-        atom_dist = paddle.clip(feed_dict['Ad_atom_dist'], 0.0, 20.0)
-        atom_dist_id = paddle.cast(atom_dist / 20.0 * self.Adc_vocab, 'int64')
-        loss = self.Adc_loss(logits, atom_dist_id)
-        return loss
-
-    def forward(self, graph_dict, feed_dict, return_subloss=False):
-        """
-        Build the network.
-        """
-        node_repr, edge_repr, graph_repr = self.compound_encoder.forward(
-                graph_dict['atom_bond_graph'], graph_dict['bond_angle_graph'])
-        masked_node_repr, masked_edge_repr, masked_graph_repr = self.compound_encoder.forward(
-                graph_dict['masked_atom_bond_graph'], graph_dict['masked_bond_angle_graph'])
-
-        sub_losses = {}
-        if 'Cm' in self.pretrain_tasks:
-            sub_losses['Cm_loss'] = self._get_Cm_loss(feed_dict, node_repr)
-            sub_losses['Cm_loss'] += self._get_Cm_loss(feed_dict, masked_node_repr)
-        if 'Fg' in self.pretrain_tasks:
-            sub_losses['Fg_loss'] = self._get_Fg_loss(feed_dict, graph_repr)
-            sub_losses['Fg_loss'] += self._get_Fg_loss(feed_dict, masked_graph_repr)
-        if 'Bar' in self.pretrain_tasks:
-            sub_losses['Bar_loss'] = self._get_Bar_loss(feed_dict, node_repr)
-            sub_losses['Bar_loss'] += self._get_Bar_loss(feed_dict, masked_node_repr)
-        if 'Blr' in self.pretrain_tasks:
-            sub_losses['Blr_loss'] = self._get_Blr_loss(feed_dict, node_repr)
-            sub_losses['Blr_loss'] += self._get_Blr_loss(feed_dict, masked_node_repr)
-        if 'Adc' in self.pretrain_tasks:
-            sub_losses['Adc_loss'] = self._get_Adc_loss(feed_dict, node_repr)
-            sub_losses['Adc_loss'] += self._get_Adc_loss(feed_dict, masked_node_repr)
-
-        loss = 0
-        for name in sub_losses:
-            loss += sub_losses[name]
-        if return_subloss:
-            return loss, sub_losses
-        else:
-            return loss
+#         loss = 0
+#         for name in sub_losses:
+#             loss += sub_losses[name]
+#         if return_subloss:
+#             return loss, sub_losses
+#         else:
+#             return loss
