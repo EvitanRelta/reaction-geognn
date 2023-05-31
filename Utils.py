@@ -3,7 +3,7 @@ from rdkit import Chem
 from rdkit.Chem import rdchem, AllChem
 from dgl import DGLGraph
 from dgl.transforms.functional import add_reverse_edges, to_simple
-from typing import TypeAlias, Any, Callable, Literal
+from typing import TypeAlias, Any, Callable, Literal, Final
 from dataclasses import dataclass
 from torch import Tensor
 
@@ -93,7 +93,7 @@ class Utils:
         """
         return [rdchem_enum.values[i] for i in range(len(rdchem_enum.values))]
 
-    FEATURES: dict[FeatureCategory, dict[FeatureName, Feature]] = {
+    FEATURES: Final[dict[FeatureCategory, dict[FeatureName, Feature]]] = {
         'atom_feats': {
             'atomic_num': Feature(
                 lambda atom: atom.GetAtomicNum(),
@@ -149,7 +149,7 @@ class Utils:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/model_configs/geognn_l8.json
     """
 
-    RBF_PARAMS: dict[RBFFeatureCategory, dict[FeatureName, tuple[RBFCenters, RBFGamma]]] = {
+    RBF_PARAMS: Final[dict[RBFFeatureCategory, dict[FeatureName, tuple[RBFCenters, RBFGamma]]]] = {
         'bond': {
             # Defined in GeoGNN's `BondFloatRBF` layer:
             # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L131
