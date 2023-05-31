@@ -191,6 +191,34 @@ class Utils:
         mol = AllChem.MolFromSmiles(smiles)
         mol, conf = Utils._generate_conformer(mol)
 
+        atom_bond_graph = Utils._get_atom_bond_graph(mol, conf)
+        bond_angle_graph = Utils._get_bond_angle_graph(mol, conf)
+        return atom_bond_graph, bond_angle_graph
+
+    @staticmethod
+    def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
+        new_mol = Chem.AddHs(mol)
+        res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)
+        ### MMFF generates multiple conformations
+        res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)
+        new_mol = Chem.RemoveHs(new_mol)
+        index = np.argmin([x[1] for x in res])
+        conf = new_mol.GetConformer(id=int(index))
+        return new_mol, conf
+
+    @staticmethod
+    def _get_atom_bond_graph(mol: Mol, conf: Conformer) -> DGLGraph:
+        """
+        Gets a graph, where the nodes are the atoms in the molecule, and the
+        edges are the bonds between 2 atoms.
+
+        Args:
+            mol (Mol): The `rdchem.Mol` of the molecule.
+            conf (Conformer): The `rdchem.Conformer` of the molecule.
+
+        Returns:
+            DGLGraph: Graph with atoms as nodes, bonds as edges.
+        """
         # Create an undirected DGL graph with all the molecule's nodes and edges.
         num_bonds = mol.GetNumBonds()
         edges = torch.zeros(num_bonds, dtype=torch.int32), torch.zeros(num_bonds, dtype=torch.int32)
@@ -211,18 +239,7 @@ class Utils:
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to('cuda:0')  # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
-        return graph, Utils._get_bond_angle_graph(mol, conf)
-
-    @staticmethod
-    def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
-        new_mol = Chem.AddHs(mol)
-        res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)
-        ### MMFF generates multiple conformations
-        res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)
-        new_mol = Chem.RemoveHs(new_mol)
-        index = np.argmin([x[1] for x in res])
-        conf = new_mol.GetConformer(id=int(index))
-        return new_mol, conf
+        return graph
 
     @staticmethod
     def _get_bond_angle_graph(mol: Mol, conf: Conformer) -> DGLGraph:
