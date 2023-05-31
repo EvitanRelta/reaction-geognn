@@ -1,6 +1,6 @@
 import dgl, torch, numpy as np
 from rdkit import Chem
-from rdkit.Chem import rdchem, AllChem
+from rdkit.Chem import rdchem, AllChem, rdMolTransforms as rdmt
 from dgl import DGLGraph
 from dgl.transforms.functional import add_reverse_edges, to_simple
 from typing import TypeAlias, Any, Callable, Literal, Final
@@ -175,14 +175,18 @@ class Utils:
     """
 
     @staticmethod
-    def smiles_to_graph(smiles: str) -> DGLGraph:
-        """Convert a molecule's SMILES string into a DGL graph.
+    def smiles_to_graphs(smiles: str) -> tuple[DGLGraph, DGLGraph]:
+        """
+        Convert a molecule's SMILES string into 2 DGL graphs:
+        - a graph with atoms as nodes, bonds as edges
+        - a graph with bonds as nodes, bond-angles as edges
 
         Args:
             smiles (str): A molecule's SMILES string.
 
         Returns:
-            DGLGraph: The molecule in graph form.
+            tuple[DGLGraph, DGLGraph]: 1st graph is the atom-bond graph, 2nd \
+                is the bond-angle graph.
         """
         mol = AllChem.MolFromSmiles(smiles)
         mol, conf = Utils._generate_conformer(mol)
@@ -207,7 +211,7 @@ class Utils:
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to('cuda:0')  # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
-        return graph
+        return graph, Utils._get_bond_angle_graph(mol, conf)
 
     @staticmethod
     def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
@@ -219,6 +223,56 @@ class Utils:
         index = np.argmin([x[1] for x in res])
         conf = new_mol.GetConformer(id=int(index))
         return new_mol, conf
+
+    @staticmethod
+    def _get_bond_angle_graph(mol: Mol, conf: Conformer) -> DGLGraph:
+        """
+        Gets a graph, where the nodes are the bonds in the molecule, and the
+        edges are the angles between 2 bonds.
+
+        Args:
+            mol (Mol): The `rdchem.Mol` of the molecule.
+            conf (Conformer): The `rdchem.Conformer` of the molecule.
+
+        Returns:
+            DGLGraph: Graph with bonds as nodes, bond-angles as edges.
+        """
+        # Number of bonds in the molecule.
+        num_of_bonds = mol.GetNumBonds()
+
+        # Initialize graph with 1 node per bond.
+        graph = DGLGraph()
+        graph.add_nodes(num_of_bonds)
+
+        # Calculate and store bond angles for each pair of bonds that share an atom.
+        for i in range(num_of_bonds):
+            bond_i = mol.GetBondWithIdx(i)
+            for j in range(i+1, num_of_bonds):
+                bond_j = mol.GetBondWithIdx(j)
+
+                # Get the 4 atoms of the 2 bonds.
+                atom_indexes: list[int] = [
+                    bond_i.GetBeginAtomIdx(),
+                    bond_i.GetEndAtomIdx(),
+                    bond_j.GetBeginAtomIdx(),
+                    bond_j.GetEndAtomIdx(),
+                ]
+                unique_atom_indexes = list(set(atom_indexes))
+
+                # Check if bonds share an atom.
+                if len(unique_atom_indexes) == 3:
+                    shared_atom_index = [x for x in atom_indexes if atom_indexes.count(x) > 1][0]
+                    ends_indexes = [x for x in atom_indexes if atom_indexes.count(x) == 1]
+
+                    # If so, calculate the bond angle.
+                    angle = rdmt.GetAngleRad(conf, ends_indexes[0], shared_atom_index, ends_indexes[1])
+
+                    # Add an edge to the graph for this bond angle.
+                    graph.add_edges(i, j, {'bond_angle': torch.tensor([angle])})
+
+        graph = to_bidirected_copy(graph)   # Convert to undirected graph.
+        graph = graph.to('cuda:0')  # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
+        return graph
 
     @staticmethod
     def _get_atom_positions(mol: Mol, conf: Conformer) -> Tensor:
