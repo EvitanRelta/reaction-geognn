@@ -198,11 +198,12 @@ class Utils:
         # Add node features.
         for feat_name, feat in Utils.FEATURES['atom_feats'].items():
             graph.ndata[feat_name] = torch.tensor([feat.get_encoded_feat_value(atom) for atom in mol.GetAtoms()])
+        graph.ndata['atom_pos'] = Utils._get_atom_positions(mol, conf)
 
         # Add edge features.
         for feat_name, feat in Utils.FEATURES['bond_feats'].items():
             graph.edata[feat_name] = torch.tensor([feat.get_encoded_feat_value(bond) for bond in mol.GetBonds()])
-        graph.edata['bond_length'] = Utils._get_bond_lengths(mol, conf, graph.edges())
+        graph.edata['bond_length'] = Utils._get_bond_lengths(graph)
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to('cuda:0')  # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
@@ -240,21 +241,23 @@ class Utils:
         return raw_atom_positions[:mol.GetNumAtoms()]
 
     @staticmethod
-    def _get_bond_lengths(mol: Mol, conf: Conformer, edges_tuple: tuple[Tensor, Tensor]) -> Tensor:
+    def _get_bond_lengths(graph: DGLGraph) -> Tensor:
         """
         Gets all the bond lengths in a molecule.
 
+        Note: This requires the 3D-coords of the atoms to already be computed at
+        `graph.ndata['atom_pos']`.
+
         Args:
-            mol (Mol): The `rdchem.Mol` of the molecule.
-            conf (Conformer): The `rdchem.Conformer` of the molecule.
-            edges_tuple (tuple[Tensor, Tensor]): Tuple containing the tensors \
-                the source and destination node indexes of all the edges, \
-                returned by `DGLGraph.edges()`.
+            graph (DGLGraph): The graph with atoms as nodes, bonds as edges, and \
+                with the 3D-coords of the atoms already computed at \
+                `graph.ndata['atom_pos']`.
 
         Returns:
             Tensor: Bond lengths of all the bonds in the molecule.
         """
-        atom_positions = Utils._get_atom_positions(mol, conf)
+        atom_positions: Tensor = graph.ndata['atom_pos']
+        edges_tuple: tuple[Tensor, Tensor] = graph.edges()
 
         src_node_idx, dst_node_idx = edges_tuple
 
