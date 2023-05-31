@@ -256,7 +256,6 @@ class Utils:
         """
         atom_positions = Utils._get_atom_positions(mol, conf)
 
-        # Move tensors to CPU first before splitting, else it'll throw an error later.
         src_node_idx, dst_node_idx = edges_tuple
 
         # To use as tensor indexes, these index tensors needs to be dtype=long.
