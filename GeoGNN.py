@@ -97,7 +97,9 @@ class GeoGNNModel(nn.Module):
     def __init__(
         self,
         embed_dim: int = 32,
-        dropout_rate: float = 0.2,
+        # Pretraining's dropout rate is 0.2, based on `pretrain.sh` script:
+        # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/pretrain.sh#L26
+        dropout_rate: float = 0.5,
         num_of_layers: int = 8,
         atom_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['atom_feats'],
         bond_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['bond_feats'],
@@ -109,6 +111,11 @@ class GeoGNNModel(nn.Module):
         the `self.graph_pool` value are based on GeoGNN's `geognn_l8.json`
         config:
         https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/model_configs/geognn_l8.json
+
+        ### Note:
+        `dropout_rate` during GeoGNN's pretraining is `0.2` based on
+        `pretrain.sh`:
+        https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/pretrain.sh
 
         Args:
             embed_dim (int, optional): Dimension of the feature embeddings. \
