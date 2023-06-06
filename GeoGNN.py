@@ -104,6 +104,28 @@ class GeoGNNModel(nn.Module):
         bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond'],
         bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle']
     ) -> None:
+        """
+        Default values for `embed_dim`, `dropout_rate` and `num_of_layers` and
+        the `self.graph_pool` value are based on GeoGNN's `geognn_l8.json`
+        config:
+        https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/model_configs/geognn_l8.json
+
+        Args:
+            embed_dim (int, optional): Dimension of the feature embeddings. \
+                Defaults to 32.
+            dropout_rate (float, optional): Dropout rate for the dropout layers. \
+                Defaults to 0.2.
+            num_of_layers (int, optional): Number of `GeoGNNLayer` layers used. \
+                Defaults to 8.
+            atom_feat_dict (dict[FeatureName, Feature], optional): Details for \
+                the atom features. Defaults to Utils.FEATURES['atom_feats'].
+            bond_feat_dict (dict[FeatureName, Feature], optional): Details for \
+                the bond features. Defaults to Utils.FEATURES['bond_feats'].
+            bond_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]], optional): \
+                RBF-layer's params for the bonds. Defaults to Utils.RBF_PARAMS['bond'].
+            bond_angle_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]], optional): \
+                RBF-layer's params for the bond-angles. Defaults to Utils.RBF_PARAMS['bond_angle'].
+        """
         super(GeoGNNModel, self).__init__()
 
         self.embed_dim = embed_dim
