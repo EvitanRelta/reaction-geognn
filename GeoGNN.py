@@ -1,5 +1,5 @@
 """
-This is an implementation of GeoGNN using Pytorch/Pytorch Geometric.
+This is an implementation of GeoGNN using PyTorch/PyTorch Geometric.
 """
 
 from torch import nn, Tensor
@@ -17,7 +17,12 @@ class GeoGNNBlock(nn.Module):
     """
     GeoGNN Block
     """
-    def __init__(self, embed_dim:int=32, dropout_rate:float=0.5, has_last_act:bool=True):
+    def __init__(
+        self,
+        embed_dim: int = 32,
+        dropout_rate: float = 0.5,
+        has_last_act: bool = True
+    ):
         super(GeoGNNBlock, self).__init__()
 
         self.embed_dim = embed_dim
@@ -120,14 +125,18 @@ class GeoGNNModel(nn.Module):
     def __init__(
         self,
         embed_dim: int = 32,
+
         # Pretraining's dropout rate is 0.2, based on `pretrain.sh` script:
         # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/pretrain.sh#L26
         dropout_rate: float = 0.5,
+
         num_of_layers: int = 8,
         atom_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['atom_feats'],
         bond_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['bond_feats'],
-        bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond'],
-        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle']
+        bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] \
+            = Utils.RBF_PARAMS['bond'],
+        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] \
+            = Utils.RBF_PARAMS['bond_angle']
     ) -> None:
         """
         Default values for `embed_dim`, `dropout_rate` and `num_of_layers` and

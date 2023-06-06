@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor, nn
 from Utils import Feature, FeatureName
-from typing import Callable, cast
+from typing import cast
 
 
 class FeaturesEmbedding(nn.Module):
@@ -13,7 +13,7 @@ class FeaturesEmbedding(nn.Module):
     `(num_elements, self.embed_dim)`, then summing all the features' embeddings
     into one embedding.
 
-    This is a generalised Pytorch equivalent of GeoGNN's `AtomEmbedding`:
+    This is a generalised PyTorch equivalent of GeoGNN's `AtomEmbedding`:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L28-L52
 
     and `BondEmbedding`:
