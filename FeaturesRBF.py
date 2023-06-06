@@ -31,27 +31,21 @@ class FeaturesRBF(nn.Module):
             output_dim (int): The output embedding dimension.
         """
         super(FeaturesRBF, self).__init__()
-
         self.output_dim = output_dim
-
-        # Temp. type for fixing type hints.
-        _ZippedType = tuple[tuple[FeatureName, ...], tuple[tuple[RBFCenters, RBFGamma], ...]]
-        self.feat_names, self.rbf_params = cast(_ZippedType, zip(*rbf_param_dict.items()))
-
-        self.module_list = nn.ModuleList()
-        for centers, gamma in self.rbf_params:
+        self.module_dict = nn.ModuleDict()
+        for feat_name, (centers, gamma) in rbf_param_dict.items():
             layer = nn.Sequential(
                 FixedRBF(centers, gamma),
                 nn.Linear(len(centers), output_dim)
             )
-            self.module_list.append(layer)
+            self.module_dict[feat_name] = layer
 
     def reset_parameters(self) -> None:
         """
         Resets the weights of all the `nn.Linear` submodules by calling
         `nn.Linear.reset_parameters()` on each of them.
         """
-        for sequential in self.module_list:
+        for _, sequential in self.module_dict.items():
             cast(nn.Linear, sequential[1]).reset_parameters()
 
     def forward(self, feat_tensor_dict: dict[FeatureName, Tensor]) -> Tensor:
@@ -69,10 +63,11 @@ class FeaturesRBF(nn.Module):
         device = next(self.parameters()).device
         output_embed = torch.zeros(num_of_elements, self.output_dim, dtype=torch.float32, device=device)
 
-        for i, feat_name in enumerate(self.feat_names):
-            layer: nn.Sequential = self.module_list[i]
-            feat = feat_tensor_dict[feat_name]
-            layer_output = layer.forward(feat)
+        for feat_name, tensor in feat_tensor_dict.items():
+            if feat_name not in self.module_dict:
+                continue
+            layer: nn.Sequential = self.module_dict[feat_name]
+            layer_output = cast(Tensor, layer.forward(tensor))
             output_embed += layer_output
 
         return output_embed

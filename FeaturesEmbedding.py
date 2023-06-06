@@ -35,20 +35,11 @@ class FeaturesEmbedding(nn.Module):
                 `num_embeddings` in `nn.Embedding` to act as padding.
         """
         super(FeaturesEmbedding, self).__init__()
-
         self.embed_dim = embed_dim
-
-        # Temp. type for fixing type hints.
-        _ZippedType = tuple[tuple[FeatureName, ...], tuple[Feature, ...]]
-        self.feat_names, self.feats = cast(_ZippedType, zip(*feat_dict.items()))
-
-        get_input_dim: Callable[[Feature], int] = \
-            lambda feat: len(feat.possible_values) + feat_padding
-
-        self.embed_list = nn.ModuleList([
-            nn.Embedding(get_input_dim(feat), embed_dim) \
-                for feat in self.feats
-        ])
+        self.embed_dict = nn.ModuleDict()
+        for feat_name, feat in feat_dict.items():
+            input_dim = len(feat.possible_values) + feat_padding
+            self.embed_dict[feat_name] = nn.Embedding(input_dim, embed_dim)
 
         self.reset_parameters()
 
@@ -57,8 +48,8 @@ class FeaturesEmbedding(nn.Module):
         Resets the weights of all the `nn.Embedding` submodules by reinitializing
         each of their weights using Xavier Uniform initialisation.
         """
-        for embedding in self.embed_list:
-            nn.init.xavier_uniform_(embedding.weight)
+        for _, embedding in self.embed_dict.items():
+            nn.init.xavier_uniform_(cast(nn.Embedding, embedding).weight)
 
     def forward(self, feat_tensor_dict: dict[FeatureName, Tensor]) -> Tensor:
         """
@@ -75,10 +66,11 @@ class FeaturesEmbedding(nn.Module):
         device = next(self.parameters()).device
         output_embed = torch.zeros(num_of_elements, self.embed_dim, dtype=torch.float32, device=device)
 
-        for i, feat_name in enumerate(self.feat_names):
-            embedding_layer: nn.Embedding = self.embed_list[i]
-            feat = feat_tensor_dict[feat_name]
-            layer_output = embedding_layer.forward(feat)
+        for feat_name, tensor in feat_tensor_dict.items():
+            if feat_name not in self.embed_dict:
+                continue
+            embedding_layer: nn.Embedding = self.embed_dict[feat_name]
+            layer_output = embedding_layer.forward(tensor)
             output_embed += layer_output
 
         return output_embed
