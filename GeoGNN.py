@@ -84,10 +84,33 @@ class GeoGNNLayer(nn.Module):
 
         bond_embed = self.bond_embedding.forward(atom_bond_graph.edata) \
             + self.bond_rbf.forward(atom_bond_graph.edata)
+
+        # Since `atom_bond_graph` is bidirected, there's 2 copies of each edge
+        # (ie. the bonds). This removes one of the bond edge copies, so as to
+        # match the number of bond nodes in `bond_angle_graph`.
+        bond_embed = GeoGNNLayer._get_unidirected_feats(atom_bond_graph, bond_embed)
+
         bond_angle_embed = self.bond_angle_rbf.forward(bond_angle_graph.edata)
         edge_out = self.bond_angle_gnn_block.forward(bond_angle_graph, bond_embed, bond_angle_embed)
 
         return node_out, edge_out
+
+    @staticmethod
+    def _get_unidirected_feats(
+        bidirected_graph: DGLGraph,
+        bidirected_edge_feats: Tensor
+    ) -> Tensor:
+        """
+        Converts bi-directed edge features to uni-directed. Bi-directed graphs
+        have 2 copies of each undirected-edge; this method removes the values of
+        1 of those copies.
+        """
+        u, v = bidirected_graph.edges()
+
+        # Include only edge features where
+        # the edge's source-node ID < the destination-node ID.
+        mask = u < v
+        return bidirected_edge_feats[mask]
 
 
 class GeoGNNModel(nn.Module):
