@@ -47,12 +47,12 @@ class GeoGNNBlock(nn.Module):
 class GeoGNNLayer(nn.Module):
     def __init__(
         self,
-        embed_dim: int = 32,
-        dropout_rate: float = 0.2,
-        has_last_act: bool = True,
-        atom_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['atom_feats'],
-        bond_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['bond_feats'],
-        bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond'],
+        embed_dim: int,
+        dropout_rate: float,
+        has_last_act: bool,
+        atom_feat_dict: dict[FeatureName, Feature],
+        bond_feat_dict: dict[FeatureName, Feature],
+        bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]],
         bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle']
     ) -> None:
         super(GeoGNNLayer, self).__init__()
