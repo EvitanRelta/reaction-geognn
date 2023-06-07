@@ -8,12 +8,19 @@ class SimpleGIN(nn.Module):
     Implementation of Graph Isomorphism Network (GIN) layer
     for undirected graphs, that accounts for with edge features.
     """
-    def __init__(self, hidden_size: int) -> None:
+    def __init__(self, mlp_in_size: int, mlp_hidden_size: int, mlp_out_size: int) -> None:
+        """
+        - `MLP` - Multilayer Perceptron
+        Args:
+            mlp_in_size (int): Input size of the MLP.
+            mlp_hidden_size (int): Hidden layer's size of the MLP.
+            mlp_out_size (int): Output size of the MLP.
+        """
         super(SimpleGIN, self).__init__()
         self.mlp = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size * 2),
+            nn.Linear(mlp_in_size, mlp_hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size * 2, hidden_size)
+            nn.Linear(mlp_hidden_size, mlp_out_size)
         )
 
     def reset_parameters(self) -> None:
@@ -29,11 +36,11 @@ class SimpleGIN(nn.Module):
             edge_feats (Tensor): The input edge features.
         """
         with graph.local_scope():
-            graph.ndata["h"] = node_feats
-            graph.edata["h"] = edge_feats
+            graph.ndata['h_n'] = node_feats
+            graph.edata['h_e'] = edge_feats
             graph.update_all(
-                message_func=fn.u_add_e('h', 'h', 'm'),
-                reduce_func=fn.sum("m", "h_out"),
+                message_func=fn.u_add_e('h_n', 'h_e', 'm'),
+                reduce_func=fn.sum('m', 'h_out'),
             )
-            output_node_feats = graph.ndata["h_out"]
+            output_node_feats = graph.ndata['h_out']
             return self.mlp.forward(output_node_feats)
