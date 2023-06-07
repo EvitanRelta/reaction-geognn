@@ -263,8 +263,7 @@ class Utils:
         num_of_bonds = mol.GetNumBonds()
 
         # Initialize graph with 1 node per bond.
-        graph = DGLGraph()
-        graph.add_nodes(num_of_bonds)
+        graph = dgl.graph(([], []), num_nodes=num_of_bonds)
 
         # Calculate and store bond angles for each pair of bonds that share an atom.
         for i in range(num_of_bonds):
