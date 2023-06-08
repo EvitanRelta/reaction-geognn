@@ -14,6 +14,10 @@ from esol_dataset import load_esol_dataset, ESOLDataElement
 from typing import cast
 
 
+# Set to only use the 3rd GPU (ie. GPU-2).
+# Since GPU-0 is over-subscribed, and also I'm told to only use 1 out of our 4 GPUs only.
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
 class ESOLDataset(Dataset):
     def __init__(self) -> None:
         self.dataset, self.mean, self.std = load_esol_dataset()
