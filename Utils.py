@@ -227,7 +227,7 @@ class Utils:
         for i, bond in enumerate(mol.GetBonds()):
             edges[0][i] = bond.GetBeginAtomIdx()
             edges[1][i] = bond.GetEndAtomIdx()
-        graph = dgl.graph(edges, idtype=torch.int32)
+        graph = dgl.graph(edges, num_nodes=mol.GetNumAtoms(), idtype=torch.int32)
 
         # Add node features.
         for feat_name, feat in Utils.FEATURES['atom_feats'].items():
@@ -264,6 +264,11 @@ class Utils:
 
         # Initialize graph with 1 node per bond.
         graph = dgl.graph(([], []), num_nodes=num_of_bonds)
+
+        # For the edge case where there's no bonds.
+        if num_of_bonds == 0:
+            graph.edata['bond_angle'] = torch.tensor([])
+            return graph
 
         # Calculate and store bond angles for each pair of bonds that share an atom.
         for i in range(num_of_bonds):

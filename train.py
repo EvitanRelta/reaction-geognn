@@ -18,12 +18,6 @@ class ESOLDataset(Dataset):
     def __init__(self) -> None:
         self.dataset, self.mean, self.std = load_esol_dataset()
 
-        # Temp fix for dataset. Removes a data element with SMILES "C" which was
-        # crashing the code.
-        self.dataset.pop(934)
-        self.mean = self.mean[torch.arange(len(self.mean)) != 934]
-        self.std = self.std[torch.arange(len(self.std)) != 934]
-
     def __getitem__(self, index: int) -> ESOLDataElement:
         return self.dataset[index]
 
