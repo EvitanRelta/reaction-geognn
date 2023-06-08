@@ -77,7 +77,8 @@ def train_model(num_epochs: int = 100, checkpoint_path: str = './checkpoints/') 
     # Define loss function - since ESOL is a regression task, we use MSE loss
     criterion = torch.nn.MSELoss()
 
-    start_epoch = 0
+    start_epoch: int = 0
+    epoch_losses: list[float] = []
 
     # Check if there is a checkpoint
     checkpoint_files = sorted([f for f in os.listdir(checkpoint_path) if f.endswith('.pth')])
@@ -89,13 +90,15 @@ def train_model(num_epochs: int = 100, checkpoint_path: str = './checkpoints/') 
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1  # start from the next epoch
+        epoch_losses = checkpoint['epoch_losses']
         print(f'Loaded checkpoint from epoch {start_epoch}')
 
     # Train model
     start_time = time.time()
     losses: list[float] = []
     for epoch in range(start_epoch, num_epochs):
-        for i, (atom_bond_graphs, bond_angle_graphs, labels) in enumerate(data_loader):
+        for i, batch_data in enumerate(data_loader):
+            atom_bond_graphs, bond_angle_graphs, labels = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
             atom_bond_graphs = atom_bond_graphs.to(device)
             bond_angle_graphs = bond_angle_graphs.to(device)
             labels = labels.to(device)
@@ -122,10 +125,13 @@ def train_model(num_epochs: int = 100, checkpoint_path: str = './checkpoints/') 
 
         avg_loss = sum(losses) / len(losses)
         losses = []
-        print(f'=== Epoch {epoch+1:04}, Avg loss: {avg_loss:06.3f} ===')
+        epoch_losses.append(avg_loss)
+        prev_epoch_loss = epoch_losses[-2] if len(epoch_losses) >= 2 else 0.0
+        print(f'=== Epoch {epoch+1:04}, Avg loss: {avg_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
 
         torch.save({
             'epoch': epoch,
+            'epoch_losses': epoch_losses,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict()
         }, f'./checkpoints/esol_only_checkpoint_{epoch}.pth')
