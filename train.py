@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 import dgl
 from dgl import DGLGraph
 import time
+import os
 
 from Utils import Utils
 from DownstreamModel import DownstreamModel
@@ -51,7 +52,7 @@ class GraphDataLoader(DataLoader):
         return dgl.batch(atom_bond_graphs), dgl.batch(bond_angle_graphs), torch.stack(labels)
 
 
-def train_model(num_epochs: int = 100) -> None:
+def train_model(num_epochs: int = 100, checkpoint_path: str = './checkpoints/') -> None:
     # Instantiate your GNN model
     compound_encoder = GeoGNNModel()  # Add necessary arguments if needed
 
@@ -76,10 +77,24 @@ def train_model(num_epochs: int = 100) -> None:
     # Define loss function - since ESOL is a regression task, we use MSE loss
     criterion = torch.nn.MSELoss()
 
+    start_epoch = 0
+
+    # Check if there is a checkpoint
+    checkpoint_files = sorted([f for f in os.listdir(checkpoint_path) if f.endswith('.pth')])
+    if checkpoint_files:
+        # load the last checkpoint
+        latest_checkpoint = checkpoint_files[-1]
+        checkpoint = torch.load(os.path.join(checkpoint_path, latest_checkpoint))
+
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch'] + 1  # start from the next epoch
+        print(f'Loaded checkpoint from epoch {start_epoch}')
+
     # Train model
     start_time = time.time()
     losses: list[float] = []
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, num_epochs):
         for i, (atom_bond_graphs, bond_angle_graphs, labels) in enumerate(data_loader):
             atom_bond_graphs = atom_bond_graphs.to(device)
             bond_angle_graphs = bond_angle_graphs.to(device)
@@ -108,7 +123,12 @@ def train_model(num_epochs: int = 100) -> None:
         avg_loss = sum(losses) / len(losses)
         losses = []
         print(f'=== Epoch {epoch+1:04}, Avg loss: {avg_loss:06.3f} ===')
-        torch.save(model.state_dict(), f'./checkpoints/esol_only_checkpoint_{epoch}.pth')
+
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict()
+        }, f'./checkpoints/esol_only_checkpoint_{epoch}.pth')
 
 
 if __name__ == "__main__":
