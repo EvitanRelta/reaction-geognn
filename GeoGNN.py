@@ -13,7 +13,7 @@ from dgl.nn.pytorch.glob import AvgPooling
 from typing import cast
 
 
-class GeoGNNBlock(nn.Module):
+class InnerGNN(nn.Module):
     """
     GeoGNN Block
     """
@@ -23,7 +23,7 @@ class GeoGNNBlock(nn.Module):
         dropout_rate: float = 0.5,
         has_last_act: bool = True
     ):
-        super(GeoGNNBlock, self).__init__()
+        super(InnerGNN, self).__init__()
 
         self.embed_dim = embed_dim
         self.has_last_act = has_last_act
@@ -68,8 +68,8 @@ class GeoGNNLayer(nn.Module):
         self.bond_embedding = FeaturesEmbedding(bond_feat_dict, embed_dim)
         self.bond_rbf = FeaturesRBF(bond_rbf_param_dict, embed_dim)
         self.bond_angle_rbf = FeaturesRBF(bond_angle_rbf_param_dict, embed_dim)
-        self.atom_bond_gnn_block = GeoGNNBlock(embed_dim, dropout_rate, has_last_act)
-        self.bond_angle_gnn_block = GeoGNNBlock(embed_dim, dropout_rate, has_last_act)
+        self.atom_bond_gnn_block = InnerGNN(embed_dim, dropout_rate, has_last_act)
+        self.bond_angle_gnn_block = InnerGNN(embed_dim, dropout_rate, has_last_act)
 
     def reset_parameters(self) -> None:
         self.bond_embedding.reset_parameters()
