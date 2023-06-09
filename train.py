@@ -84,7 +84,7 @@ def train_model(num_epochs: int = 100) -> None:
 # ==================================================
 #          Helper types/classes/functions
 # ==================================================
-Criterion: TypeAlias = nn.MSELoss
+Criterion: TypeAlias = nn.L1Loss
 EncoderOptimizer: TypeAlias = Adam
 HeadOptimizer: TypeAlias = Adam
 
@@ -151,8 +151,9 @@ def _init_objects(device: torch.device) \
     )
     model = model.to(device)
 
-    # Define loss function - since ESOL is a regression task, we use MSE loss
-    criterion = nn.MSELoss()
+    # Loss function based on GeoGNN's `finetune_regr.py`:
+    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L159-L160
+    criterion = torch.nn.L1Loss()
 
     data_loader = GraphDataLoader(
         dataset = ESOLDataset(),
