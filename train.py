@@ -6,7 +6,7 @@ import dgl
 from dgl import DGLGraph
 import time
 import os
-from typing import cast
+from typing import TypeAlias, TypedDict, cast
 
 from Utils import Utils
 from DownstreamModel import DownstreamModel
@@ -17,6 +17,97 @@ from esol_dataset import ESOLDataset, ESOLDataElement
 # Set to only use the 3rd GPU (ie. GPU-2).
 # Since GPU-0 is over-subscribed, and also I'm told to only use 1 out of our 4 GPUs.
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
+def train_model(num_epochs: int = 100) -> None:
+    # Use GPU if available, else use CPU.
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+    # Init / Load all the object instances.
+    compound_encoder, model, criterion, data_loader, encoder_optimizer, head_optimizer \
+        = _init_objects(device)
+    previous_epoch = -1
+    epoch_losses: list[float] = []
+    compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses \
+        = _load_checkpoint_if_exists('./checkpoints/', model, encoder_optimizer, head_optimizer)
+
+    # Train model
+    start_epoch: int = previous_epoch + 1   # start from the next epoch
+    start_time = time.time()
+    losses: list[float] = []
+    for epoch in range(start_epoch, num_epochs):
+        for i, batch_data in enumerate(data_loader):
+            batch_atom_bond_graph, batch_bond_angle_graph, labels \
+                = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
+
+            # Zero grad the optimizers
+            encoder_optimizer.zero_grad()
+            head_optimizer.zero_grad()
+
+            # Forward pass
+            outputs = model.forward(batch_atom_bond_graph, batch_bond_angle_graph)
+
+            # Calculate loss
+            loss = criterion.forward(outputs, labels)
+
+            # Backward pass
+            loss.backward()
+
+            # Update weights
+            encoder_optimizer.step()
+            head_optimizer.step()
+
+            losses.append(loss.item())
+            end_time = time.time()
+            print(f'Batch {i+1:04}, Time: {end_time - start_time:.2f}, Loss: {loss.item():06.3f}')
+            start_time = end_time
+
+        avg_loss = sum(losses) / len(losses)
+        losses = []
+        epoch_losses.append(avg_loss)
+        prev_epoch_loss = epoch_losses[-2] if len(epoch_losses) >= 2 else 0.0
+        print(f'=== Epoch {epoch+1:04}, Avg loss: {avg_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
+
+        # Save checkpoint of epoch.
+        checkpoint_dict: GeoGNNCheckpoint = {
+            'epoch': epoch,
+            'epoch_losses': epoch_losses,
+            'model_state_dict': model.state_dict(),
+            'encoder_optimizer_state_dict': encoder_optimizer.state_dict(),
+            'head_optimizer_state_dict': head_optimizer.state_dict()
+        }
+        torch.save(checkpoint_dict, f'./checkpoints/esol_only_checkpoint_{epoch}.pth')
+
+
+
+
+
+# ==================================================
+#          Helper types/classes/functions
+# ==================================================
+Criterion: TypeAlias = nn.MSELoss
+EncoderOptimizer: TypeAlias = Adam
+HeadOptimizer: TypeAlias = Adam
+
+class GeoGNNCheckpoint(TypedDict):
+    """Dict type of a loaded checkpoint."""
+    
+    epoch: int
+    """Epoch for this checkpoint (zero-indexed)."""
+
+    epoch_losses: list[float]
+    """Losses for each epoch."""
+
+    model_state_dict: dict
+    """State dict of the `DownstreamModel` instance."""
+
+    encoder_optimizer_state_dict: dict
+    """State dict of the `Adam` optimizer for the `GeoGNN` instance."""
+
+    head_optimizer_state_dict: dict
+    """
+    State dict of the `Adam` optimizer for the `DownstreamModel` parameters but
+    excluding those in `GeoGNN`.
+    """
 
 class GraphDataLoader(DataLoader):
     def __init__(
@@ -46,60 +137,8 @@ class GraphDataLoader(DataLoader):
             torch.stack(labels).to(self.device)
         )
 
-
-def train_model(num_epochs: int = 100) -> None:
-    # Use GPU if available, else use CPU.
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-    # Init / Load all the object instances.
-    compound_encoder, model, criterion, data_loader, optimizer = _init_objects(device)
-    compound_encoder, model, optimizer, previous_epoch, epoch_losses \
-        = _load_checkpoint_if_exists('./checkpoints/', model, optimizer)
-
-    # Train model
-    start_epoch: int = previous_epoch + 1   # start from the next epoch
-    start_time = time.time()
-    losses: list[float] = []
-    for epoch in range(start_epoch, num_epochs):
-        for i, batch_data in enumerate(data_loader):
-            atom_bond_graphs, bond_angle_graphs, labels = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
-
-            # Zero grad the optimizer
-            optimizer.zero_grad()
-
-            # Forward pass
-            outputs = model.forward(atom_bond_graphs, bond_angle_graphs)
-
-            # Calculate loss
-            loss = criterion.forward(outputs, labels)
-
-            # Backward pass
-            loss.backward()
-
-            # Update weights
-            optimizer.step()
-
-            losses.append(loss.item())
-            end_time = time.time()
-            print(f'Batch {i+1:04}, Time: {end_time - start_time:.2f}, Loss: {loss.item():06.3f}')
-            start_time = end_time
-
-        avg_loss = sum(losses) / len(losses)
-        losses = []
-        epoch_losses.append(avg_loss)
-        prev_epoch_loss = epoch_losses[-2] if len(epoch_losses) >= 2 else 0.0
-        print(f'=== Epoch {epoch+1:04}, Avg loss: {avg_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
-
-        torch.save({
-            'epoch': epoch,
-            'epoch_losses': epoch_losses,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict()
-        }, f'./checkpoints/esol_only_checkpoint_{epoch}.pth')
-
-
 def _init_objects(device: torch.device) \
-    -> tuple[GeoGNNModel, DownstreamModel, nn.MSELoss, GraphDataLoader, Adam]:
+    -> tuple[GeoGNNModel, DownstreamModel, Criterion, GraphDataLoader, EncoderOptimizer, HeadOptimizer]:
     """
     Initialize all the required object instances.
     """
@@ -121,16 +160,22 @@ def _init_objects(device: torch.device) \
         shuffle = True,
         device = device
     )
-    optimizer = Adam(model.parameters())
 
-    return compound_encoder, model, criterion, data_loader, optimizer
+    # DownstreamModel params but excluding those in GeoGNN.
+    head_params = list(set(model.parameters()) - set(compound_encoder.parameters()))
+
+    encoder_optimizer = Adam(compound_encoder.parameters())
+    head_optimizer = Adam(head_params)
+
+    return compound_encoder, model, criterion, data_loader, encoder_optimizer, head_optimizer
 
 
 def _load_checkpoint_if_exists(
     checkpoint_dir: str,
     model: DownstreamModel,
-    optimizer: Adam
-) -> tuple[GeoGNNModel, DownstreamModel, Adam, int, list[float]]:
+    encoder_optimizer: Adam,
+    head_optimizer: Adam
+) -> tuple[GeoGNNModel, DownstreamModel, EncoderOptimizer, HeadOptimizer, int, list[float]]:
     # Make the checkpoint dir if it doesn't exist.
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -140,19 +185,22 @@ def _load_checkpoint_if_exists(
     has_checkpoint = len(checkpoint_files) > 0
     if not has_checkpoint:
         # If not, return the arguments as is / default values for epoch/loss-list.
-        return model.compound_encoder, model, optimizer, -1, []
+        return model.compound_encoder, model, encoder_optimizer, head_optimizer, -1, []
 
-    # load the last checkpoint
+    # Load the last checkpoint.
     latest_checkpoint = checkpoint_files[-1]
     checkpoint = torch.load(os.path.join(checkpoint_dir, latest_checkpoint))
+    checkpoint = cast(GeoGNNCheckpoint, checkpoint)
 
+    # Load the saved values in the checkpoint.
     model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer_state_dict'])
+    head_optimizer.load_state_dict(checkpoint['head_optimizer_state_dict'])
     previous_epoch = checkpoint['epoch']
     epoch_losses = checkpoint['epoch_losses']
     print(f'Loaded checkpoint from epoch {previous_epoch}')
 
-    return model.compound_encoder, model, optimizer, previous_epoch, epoch_losses
+    return model.compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses
 
 
 if __name__ == "__main__":
