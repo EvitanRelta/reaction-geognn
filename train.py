@@ -65,7 +65,7 @@ def train_model(num_epochs: int = 100) -> None:
         losses = []
         epoch_losses.append(avg_loss)
         prev_epoch_loss = epoch_losses[-2] if len(epoch_losses) >= 2 else 0.0
-        print(f'=== Epoch {epoch+1:04}, Avg loss: {avg_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
+        print(f'=== Epoch {epoch:04}, Avg loss: {avg_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
 
         # Save checkpoint of epoch.
         checkpoint_dict: GeoGNNCheckpoint = {
