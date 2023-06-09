@@ -30,13 +30,23 @@ from typing import TypeAlias
 import pandas as pd
 import torch
 from torch import Tensor
+from torch.utils.data import Dataset
 
 
 ESOLDataElement: TypeAlias = dict[str, str | Tensor]
 
-def load_esol_dataset(
-    csv_path: str = './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv',
-) -> tuple[list[ESOLDataElement], Tensor, Tensor]:
+class ESOLDataset(Dataset):
+    def __init__(self) -> None:
+        csv_path = './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv'
+        self.dataset, self.mean, self.std = load_esol_dataset(csv_path)
+
+    def __getitem__(self, index: int) -> ESOLDataElement:
+        return self.dataset[index]
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+def load_esol_dataset(csv_path: str) -> tuple[list[ESOLDataElement], Tensor, Tensor]:
     """
     Loads the ESOL dataset, and the dataset's mean and standard deviation.
     
