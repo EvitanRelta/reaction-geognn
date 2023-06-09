@@ -10,7 +10,7 @@ This is a PyTorch equivalent of GeoGNN's `esol_dataset.py`:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_dataset.py
 """
 
-from typing import TypedDict
+from typing import TypedDict, cast
 import pandas as pd
 import torch
 from torch import Tensor
@@ -23,53 +23,59 @@ class ESOLDataElement(TypedDict):
     smiles: str
     """SMILES string of the data's molecule."""
 
-    label: Tensor
-    """Ground truth log-solublity in mols/L."""
+    data: Tensor
+    """Ground truth water log-solublity in mols/L. Size `(1, )`"""
+
 
 class ESOLDataset(Dataset):
-    def __init__(self) -> None:
-        csv_path = './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv'
-        self.dataset, self.mean, self.std = load_esol_dataset(csv_path)
+    """
+    Water solubility data (log-solubility in mols/L) for common small organic
+    molecules.
+    
+    The dataset can be downloaded from:
+    https://moleculenet.org/datasets-1
+    """
+
+    def __init__(
+        self,
+        csv_path: str = './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv'
+    ) -> None:
+        """
+        Args:
+            csv_path (str, optional): Path to the dataset's `.csv` file. \
+                Defaults to './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv'.
+        """
+        columns_to_use = ['measured log solubility in mols per litre']
+
+        raw_df = pd.read_csv(csv_path, sep=',')
+        smiles_list = raw_df['smiles'].values
+        filtered_data = torch.tensor(raw_df[columns_to_use].values, dtype=torch.float32)
+        standardized_data = ESOLDataset._standardize_data(filtered_data)
+
+        self.data_list: list[ESOLDataElement] = []
+        for i in range(len(filtered_data)):
+            self.data_list.append({
+                'smiles': cast(str, smiles_list[i]),
+                'data': standardized_data[i]
+            })
+
+    @staticmethod
+    def _standardize_data(data: Tensor, epsilon: float = 1e-5) -> Tensor:
+        """
+        Standardize each feature column by the column's mean and standard
+        deviation.
+
+        Args:
+            data (Tensor): The data, where each column is a feature.
+            epsilon (float, optional): Small number to avoid division-by-zero \
+                errors. Defaults to 1e-5.
+        """
+        mean = torch.mean(data, dim=0)
+        std = torch.std(data, dim=0)
+        return (data - mean) / (std + epsilon)
 
     def __getitem__(self, index: int) -> ESOLDataElement:
-        return self.dataset[index]
+        return self.data_list[index]
 
     def __len__(self) -> int:
-        return len(self.dataset)
-
-def load_esol_dataset(csv_path: str) -> tuple[list[ESOLDataElement], Tensor, Tensor]:
-    """
-    Loads the ESOL dataset, and the dataset's mean and standard deviation.
-    
-    Example of a data element: {
-        'smiles': 'OCC3OC(OCC2OC(OC(C#N)c1ccccc1)C(O)C(O)C2O)C(O)C(O)C3O',
-        'label': tensor([-0.7700], dtype=torch.float64)
-    }
-
-    Args:
-        csv_path (str, optional): Path to the dataset's `.csv` file. \
-            Defaults to './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv'.
-
-    Returns:
-        tuple[DatasetData, Tensor, Tensor]: Returns the dataset data, their mean \
-            and their standard deviation in that order.
-    """
-    task_names = ['measured log solubility in mols per litre']
-    input_df = pd.read_csv(csv_path, sep=',')
-    smiles_list = input_df['smiles']
-    raw_data = input_df[task_names]
-
-    data_list: list[ESOLDataElement] = []
-    for i in range(len(raw_data)):
-        data: ESOLDataElement = {
-            'smiles': smiles_list[i],
-            'label': torch.tensor(raw_data.values[i], dtype=torch.float32),
-        }
-        data_list.append(data)
-    return data_list, *get_esol_stat(raw_data)
-
-
-def get_esol_stat(labels: pd.DataFrame) -> tuple[Tensor, Tensor]:
-    """Return mean and std of labels"""
-    label_values = torch.tensor(labels.values)
-    return torch.mean(label_values, 0).float(), torch.std(label_values, 0).float()
+        return len(self.data_list)
