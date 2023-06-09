@@ -24,10 +24,10 @@ class GraphDataLoader(DataLoader):
         dataset: Dataset,
         batch_size: int,
         shuffle: bool = True,
-        use_gpu: bool = True
+        device: torch.device = torch.device('cpu')
     ) -> None:
         super().__init__(dataset, batch_size, shuffle, collate_fn=self._collate_fn)
-        self.use_gpu = use_gpu
+        self.device = device
 
     def _collate_fn(self, batch: list[ESOLDataElement]) -> tuple[DGLGraph, DGLGraph, Tensor]:
         atom_bond_graphs: list[DGLGraph] = []
@@ -36,20 +36,20 @@ class GraphDataLoader(DataLoader):
         for elem in batch:
             smiles = cast(str, elem['smiles'])
             label = cast(Tensor, elem['label'])
-            atom_bond_graph, bond_angle_graph = Utils.smiles_to_graphs(smiles, self.use_gpu)
+            atom_bond_graph, bond_angle_graph = Utils.smiles_to_graphs(smiles, self.device)
             atom_bond_graphs.append(atom_bond_graph)
             bond_angle_graphs.append(bond_angle_graph)
             labels.append(label)
         return (
             dgl.batch(atom_bond_graphs),
             dgl.batch(bond_angle_graphs),
-            torch.stack(labels).to('cuda' if self.use_gpu else 'cpu')
+            torch.stack(labels).to(self.device)
         )
 
 
 def train_model(num_epochs: int = 100) -> None:
     # Use GPU if available, else use CPU.
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # Init / Load all the object instances.
     compound_encoder, model, criterion, data_loader, optimizer = _init_objects(device)
@@ -119,7 +119,7 @@ def _init_objects(device: torch.device) \
         dataset = ESOLDataset(),
         batch_size = 32,
         shuffle = True,
-        use_gpu = device.type == "cuda"
+        device = device
     )
     optimizer = Adam(model.parameters())
 

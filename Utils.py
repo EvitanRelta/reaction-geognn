@@ -175,7 +175,7 @@ class Utils:
     """
 
     @staticmethod
-    def smiles_to_graphs(smiles: str, use_gpu: bool = True) -> tuple[DGLGraph, DGLGraph]:
+    def smiles_to_graphs(smiles: str, device: torch.device = torch.device('cpu')) -> tuple[DGLGraph, DGLGraph]:
         """
         Convert a molecule's SMILES string into 2 DGL graphs:
         - a graph with atoms as nodes, bonds as edges
@@ -183,7 +183,7 @@ class Utils:
 
         Args:
             smiles (str): A molecule's SMILES string.
-            use_gpu (bool): If `True`, set returned graphs to use GPU, else use CPU.
+            device (torch.device): The CPU/GPU to set returned graphs to use.
 
         Returns:
             tuple[DGLGraph, DGLGraph]: 1st graph is the atom-bond graph, 2nd \
@@ -192,8 +192,8 @@ class Utils:
         mol = AllChem.MolFromSmiles(smiles)
         mol, conf = Utils._generate_conformer(mol)
 
-        atom_bond_graph = Utils._get_atom_bond_graph(mol, conf, use_gpu)
-        bond_angle_graph = Utils._get_bond_angle_graph(mol, conf, use_gpu)
+        atom_bond_graph = Utils._get_atom_bond_graph(mol, conf, device)
+        bond_angle_graph = Utils._get_bond_angle_graph(mol, conf, device)
         return atom_bond_graph, bond_angle_graph
 
     @staticmethod
@@ -208,7 +208,11 @@ class Utils:
         return new_mol, conf
 
     @staticmethod
-    def _get_atom_bond_graph(mol: Mol, conf: Conformer, use_gpu: bool = True) -> DGLGraph:
+    def _get_atom_bond_graph(
+        mol: Mol,
+        conf: Conformer,
+        device: torch.device = torch.device('cpu')
+    ) -> DGLGraph:
         """
         Gets a graph, where the nodes are the atoms in the molecule, and the
         edges are the bonds between 2 atoms.
@@ -216,7 +220,7 @@ class Utils:
         Args:
             mol (Mol): The `rdchem.Mol` of the molecule.
             conf (Conformer): The `rdchem.Conformer` of the molecule.
-            use_gpu (bool): If `True`, set returned graph to use GPU, else use CPU.
+            device (torch.device): The CPU/GPU to set returned graphs to use.
 
         Returns:
             DGLGraph: Graph with atoms as nodes, bonds as edges.
@@ -240,13 +244,14 @@ class Utils:
         graph.edata['bond_length'] = Utils._get_bond_lengths(graph)
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
-        if use_gpu:
-            # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
-            graph = graph.to('cuda:0')
-        return graph
+        return graph.to(device)
 
     @staticmethod
-    def _get_bond_angle_graph(mol: Mol, conf: Conformer, use_gpu: bool = True) -> DGLGraph:
+    def _get_bond_angle_graph(
+        mol: Mol,
+        conf: Conformer,
+        device: torch.device = torch.device('cpu')
+    ) -> DGLGraph:
         """
         Gets a graph, where the nodes are the bonds in the molecule, and the
         edges are the angles between 2 bonds.
@@ -254,7 +259,7 @@ class Utils:
         Args:
             mol (Mol): The `rdchem.Mol` of the molecule.
             conf (Conformer): The `rdchem.Conformer` of the molecule.
-            use_gpu (bool): If `True`, set returned graph to use GPU, else use CPU.
+            device (torch.device): The CPU/GPU to set returned graphs to use.
 
         Returns:
             DGLGraph: Graph with bonds as nodes, bond-angles as edges.
@@ -297,10 +302,7 @@ class Utils:
                     graph.add_edges(i, j, {'bond_angle': torch.tensor([angle])})
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
-        if use_gpu:
-            # Copies graph to GPU. (https://docs.dgl.ai/guide/graph-gpu.html)
-            graph = graph.to('cuda:0')
-        return graph
+        return graph.to(device)
 
     @staticmethod
     def _get_atom_positions(mol: Mol, conf: Conformer) -> Tensor:
