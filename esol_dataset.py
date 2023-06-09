@@ -20,8 +20,7 @@ Processing of esol dataset.
 ESOL (delaney) is a standard regression data set,which is also called delaney dataset. In the dataset, you can find  the structure and water solubility data of 1128 compounds.  It's a good choice to validate machine learning models and to estimate solubility directly based on molecular structure which was encoded in SMILES string.
 
 You can download the dataset from
-http://moleculenet.ai/datasets-1 and load it into pahelix reader creators.
-
+https://moleculenet.org/datasets-1 and load it into pahelix reader creators.
 """
 
 import os
