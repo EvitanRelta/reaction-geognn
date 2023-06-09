@@ -26,13 +26,11 @@ This is a PyTorch equivalent of GeoGNN's `esol_dataset.py`:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_dataset.py
 """
 
-import os
-from os.path import join
 from typing import TypeAlias
 import pandas as pd
-import numpy as np
 import torch
 from torch import Tensor
+
 
 ESOLDataElement: TypeAlias = dict[str, str | Tensor]
 
