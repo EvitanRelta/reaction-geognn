@@ -244,7 +244,8 @@ class Utils:
         graph.edata['bond_length'] = Utils._get_bond_lengths(graph)
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
-        return graph.to(device)
+        graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
+        return graph
 
     @staticmethod
     def _get_bond_angle_graph(
@@ -273,6 +274,7 @@ class Utils:
         # For the edge case where there's no bonds.
         if num_of_bonds == 0:
             graph.edata['bond_angle'] = torch.tensor([])
+            graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
             return graph
 
         # Calculate and store bond angles for each pair of bonds that share an atom.
@@ -302,7 +304,8 @@ class Utils:
                     graph.add_edges(i, j, {'bond_angle': torch.tensor([angle])})
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
-        return graph.to(device)
+        graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
+        return graph
 
     @staticmethod
     def _get_atom_positions(mol: Mol, conf: Conformer) -> Tensor:
