@@ -73,16 +73,16 @@ def load_esol_dataset(csv_path: str) -> tuple[list[ESOLDataElement], Tensor, Ten
     task_names = ['measured log solubility in mols per litre']
     input_df = pd.read_csv(csv_path, sep=',')
     smiles_list = input_df['smiles']
-    labels = input_df[task_names]
+    raw_data = input_df[task_names]
 
     data_list: list[ESOLDataElement] = []
-    for i in range(len(labels)):
+    for i in range(len(raw_data)):
         data: ESOLDataElement = {
             'smiles': smiles_list[i],
-            'label': torch.tensor(labels.values[i], dtype=torch.float32),
+            'label': torch.tensor(raw_data.values[i], dtype=torch.float32),
         }
         data_list.append(data)
-    return data_list, *get_esol_stat(labels)
+    return data_list, *get_esol_stat(raw_data)
 
 
 def get_esol_stat(labels: pd.DataFrame) -> tuple[Tensor, Tensor]:
