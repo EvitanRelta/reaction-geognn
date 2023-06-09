@@ -15,20 +15,36 @@ from typing import cast
 
 class InnerGNN(nn.Module):
     """
-    GeoGNN Block
+    The GNN used inside of `GeoGNNModel`.
+    
+    This is the "GNN" part of GeoGNN, including normalisation layers but
+    excluding feature embedding layers.
     """
+
     def __init__(
         self,
-        embed_dim: int = 32,
-        dropout_rate: float = 0.5,
+        in_feat_size: int,
+        hidden_size: int,
+        out_feat_size: int,
+        dropout_rate: float,
         has_last_act: bool = True
     ):
+        """
+        Args:
+            in_feat_size (int): The size of each feature in the graph \
+                (if the feats were encoded into embeddings, this'll be the embedding size).
+            hidden_size (int): Hidden layer's size of the MLP \
+                (the MLP after message-passing).
+            out_feat_size (int): The output size for each feature.
+            dropout_rate (float, optional): Dropout rate for the dropout layers.
+            has_last_act (bool, optional): Whether to pass the final output \
+                through an activation function (ie. ReLU). Defaults to True.
+        """
         super(InnerGNN, self).__init__()
 
-        self.embed_dim = embed_dim
         self.has_last_act = has_last_act
-        self.gnn = SimpleGIN(embed_dim, embed_dim * 2, embed_dim)
-        self.norm = nn.LayerNorm(embed_dim)
+        self.gnn = SimpleGIN(in_feat_size, hidden_size, out_feat_size)
+        self.norm = nn.LayerNorm(out_feat_size)
         self.graph_norm = SqrtGraphNorm()
         if has_last_act:
             self.act = nn.ReLU()
@@ -39,6 +55,20 @@ class InnerGNN(nn.Module):
         self.norm.reset_parameters()
 
     def forward(self, graph: DGLGraph, node_feats: Tensor, edge_feats: Tensor) -> Tensor:
+        """
+        Args:
+            graph (DGLGraph): The input graph, where each node/edge feature is \
+                of size `in_feat_size`, as defined in the constructor.
+            node_feats (Tensor): The input node features, size `(num_of_nodes, in_feat_size)`, \
+                where `in_feat_size` is defined in the constructor.
+            edge_feats (Tensor): The input edge features, size `(num_of_edges, in_feat_size)`, \
+                where `in_feat_size` is defined in the constructor.
+
+        Returns:
+            Tensor: Output features that incorporates both node and edge features, \
+                size `(num_of_nodes, out_feat_size)`, where `out_feat_size` is \
+                defined in the constructor.
+        """
         out = self.gnn.forward(graph, node_feats, edge_feats)
         out = self.norm.forward(out)
         out = self.graph_norm.forward(graph, out)
@@ -50,6 +80,10 @@ class InnerGNN(nn.Module):
 
 
 class GeoGNNLayer(nn.Module):
+    """
+    A single GeoGNN layer.
+    """
+
     def __init__(
         self,
         embed_dim: int,
@@ -60,6 +94,19 @@ class GeoGNNLayer(nn.Module):
         bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]],
         bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle']
     ) -> None:
+        """
+        Args:
+            embed_dim (int): Dimension of the feature embeddings.
+            dropout_rate (float): Dropout rate for the dropout layers.
+            has_last_act (bool): Whether to pass the final output through an \
+                activation function (ie. ReLU).
+            atom_feat_dict (dict[FeatureName, Feature]): Details for the atom features.
+            bond_feat_dict (dict[FeatureName, Feature]): Details for the bond features.
+            bond_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]]): \
+                RBF-layer's params for the bonds.
+            bond_angle_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]]): \
+                RBF-layer's params for the bond-angles.
+        """
         super(GeoGNNLayer, self).__init__()
 
         self.embed_dim = embed_dim
@@ -68,8 +115,20 @@ class GeoGNNLayer(nn.Module):
         self.bond_embedding = FeaturesEmbedding(bond_feat_dict, embed_dim)
         self.bond_rbf = FeaturesRBF(bond_rbf_param_dict, embed_dim)
         self.bond_angle_rbf = FeaturesRBF(bond_angle_rbf_param_dict, embed_dim)
-        self.atom_bond_gnn_block = InnerGNN(embed_dim, dropout_rate, has_last_act)
-        self.bond_angle_gnn_block = InnerGNN(embed_dim, dropout_rate, has_last_act)
+        self.atom_bond_gnn_block = InnerGNN(
+            in_feat_size = embed_dim,
+            hidden_size = embed_dim * 2,
+            out_feat_size = embed_dim,
+            dropout_rate = dropout_rate,
+            has_last_act = has_last_act
+        )
+        self.bond_angle_gnn_block = InnerGNN(
+            in_feat_size = embed_dim,
+            hidden_size = embed_dim * 2,
+            out_feat_size = embed_dim,
+            dropout_rate = dropout_rate,
+            has_last_act = has_last_act
+        )
 
     def reset_parameters(self) -> None:
         self.bond_embedding.reset_parameters()
@@ -85,6 +144,21 @@ class GeoGNNLayer(nn.Module):
         node_feats: Tensor,
         edge_feats: Tensor
     ) -> tuple[Tensor, Tensor]:
+        """
+        Args:
+            atom_bond_graph (DGLGraph): Graph of a molecule, with atoms as \
+                nodes, bonds as edges.
+            bond_angle_graph (DGLGraph): Graph of a molecule, with bonds as \
+                nodes, bond-angles as edges.
+            node_feats (Tensor): The input node features, \
+                size `(num_of_nodes, self.embed_dim)`.
+            edge_feats (Tensor): The input edge features, \
+                size `(num_of_edges, self.embed_dim)`.
+
+        Returns:
+            tuple[Tensor, Tensor]: The node and edge representations in \
+                the form - `(node_repr, edge_repr)`
+        """
         node_out = self.atom_bond_gnn_block.forward(atom_bond_graph, node_feats, edge_feats)
 
         bond_embed = self.bond_embedding.forward(atom_bond_graph.edata) \
@@ -197,6 +271,17 @@ class GeoGNNModel(nn.Module):
         atom_bond_graph: DGLGraph,
         bond_angle_graph: DGLGraph
     ) -> tuple[Tensor, Tensor, Tensor]:
+        """
+        Args:
+            atom_bond_graph (DGLGraph): Graph of a molecule, with atoms as \
+                nodes, bonds as edges.
+            bond_angle_graph (DGLGraph): Graph of a molecule, with bonds as \
+                nodes, bond-angles as edges.
+
+        Returns:
+            tuple[Tensor, Tensor, Tensor]: The node, edge and graph \
+                representations in the form - `(node_repr, edge_repr, graph_repr)`
+        """
         node_embeddings = self.init_atom_embedding.forward(atom_bond_graph.ndata)
         edge_embeddings = self.init_bond_embedding.forward(atom_bond_graph.edata) \
             + self.init_bond_rbf.forward(atom_bond_graph.edata)
