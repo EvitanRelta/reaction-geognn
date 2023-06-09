@@ -19,7 +19,8 @@ class DropoutMLP(nn.Module):
     ):
         """
         Args:
-            num_of_layers (int): Number of layers.
+            num_of_layers (int): Number of layers. Should be > 1, else there \
+                won't be any dropout layers.
             in_size (int): Input feature size.
             hidden_size (int): Hidden layers' size.
             out_size (int): Output feature size.
@@ -27,6 +28,8 @@ class DropoutMLP(nn.Module):
             dropout_rate (float): Dropout rate for the dropout layers.
         """
         super(DropoutMLP, self).__init__()
+        assert num_of_layers > 1, "`num_of_layers` should be > 1, else there won't be any dropout layers."
+
         layers: list[nn.Module] = []
         for layer_id in range(num_of_layers):
             is_last_layer = layer_id == num_of_layers - 1
