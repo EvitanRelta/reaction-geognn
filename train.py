@@ -1,5 +1,5 @@
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 import dgl
@@ -73,7 +73,7 @@ def train_model(num_epochs: int = 100, checkpoint_path: str = './checkpoints/') 
     optimizer = Adam(model.parameters())
 
     # Define loss function - since ESOL is a regression task, we use MSE loss
-    criterion = torch.nn.MSELoss()
+    criterion = nn.MSELoss()
 
     start_epoch: int = 0
     epoch_losses: list[float] = []
