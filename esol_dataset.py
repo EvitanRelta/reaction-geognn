@@ -26,14 +26,21 @@ This is a PyTorch equivalent of GeoGNN's `esol_dataset.py`:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_dataset.py
 """
 
-from typing import TypeAlias
+from typing import TypedDict
 import pandas as pd
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
 
-ESOLDataElement: TypeAlias = dict[str, str | Tensor]
+class ESOLDataElement(TypedDict):
+    """A data entry in the ESOL dataset."""
+
+    smiles: str
+    """SMILES string of the data's molecule."""
+
+    label: Tensor
+    """Ground truth log-solublity in mols/L."""
 
 class ESOLDataset(Dataset):
     def __init__(self) -> None:
@@ -70,7 +77,7 @@ def load_esol_dataset(csv_path: str) -> tuple[list[ESOLDataElement], Tensor, Ten
 
     data_list: list[ESOLDataElement] = []
     for i in range(len(labels)):
-        data = {
+        data: ESOLDataElement = {
             'smiles': smiles_list[i],
             'label': torch.tensor(labels.values[i], dtype=torch.float32),
         }
