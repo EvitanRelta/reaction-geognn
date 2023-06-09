@@ -21,6 +21,9 @@ ESOL (delaney) is a standard regression data set,which is also called delaney da
 
 You can download the dataset from
 https://moleculenet.org/datasets-1 and load it into pahelix reader creators.
+
+This is a PyTorch equivalent of GeoGNN's `esol_dataset.py`:
+https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_dataset.py
 """
 
 import os
