@@ -8,7 +8,7 @@ from typing import TypeAlias, TypedDict, cast
 
 from DownstreamModel import DownstreamModel
 from GeoGNN import GeoGNNModel
-from geognn_datasets import GeoGNNDataLoader
+from geognn_datasets import GeoGNNDataLoader, ESOLDataset
 
 
 # Set to only use the 3rd GPU (ie. GPU-2).
@@ -82,7 +82,7 @@ def train_model(
                 'encoder_optimizer_state_dict': encoder_optimizer.state_dict(),
                 'head_optimizer_state_dict': head_optimizer.state_dict()
             }
-            checkpoint_filename = f'esol_only_checkpoint_{epoch}.pth'
+            checkpoint_filename = f'epoch_{epoch}.pth'
             torch.save(checkpoint_dict, os.path.join(checkpoint_dir, checkpoint_filename))
 
 
@@ -141,7 +141,12 @@ def _init_objects(
     # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L159-L160
     criterion = torch.nn.L1Loss()
 
+    dataset = ESOLDataset()
+    mean, std = GeoGNNDataLoader.get_stats(dataset)
     data_loader = GeoGNNDataLoader(
+        dataset,
+        fit_mean = mean,
+        fit_std = std,
         batch_size = 32,
         shuffle = True,
         device = device

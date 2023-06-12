@@ -13,7 +13,6 @@ https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_d
 from typing import cast
 import pandas as pd
 import torch
-from torch import Tensor
 from torch.utils.data import Dataset
 
 from .GeoGNNDataLoader import GeoGNNDataElement
@@ -45,29 +44,13 @@ class ESOLDataset(Dataset[GeoGNNDataElement]):
         raw_df = pd.read_csv(csv_path, sep=',')
         smiles_list = raw_df['smiles'].values
         filtered_data = torch.tensor(raw_df[columns_to_use].values, dtype=torch.float32)
-        standardized_data = ESOLDataset._standardize_data(filtered_data)
 
         self.data_list: list[GeoGNNDataElement] = []
         for i in range(len(filtered_data)):
             self.data_list.append({
                 'smiles': cast(str, smiles_list[i]),
-                'data': standardized_data[i]
+                'data': filtered_data[i]
             })
-
-    @staticmethod
-    def _standardize_data(data: Tensor, epsilon: float = 1e-5) -> Tensor:
-        """
-        Standardize each feature column by the column's mean and standard
-        deviation.
-
-        Args:
-            data (Tensor): The data, where each column is a feature.
-            epsilon (float, optional): Small number to avoid division-by-zero \
-                errors. Defaults to 1e-5.
-        """
-        mean = torch.mean(data, dim=0)
-        std = torch.std(data, dim=0)
-        return (data - mean) / (std + epsilon)
 
     def __getitem__(self, index: int) -> GeoGNNDataElement:
         return self.data_list[index]
