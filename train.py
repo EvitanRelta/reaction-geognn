@@ -15,17 +15,23 @@ from geognn_datasets import GeoGNNDataLoader
 # Since GPU-0 is over-subscribed, and also I'm told to only use 1 out of our 4 GPUs.
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
-def train_model(num_epochs: int = 100) -> None:
-    # Use GPU if available, else use CPU.
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+def train_model(
+    num_epochs: int,
+    device: torch.device,
+    load_save_checkpoints: bool = True,
+    base_checkpoint_dir: str = './checkpoints',
+) -> None:
+    sub_dir_name = f'esol_only_encoder_lr{encoder_lr}_head_lr{head_lr}_dropout_rate{dropout_rate}'
+    checkpoint_dir = os.path.join(base_checkpoint_dir, sub_dir_name)
 
     # Init / Load all the object instances.
     compound_encoder, model, criterion, data_loader, encoder_optimizer, head_optimizer \
         = _init_objects(device)
     previous_epoch = -1
     epoch_losses: list[float] = []
-    compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses \
-        = _load_checkpoint_if_exists('./checkpoints/', model, encoder_optimizer, head_optimizer)
+    if load_save_checkpoints:
+        compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses \
+            = _load_checkpoint_if_exists(checkpoint_dir, model, encoder_optimizer, head_optimizer)
 
     # Train model
     start_epoch: int = previous_epoch + 1   # start from the next epoch
@@ -64,15 +70,17 @@ def train_model(num_epochs: int = 100) -> None:
         prev_epoch_loss = epoch_losses[-2] if len(epoch_losses) >= 2 else 0.0
         print(f'=== Epoch {epoch:04}, Avg loss: {avg_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
 
-        # Save checkpoint of epoch.
-        checkpoint_dict: GeoGNNCheckpoint = {
-            'epoch': epoch,
-            'epoch_losses': epoch_losses,
-            'model_state_dict': model.state_dict(),
-            'encoder_optimizer_state_dict': encoder_optimizer.state_dict(),
-            'head_optimizer_state_dict': head_optimizer.state_dict()
-        }
-        torch.save(checkpoint_dict, f'./checkpoints/esol_only_checkpoint_{epoch}.pth')
+        if load_save_checkpoints:
+            # Save checkpoint of epoch.
+            checkpoint_dict: GeoGNNCheckpoint = {
+                'epoch': epoch,
+                'epoch_losses': epoch_losses,
+                'model_state_dict': model.state_dict(),
+                'encoder_optimizer_state_dict': encoder_optimizer.state_dict(),
+                'head_optimizer_state_dict': head_optimizer.state_dict()
+            }
+            checkpoint_filename = f'esol_only_checkpoint_{epoch}.pth'
+            torch.save(checkpoint_dict, os.path.join(checkpoint_dir, checkpoint_filename))
 
 
 
@@ -174,4 +182,10 @@ def _load_checkpoint_if_exists(
 
 
 if __name__ == "__main__":
-    train_model()
+    # Use GPU if available, else use CPU.
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+    train_model(
+        device = device,
+        num_epochs = 100
+    )
