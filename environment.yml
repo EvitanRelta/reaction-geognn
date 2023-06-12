@@ -1,8 +1,8 @@
 name: dgl-geognn
 channels:
+  - conda-forge
   - pytorch
   - dglteam/label/cu113
-  - conda-forge
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
@@ -14,8 +14,8 @@ dependencies:
   - bottleneck=1.3.5=py310ha9d4c09_0
   - brotlipy=0.7.0=py310h7f8727e_1002
   - bzip2=1.0.8=h7b6447c_0
-  - ca-certificates=2023.5.7=hbcca054_0
-  - certifi=2023.5.7=pyhd8ed1ab_0
+  - ca-certificates=2023.05.30=h06a4308_0
+  - certifi=2023.5.7=py310h06a4308_0
   - cffi=1.15.1=py310h5eee18b_3
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
   - comm=0.1.2=py310h06a4308_0
@@ -37,6 +37,7 @@ dependencies:
   - ipython=8.12.0=py310h06a4308_0
   - ipywidgets=8.0.6=pyhd8ed1ab_0
   - jedi=0.18.1=py310h06a4308_1
+  - joblib=1.2.0=py310h06a4308_0
   - jpeg=9e=h5eee18b_1
   - jupyter_client=8.1.0=py310h06a4308_0
   - jupyter_core=5.3.0=py310h06a4308_0
@@ -111,12 +112,14 @@ dependencies:
   - pyzmq=25.0.2=py310h6a678d5_0
   - readline=8.2=h5eee18b_0
   - requests=2.29.0=py310h06a4308_0
+  - scikit-learn=1.2.2=py310h6a678d5_1
   - scipy=1.10.1=py310h5f9d8c6_1
   - setuptools=66.0.0=py310h06a4308_0
   - six=1.16.0=pyhd3eb1b0_1
   - sqlite=3.41.2=h5eee18b_0
   - stack_data=0.2.0=pyhd3eb1b0_0
   - tbb=2021.8.0=hdb19cb5_0
+  - threadpoolctl=2.2.0=pyh0d69192_0
   - tk=8.6.12=h1ccaba5_0
   - toml=0.10.2=pyhd3eb1b0_0
   - tomli=2.0.1=py310h06a4308_0
