@@ -16,6 +16,9 @@ from geognn_datasets import GeoGNNDataLoader
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 def train_model(
+    encoder_lr: float,
+    head_lr: float,
+    dropout_rate: float,
     num_epochs: int,
     device: torch.device,
     load_save_checkpoints: bool = True,
@@ -26,7 +29,7 @@ def train_model(
 
     # Init / Load all the object instances.
     compound_encoder, model, criterion, data_loader, encoder_optimizer, head_optimizer \
-        = _init_objects(device)
+        = _init_objects(device, encoder_lr, head_lr, dropout_rate)
     previous_epoch = -1
     epoch_losses: list[float] = []
     if load_save_checkpoints:
@@ -115,17 +118,22 @@ class GeoGNNCheckpoint(TypedDict):
     """
 
 
-def _init_objects(device: torch.device) \
-    -> tuple[GeoGNNModel, DownstreamModel, Criterion, GeoGNNDataLoader, EncoderOptimizer, HeadOptimizer]:
+def _init_objects(
+    device: torch.device,
+    encoder_lr: float,
+    head_lr: float,
+    dropout_rate: float,
+) -> tuple[GeoGNNModel, DownstreamModel, Criterion, GeoGNNDataLoader, EncoderOptimizer, HeadOptimizer]:
     """
     Initialize all the required object instances.
     """
     # Instantiate GNN model
-    compound_encoder = GeoGNNModel()
+    compound_encoder = GeoGNNModel(dropout_rate=dropout_rate)
     model = DownstreamModel(
         compound_encoder=compound_encoder,
         task_type='regression',
-        out_size=1  # Since ESOL is a regression task with a single target value
+        out_size=1,  # Since ESOL is a regression task with a single target value
+        dropout_rate=dropout_rate,
     )
     model = model.to(device)
 
@@ -148,8 +156,8 @@ def _init_objects(device: torch.device) \
     is_in = lambda x, lst: any(element is x for element in lst)
     head_params = [p for p in model_params if not is_in(p, compound_encoder_params)]
 
-    encoder_optimizer = Adam(compound_encoder_params)
-    head_optimizer = Adam(head_params)
+    encoder_optimizer = Adam(compound_encoder_params, lr=encoder_lr)
+    head_optimizer = Adam(head_params, lr=head_lr)
 
     return compound_encoder, model, criterion, data_loader, encoder_optimizer, head_optimizer
 
@@ -191,7 +199,18 @@ if __name__ == "__main__":
     # Use GPU if available, else use CPU.
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    train_model(
-        device = device,
-        num_epochs = 100
-    )
+    # Try various learning-rates and dropout-rates, based on GeoGNN's 
+    # `finetune_regr.sh` script:
+    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/finetune_regr.sh#L38-L39
+    lr_pairs = [(1e-3, 1e-3), (1e-3, 4e-3), (4e-3, 4e-3), (4e-4, 4e-3)]
+    dropout_rates = [0.1, 0.2]
+
+    for encoder_lr, head_lr in lr_pairs:
+        for dropout_rate in dropout_rates:
+            train_model(
+                encoder_lr = encoder_lr,
+                head_lr = head_lr,
+                dropout_rate = dropout_rate,
+                device = device,
+                num_epochs = 100,
+            )
