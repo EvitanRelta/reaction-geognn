@@ -5,7 +5,7 @@ import dgl
 from dgl import DGLGraph
 
 from Utils import Utils
-from esol_dataset import ESOLDataset, ESOLDataElement
+from .esol_dataset import ESOLDataset, ESOLDataElement
 
 
 class GeoGNNDataLoader(DataLoader):
