@@ -1,61 +1,48 @@
 
 import numpy as np
+from torch.utils.data import Dataset, Subset
 from rdkit.Chem.Scaffolds import MurckoScaffold
 
+from .GeoGNNDataLoader import GeoGNNDataElement
 
-def generate_scaffold(smiles, include_chirality=False):
+
+class ScaffoldSplitter:
     """
-    Obtain Bemis-Murcko scaffold from smiles
+    Split dataset by Bemis-Murcko scaffolds using the `smiles` string in the
+    data.
 
-    Args:
-        smiles: smiles sequence
-        include_chirality: Default=False
+    Adapted from GeoGNN's `ScaffoldSplitter`:
+    https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/utils/splitters.py#L129-L206
 
-    Return:
-        the scaffold of the given smiles.
+    Which was adapted from:
+    https://github.com/deepchem/deepchem/blob/master/deepchem/splits/splitters.py
     """
-    scaffold = MurckoScaffold.MurckoScaffoldSmiles(
-        smiles=smiles, includeChirality=include_chirality)
-    return scaffold
 
-class Splitter(object):
-    """
-    The abstract class of splitters which split up dataset into train/valid/test
-    subsets.
-    """
-    def __init__(self):
-        super(Splitter, self).__init__()
-
-class ScaffoldSplitter(Splitter):
-    """
-    Adapted from https://github.com/deepchem/deepchem/blob/master/deepchem/splits/splitters.py
-
-    Split dataset by Bemis-Murcko scaffolds
-    """
-    def __init__(self):
-        super(ScaffoldSplitter, self).__init__()
-
-    def split(self,
-            dataset,
-            frac_train=None,
-            frac_valid=None,
-            frac_test=None):
+    def split(
+        self,
+        dataset: Dataset[GeoGNNDataElement],
+        frac_train: float,
+        frac_valid: float,
+        frac_test: float,
+    ) -> tuple[Subset[GeoGNNDataElement], Subset[GeoGNNDataElement], Subset[GeoGNNDataElement]]:
         """
         Args:
-            dataset(InMemoryDataset): the dataset to split. Make sure each element in
-                the dataset has key "smiles" which will be used to calculate the
-                scaffold.
-            frac_train(float): the fraction of data to be used for the train split.
-            frac_valid(float): the fraction of data to be used for the valid split.
-            frac_test(float): the fraction of data to be used for the test split.
+            dataset (Dataset[GeoGNNDataElement]): The dataset to split.
+            frac_train (float): The fraction of data to be used for training.
+            frac_valid (float): The fraction of data to be used for validation.
+            frac_test (float): The fraction of data to be used for testing.
+
+        Returns:
+            tuple[Subset[GeoGNNDataElement], Subset[GeoGNNDataElement], Subset[GeoGNNDataElement]]: \
+                The training, validation and testing subsets - `(train_dataset, valid_dataset, test_dataset)`.
         """
         np.testing.assert_almost_equal(frac_train + frac_valid + frac_test, 1.0)
-        N = len(dataset)
+        N = len(dataset) # type: ignore
 
         # create dict of the form {scaffold_i: [idx1, idx....]}
         all_scaffolds = {}
         for i in range(N):
-            scaffold = generate_scaffold(dataset[i]['smiles'], include_chirality=True)
+            scaffold = MurckoScaffold.MurckoScaffoldSmiles(dataset[i]['smiles'], includeChirality=True)
             if scaffold not in all_scaffolds:
                 all_scaffolds[scaffold] = [i]
             else:
@@ -71,7 +58,9 @@ class ScaffoldSplitter(Splitter):
         # get train, valid test indices
         train_cutoff = frac_train * N
         valid_cutoff = (frac_train + frac_valid) * N
-        train_idx, valid_idx, test_idx = [], [], []
+        train_idx: list[int] = []
+        valid_idx: list[int] = []
+        test_idx: list[int] = []
         for scaffold_set in all_scaffold_sets:
             if len(train_idx) + len(scaffold_set) > train_cutoff:
                 if len(train_idx) + len(valid_idx) + len(scaffold_set) > valid_cutoff:
@@ -100,7 +89,7 @@ class ScaffoldSplitter(Splitter):
         assert len(set(train_idx).intersection(set(valid_idx))) == 0
         assert len(set(test_idx).intersection(set(valid_idx))) == 0
 
-        train_dataset = dataset[train_idx]
-        valid_dataset = dataset[valid_idx]
-        test_dataset = dataset[test_idx]
+        train_dataset = Subset(dataset, train_idx)
+        valid_dataset = Subset(dataset, valid_idx)
+        test_dataset = Subset(dataset, test_idx)
         return train_dataset, valid_dataset, test_dataset
