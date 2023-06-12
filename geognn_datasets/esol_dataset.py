@@ -10,28 +10,23 @@ This is a PyTorch equivalent of GeoGNN's `esol_dataset.py`:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_dataset.py
 """
 
-from typing import TypedDict, cast
+from typing import cast
 import pandas as pd
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
-
-class ESOLDataElement(TypedDict):
-    """A data entry in the ESOL dataset."""
-
-    smiles: str
-    """SMILES string of the data's molecule."""
-
-    data: Tensor
-    """Ground truth water log-solublity in mols/L. Size `(1, )`"""
+from .GeoGNNDataLoader import GeoGNNDataElement
 
 
-class ESOLDataset(Dataset):
+class ESOLDataset(Dataset[GeoGNNDataElement]):
     """
     Water solubility data (log-solubility in mols/L) for common small organic
     molecules.
-    
+
+    The `data` Tensor in each element is the ground truth water log-solublity
+    in mols/L, size `(1, )`.
+
     The dataset can be downloaded from:
     https://moleculenet.org/datasets-1
     """
@@ -52,7 +47,7 @@ class ESOLDataset(Dataset):
         filtered_data = torch.tensor(raw_df[columns_to_use].values, dtype=torch.float32)
         standardized_data = ESOLDataset._standardize_data(filtered_data)
 
-        self.data_list: list[ESOLDataElement] = []
+        self.data_list: list[GeoGNNDataElement] = []
         for i in range(len(filtered_data)):
             self.data_list.append({
                 'smiles': cast(str, smiles_list[i]),
@@ -74,7 +69,7 @@ class ESOLDataset(Dataset):
         std = torch.std(data, dim=0)
         return (data - mean) / (std + epsilon)
 
-    def __getitem__(self, index: int) -> ESOLDataElement:
+    def __getitem__(self, index: int) -> GeoGNNDataElement:
         return self.data_list[index]
 
     def __len__(self) -> int:

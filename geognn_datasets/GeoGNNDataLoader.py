@@ -1,3 +1,4 @@
+from typing import TypedDict
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -5,10 +6,20 @@ import dgl
 from dgl import DGLGraph
 
 from Utils import Utils
-from .esol_dataset import ESOLDataset, ESOLDataElement
+from .esol_dataset import ESOLDataset
 
 
-class GeoGNNDataLoader(DataLoader):
+class GeoGNNDataElement(TypedDict):
+    """A data entry for GeoGNN."""
+
+    smiles: str
+    """SMILES string of the data's molecule."""
+
+    data: Tensor
+    """Ground truth data. Size `(num_of_feats, num_of_entries)`"""
+
+
+class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
     """
     Data loader for GeoGNN's datasets.
     """
@@ -22,7 +33,7 @@ class GeoGNNDataLoader(DataLoader):
         super().__init__(dataset, batch_size, shuffle, collate_fn=self._collate_fn)
         self.device = device
 
-    def _collate_fn(self, batch: list[ESOLDataElement]) -> tuple[DGLGraph, DGLGraph, Tensor]:
+    def _collate_fn(self, batch: list[GeoGNNDataElement]) -> tuple[DGLGraph, DGLGraph, Tensor]:
         atom_bond_graphs: list[DGLGraph] = []
         bond_angle_graphs: list[DGLGraph] = []
         data_list: list[Tensor] = []

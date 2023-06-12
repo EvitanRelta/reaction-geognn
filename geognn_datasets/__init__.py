@@ -1,2 +1,2 @@
-from .esol_dataset import ESOLDataElement, ESOLDataset
-from .GeoGNNDataLoader import GeoGNNDataLoader
+from .esol_dataset import ESOLDataset
+from .GeoGNNDataLoader import GeoGNNDataLoader, GeoGNNDataElement
