@@ -1,9 +1,7 @@
-import torch
+import os, time, random, torch, dgl, numpy as np
 from torch import Tensor, nn
 from torch.optim import Adam
 from dgl import DGLGraph
-import time
-import os
 from typing import TypeAlias, TypedDict, cast
 
 from DownstreamModel import DownstreamModel
@@ -14,6 +12,18 @@ from geognn_datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter
 # Set to only use the 3rd GPU (ie. GPU-2).
 # Since GPU-0 is over-subscribed, and also I'm told to only use 1 out of our 4 GPUs.
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
+# Set seed to make code deterministic.
+seed = 69420
+random.seed(seed)
+np.random.seed(seed)
+dgl.random.seed(seed)
+os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+torch.use_deterministic_algorithms(True)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 def train_model(
     encoder_lr: float,
