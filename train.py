@@ -1,17 +1,14 @@
 import torch
 from torch import Tensor, nn
 from torch.optim import Adam
-from torch.utils.data import Dataset, DataLoader
-import dgl
 from dgl import DGLGraph
 import time
 import os
 from typing import TypeAlias, TypedDict, cast
 
-from Utils import Utils
 from DownstreamModel import DownstreamModel
 from GeoGNN import GeoGNNModel
-from geognn_datasets import ESOLDataset, ESOLDataElement
+from geognn_datasets import GeoGNNDataLoader
 
 
 # Set to only use the 3rd GPU (ie. GPU-2).
@@ -129,7 +126,6 @@ def _init_objects(device: torch.device) \
     criterion = torch.nn.L1Loss()
 
     data_loader = GeoGNNDataLoader(
-        dataset = ESOLDataset(),
         batch_size = 32,
         shuffle = True,
         device = device

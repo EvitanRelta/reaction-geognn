@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 import dgl
 from dgl import DGLGraph
 
@@ -14,11 +14,11 @@ class GeoGNNDataLoader(DataLoader):
     """
     def __init__(
         self,
-        dataset: Dataset,
         batch_size: int,
         shuffle: bool = True,
         device: torch.device = torch.device('cpu')
     ) -> None:
+        dataset = ESOLDataset()
         super().__init__(dataset, batch_size, shuffle, collate_fn=self._collate_fn)
         self.device = device
 
