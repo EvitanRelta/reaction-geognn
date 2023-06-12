@@ -109,7 +109,7 @@ class GeoGNNCheckpoint(TypedDict):
     excluding those in `GeoGNN`.
     """
 
-class GraphDataLoader(DataLoader):
+class GeoGNNDataLoader(DataLoader):
     def __init__(
         self,
         dataset: Dataset,
@@ -138,7 +138,7 @@ class GraphDataLoader(DataLoader):
         )
 
 def _init_objects(device: torch.device) \
-    -> tuple[GeoGNNModel, DownstreamModel, Criterion, GraphDataLoader, EncoderOptimizer, HeadOptimizer]:
+    -> tuple[GeoGNNModel, DownstreamModel, Criterion, GeoGNNDataLoader, EncoderOptimizer, HeadOptimizer]:
     """
     Initialize all the required object instances.
     """
@@ -155,7 +155,7 @@ def _init_objects(device: torch.device) \
     # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L159-L160
     criterion = torch.nn.L1Loss()
 
-    data_loader = GraphDataLoader(
+    data_loader = GeoGNNDataLoader(
         dataset = ESOLDataset(),
         batch_size = 32,
         shuffle = True,
