@@ -11,7 +11,7 @@ from typing import TypeAlias, TypedDict, cast
 from Utils import Utils
 from DownstreamModel import DownstreamModel
 from GeoGNN import GeoGNNModel
-from esol_dataset import ESOLDataset, ESOLDataElement
+from geognn_datasets import ESOLDataset, ESOLDataElement
 
 
 # Set to only use the 3rd GPU (ie. GPU-2).
