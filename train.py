@@ -139,10 +139,16 @@ def _init_objects(device: torch.device) \
         device = device
     )
 
-    # DownstreamModel params but excluding those in GeoGNN.
-    head_params = list(set(model.parameters()) - set(compound_encoder.parameters()))
+    compound_encoder_params = list(compound_encoder.parameters())
+    model_params = list(model.parameters())
 
-    encoder_optimizer = Adam(compound_encoder.parameters())
+    # DownstreamModel params but excluding those in GeoGNN.
+    # `head_params` is the difference in elements between `model_params` &
+    # `compound_encoder_params`.
+    is_in = lambda x, lst: any(element is x for element in lst)
+    head_params = [p for p in model_params if not is_in(p, compound_encoder_params)]
+
+    encoder_optimizer = Adam(compound_encoder_params)
     head_optimizer = Adam(head_params)
 
     return compound_encoder, model, criterion, data_loader, encoder_optimizer, head_optimizer
