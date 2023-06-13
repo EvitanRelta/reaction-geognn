@@ -1,9 +1,8 @@
 import torch
 from torch import Tensor, nn
+from Utils import FeatureName, RBFCenters, RBFGamma
 from typing import cast
-
-from .Utils import FeatureName, RBFCenters, RBFGamma
-from .FixedRBF import FixedRBF
+from FixedRBF import FixedRBF
 
 
 class FeaturesRBF(nn.Module):

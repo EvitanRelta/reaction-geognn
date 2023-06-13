@@ -3,15 +3,14 @@ This is an implementation of GeoGNN using PyTorch/PyTorch Geometric.
 """
 
 from torch import nn, Tensor
+from SqrtGraphNorm import SqrtGraphNorm
+from SimpleGIN import SimpleGIN
+from FeaturesEmbedding import FeaturesEmbedding
+from FeaturesRBF import FeaturesRBF
+from Utils import Feature, FeatureName, RBFCenters, RBFGamma, Utils
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import AvgPooling
 from typing import cast
-
-from .SqrtGraphNorm import SqrtGraphNorm
-from .SimpleGIN import SimpleGIN
-from .FeaturesEmbedding import FeaturesEmbedding
-from .FeaturesRBF import FeaturesRBF
-from .Utils import Feature, FeatureName, RBFCenters, RBFGamma, Utils
 
 
 class InnerGNN(nn.Module):

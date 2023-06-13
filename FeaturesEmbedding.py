@@ -1,8 +1,7 @@
 import torch
 from torch import Tensor, nn
+from Utils import Feature, FeatureName
 from typing import cast
-
-from .Utils import Feature, FeatureName
 
 
 class FeaturesEmbedding(nn.Module):
