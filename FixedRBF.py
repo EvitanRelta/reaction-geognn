@@ -6,17 +6,18 @@ class FixedRBF(nn.Module):
     """
     Radial Basis Function (RBF) neural network layer that doesn't have any
     learnable parameters (ie. "fixed"). It simply transforms the features.
-    
+
     This is a PyTorch equivalent of GeoGNN's `RBF`:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/basic_block.py#L71
     """
+
     def __init__(self, centers: Tensor, gamma: float) -> None:
         """
         Args:
             centers (Tensor): 1D tensor of all the RBF centers.
             gamma (Tensor): Hyperparameter for controlling the spread of the RBF's Gaussian basis function.
         """
-        super(FixedRBF, self).__init__()
+        super().__init__()
 
         self.centers: Tensor
         """2D row-tensor containing the RBF centers. Has shape `(1, num_of_centers)`."""
@@ -27,7 +28,7 @@ class FixedRBF(nn.Module):
 
         self.gamma = gamma
         """Hyperparameter for controlling the spread of the RBF's Gaussian basis function."""
-    
+
     def forward(self, x: Tensor) -> Tensor:
         """
         Args:

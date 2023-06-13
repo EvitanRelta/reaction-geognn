@@ -7,7 +7,7 @@ class SimpleGIN(nn.Module):
     """
     Implementation of Graph Isomorphism Network (GIN) layer for undirected
     graphs that incorporates both node and edge features.
-    
+
     This implementation does NOT transform the graph features before
     message-passing, only AFTER the message-passing are the features passed
     through a 2-layer MLP before being returned.
@@ -15,6 +15,7 @@ class SimpleGIN(nn.Module):
     This is a PyTorch + DGL equivalent of GeoGNN's `GIN`:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/gnn_block.py#L75-L105
     """
+
     def __init__(self, in_feat_size: int, mlp_hidden_size: int, out_feat_size: int) -> None:
         """
         The "MLP" in this context is the final Multilayer Perceptron that is fed
@@ -28,7 +29,7 @@ class SimpleGIN(nn.Module):
                 (the MLP after message-passing).
             out_feat_size (int): The output size for each feature.
         """
-        super(SimpleGIN, self).__init__()
+        super().__init__()
         self.mlp = nn.Sequential(
             nn.Linear(in_feat_size, mlp_hidden_size),
             nn.ReLU(),

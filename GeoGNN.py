@@ -16,7 +16,7 @@ from typing import cast
 class InnerGNN(nn.Module):
     """
     The GNN used inside of `GeoGNNModel`.
-    
+
     This is the "GNN" part of GeoGNN, including normalisation layers but
     excluding feature embedding layers.
     """
@@ -27,7 +27,7 @@ class InnerGNN(nn.Module):
         hidden_size: int,
         out_feat_size: int,
         dropout_rate: float,
-        has_last_act: bool = True
+        has_last_act: bool = True,
     ):
         """
         Args:
@@ -40,7 +40,7 @@ class InnerGNN(nn.Module):
             has_last_act (bool, optional): Whether to pass the final output \
                 through an activation function (ie. ReLU). Defaults to True.
         """
-        super(InnerGNN, self).__init__()
+        super().__init__()
 
         self.has_last_act = has_last_act
         self.gnn = SimpleGIN(in_feat_size, hidden_size, out_feat_size)
@@ -92,7 +92,7 @@ class GeoGNNLayer(nn.Module):
         atom_feat_dict: dict[FeatureName, Feature],
         bond_feat_dict: dict[FeatureName, Feature],
         bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]],
-        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle']
+        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle'],
     ) -> None:
         """
         Args:
@@ -107,7 +107,7 @@ class GeoGNNLayer(nn.Module):
             bond_angle_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]]): \
                 RBF-layer's params for the bond-angles.
         """
-        super(GeoGNNLayer, self).__init__()
+        super().__init__()
 
         self.embed_dim = embed_dim
         self.dropout_rate = dropout_rate
@@ -142,7 +142,7 @@ class GeoGNNLayer(nn.Module):
         atom_bond_graph: DGLGraph,
         bond_angle_graph: DGLGraph,
         node_feats: Tensor,
-        edge_feats: Tensor
+        edge_feats: Tensor,
     ) -> tuple[Tensor, Tensor]:
         """
         Args:
@@ -177,7 +177,7 @@ class GeoGNNLayer(nn.Module):
     @staticmethod
     def _get_unidirected_feats(
         bidirected_graph: DGLGraph,
-        bidirected_edge_feats: Tensor
+        bidirected_edge_feats: Tensor,
     ) -> Tensor:
         """
         Converts bi-directed edge features to uni-directed. Bi-directed graphs
@@ -196,6 +196,7 @@ class GeoGNNModel(nn.Module):
     """
     The GeoGNN Model used in GEM.
     """
+
     def __init__(
         self,
         embed_dim: int = 32,
@@ -210,7 +211,7 @@ class GeoGNNModel(nn.Module):
         bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] \
             = Utils.RBF_PARAMS['bond'],
         bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] \
-            = Utils.RBF_PARAMS['bond_angle']
+            = Utils.RBF_PARAMS['bond_angle'],
     ) -> None:
         """
         Default values for `embed_dim`, `dropout_rate` and `num_of_layers` and
@@ -239,7 +240,7 @@ class GeoGNNModel(nn.Module):
             bond_angle_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]], optional): \
                 RBF-layer's params for the bond-angles. Defaults to Utils.RBF_PARAMS['bond_angle'].
         """
-        super(GeoGNNModel, self).__init__()
+        super().__init__()
 
         self.embed_dim = embed_dim
         self.dropout_rate = dropout_rate
@@ -269,7 +270,7 @@ class GeoGNNModel(nn.Module):
     def forward(
         self,
         atom_bond_graph: DGLGraph,
-        bond_angle_graph: DGLGraph
+        bond_angle_graph: DGLGraph,
     ) -> tuple[Tensor, Tensor, Tensor]:
         """
         Args:
@@ -298,14 +299,14 @@ class GeoGNNModel(nn.Module):
 # class GeoPredModel(nn.Layer):
 #     """tbd"""
 #     def __init__(self, model_config, compound_encoder):
-#         super(GeoPredModel, self).__init__()
+#         super().__init__()
 #         self.compound_encoder = compound_encoder
-        
+
 #         self.hidden_size = model_config['hidden_size']
 #         self.dropout_rate = model_config['dropout_rate']
 #         self.act = model_config['act']
 #         self.pretrain_tasks = model_config['pretrain_tasks']
-        
+
 #         # context mask
 #         if 'Cm' in self.pretrain_tasks:
 #             self.Cm_vocab = model_config['Cm_vocab']
@@ -353,8 +354,8 @@ class GeoGNNModel(nn.Module):
 
 #     def _get_Fg_loss(self, feed_dict, graph_repr):
 #         fg_label = paddle.concat(
-#                 [feed_dict['Fg_morgan'], 
-#                 feed_dict['Fg_daylight'], 
+#                 [feed_dict['Fg_morgan'],
+#                 feed_dict['Fg_daylight'],
 #                 feed_dict['Fg_maccs']], 1)
 #         logits = self.Fg_linear(graph_repr)
 #         loss = self.Fg_loss(logits, fg_label)

@@ -8,7 +8,7 @@ class FeaturesEmbedding(nn.Module):
     """
     Converts multiple features (eg. node/edge features) into an embedding of
     size `(num_elements, self.embed_dim)`.
-    
+
     It works by first converting each feature into an embedding of size
     `(num_elements, self.embed_dim)`, then summing all the features' embeddings
     into one embedding.
@@ -21,10 +21,10 @@ class FeaturesEmbedding(nn.Module):
     """
 
     def __init__(
-        self, 
-        feat_dict: dict[FeatureName, Feature], 
-        embed_dim: int, 
-        feat_padding: int = 5
+        self,
+        feat_dict: dict[FeatureName, Feature],
+        embed_dim: int,
+        feat_padding: int = 5,
     ):
         """
         Args:
@@ -34,7 +34,7 @@ class FeaturesEmbedding(nn.Module):
             feat_padding (int): The extra num of embeddings added to \
                 `num_embeddings` in `nn.Embedding` to act as padding.
         """
-        super(FeaturesEmbedding, self).__init__()
+        super().__init__()
         self.embed_dim = embed_dim
         self.embed_dict = nn.ModuleDict()
         for feat_name, feat in feat_dict.items():

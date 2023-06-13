@@ -7,6 +7,7 @@ from typing import TypeAlias, Any, Callable, Literal, Final
 from dataclasses import dataclass
 from torch import Tensor
 
+
 Atom: TypeAlias = rdchem.Atom
 Bond: TypeAlias = rdchem.Bond
 Mol: TypeAlias = rdchem.Mol
@@ -20,6 +21,7 @@ RBFCenters: TypeAlias = Tensor
 """1D tensor of all the RBF centers for a feature."""
 RBFGamma: TypeAlias = float
 """Hyperparameter for controlling the spread of the RBF's Gaussian basis function."""
+
 
 @dataclass
 class Feature:
@@ -77,6 +79,7 @@ def to_bidirected_copy(g: DGLGraph) -> DGLGraph:
     g = add_reverse_edges(g, copy_ndata=True, copy_edata=True)
     g = to_simple(g, return_counts=None, copy_ndata=True, copy_edata=True)
     return g
+
 
 class Utils:
     RdChemEnum: TypeAlias = Any     # RdChem's enums have no proper typings.
@@ -211,7 +214,7 @@ class Utils:
     def _get_atom_bond_graph(
         mol: Mol,
         conf: Conformer,
-        device: torch.device = torch.device('cpu')
+        device: torch.device = torch.device('cpu'),
     ) -> DGLGraph:
         """
         Gets a graph, where the nodes are the atoms in the molecule, and the
@@ -251,7 +254,7 @@ class Utils:
     def _get_bond_angle_graph(
         mol: Mol,
         conf: Conformer,
-        device: torch.device = torch.device('cpu')
+        device: torch.device = torch.device('cpu'),
     ) -> DGLGraph:
         """
         Gets a graph, where the nodes are the bonds in the molecule, and the
@@ -322,8 +325,8 @@ class Utils:
         # Convert to float32 Tensor, from float64 Numpy array.
         raw_atom_positions = torch.from_numpy(conf.GetPositions()).float()
 
-        # Truncate tensor as `mol` likely won't have Hydrogen atoms, 
-        # while `conf` likely will. Since the H atoms are placed after the 
+        # Truncate tensor as `mol` likely won't have Hydrogen atoms,
+        # while `conf` likely will. Since the H atoms are placed after the
         # non-H atoms in the tensor, the H atoms positions will be truncated.
         return raw_atom_positions[:mol.GetNumAtoms()]
 

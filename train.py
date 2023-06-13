@@ -108,7 +108,7 @@ HeadOptimizer: TypeAlias = Adam
 
 class GeoGNNCheckpoint(TypedDict):
     """Dict type of a loaded checkpoint."""
-    
+
     epoch: int
     """Epoch for this checkpoint (zero-indexed)."""
 
@@ -187,7 +187,7 @@ def _load_checkpoint_if_exists(
     checkpoint_dir: str,
     model: DownstreamModel,
     encoder_optimizer: Adam,
-    head_optimizer: Adam
+    head_optimizer: Adam,
 ) -> tuple[GeoGNNModel, DownstreamModel, EncoderOptimizer, HeadOptimizer, int, list[float]]:
     # Make the checkpoint dir if it doesn't exist.
     if not os.path.exists(checkpoint_dir):
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     # Use GPU if available, else use CPU.
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    # Try various learning-rates and dropout-rates, based on GeoGNN's 
+    # Try various learning-rates and dropout-rates, based on GeoGNN's
     # `finetune_regr.sh` script:
     # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/finetune_regr.sh#L38-L39
     lr_pairs = [(1e-3, 1e-3), (1e-3, 4e-3), (4e-3, 4e-3), (4e-4, 4e-3)]

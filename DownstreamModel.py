@@ -7,12 +7,13 @@ from dgl import DGLGraph
 
 class DownstreamModel(nn.Module):
     """
-    Model that uses the graph-representation output from 
+    Model that uses the graph-representation output from
     `self.compound_encoder: GeoGNNModel` to make `out_size` number of predictions.
 
     This is a PyTorch + DGL equivalent of GeoGNN's `DownstreamModel`:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/src/model.py#L27-L61
     """
+
     def __init__(
         self,
         compound_encoder: GeoGNNModel,
@@ -21,19 +22,19 @@ class DownstreamModel(nn.Module):
         num_of_layers: int = 2,
         hidden_size: int = 128,
         activation: nn.Module = nn.LeakyReLU(),
-        dropout_rate: float = 0.2
+        dropout_rate: float = 0.2,
     ):
         """
         Default values for `num_of_layers`, `hidden_size`, `activation` and
         `dropout_rate` are based on GeoGNN's `down_mlp2.json` config:
         https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/model_configs/down_mlp2.json
 
-        where `down_mlp2.json` (not `down_mlp3.json`) is used by the GeoGNN's 
+        where `down_mlp2.json` (not `down_mlp3.json`) is used by the GeoGNN's
         finetuning scripts:
         https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/finetune_class.sh
         https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/finetune_regr.sh
         """
-        super(DownstreamModel, self).__init__()
+        super().__init__()
         self.task_type = task_type
         self.out_size = out_size
 

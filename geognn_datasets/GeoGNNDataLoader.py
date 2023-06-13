@@ -12,6 +12,7 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
     """
     Data loader for GeoGNN's datasets.
     """
+
     def __init__(
         self,
         dataset: Dataset[GeoGNNDataElement],
@@ -19,7 +20,7 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         fit_std: Tensor,
         batch_size: int,
         shuffle: bool = True,
-        device: torch.device = torch.device('cpu')
+        device: torch.device = torch.device('cpu'),
     ) -> None:
         super().__init__(dataset, batch_size, shuffle, collate_fn=self._collate_fn)
         self.device = device
@@ -71,7 +72,7 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         data: Tensor,
         fit_mean: Tensor,
         fit_std: Tensor,
-        epsilon: float = 1e-5
+        epsilon: float = 1e-5,
     ) -> Tensor:
         """
         Standardize each feature column by the training data's mean and standard

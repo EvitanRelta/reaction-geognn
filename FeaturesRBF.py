@@ -9,7 +9,7 @@ class FeaturesRBF(nn.Module):
     """
     Transforms multiple features (eg. node/edge features) into a tensor of size
     `(num_elements, self.output_dim)`.
-    
+
     It works by first converting each feature into a tensor of size
     `(num_elements, self.output_dim)`, then summing all the features' tensors
     into one tensor.
@@ -20,9 +20,9 @@ class FeaturesRBF(nn.Module):
     """
 
     def __init__(
-        self, 
-        rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]], 
-        output_dim: int
+        self,
+        rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]],
+        output_dim: int,
     ):
         """
         Args:
@@ -30,7 +30,7 @@ class FeaturesRBF(nn.Module):
                 Dict containing the RBF parameters for every feature.
             output_dim (int): The output embedding dimension.
         """
-        super(FeaturesRBF, self).__init__()
+        super().__init__()
         self.output_dim = output_dim
         self.module_dict = nn.ModuleDict()
         for feat_name, (centers, gamma) in rbf_param_dict.items():

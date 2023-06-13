@@ -8,6 +8,7 @@ class DropoutMLP(nn.Module):
     This is a PyTorch equivalent of GeoGNN's `MLP`:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/basic_block.py#L42-L68
     """
+
     def __init__(
         self,
         num_of_layers: int,
@@ -15,7 +16,7 @@ class DropoutMLP(nn.Module):
         hidden_size: int,
         out_size: int,
         activation: nn.Module,
-        dropout_rate: float
+        dropout_rate: float,
     ):
         """
         Args:
@@ -27,7 +28,7 @@ class DropoutMLP(nn.Module):
             activation (nn.Module): Activation module (eg. `nn.ReLU()`).
             dropout_rate (float): Dropout rate for the dropout layers.
         """
-        super(DropoutMLP, self).__init__()
+        super().__init__()
         assert num_of_layers > 1, "`num_of_layers` should be > 1, else there won't be any dropout layers."
 
         layers: list[nn.Module] = []
