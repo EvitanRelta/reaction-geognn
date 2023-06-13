@@ -15,7 +15,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from .GeoGNNDataLoader import GeoGNNDataElement
+from .shared_definitions import GeoGNNDataElement
 
 
 class ESOLDataset(Dataset[GeoGNNDataElement]):

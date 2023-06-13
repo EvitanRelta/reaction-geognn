@@ -1,4 +1,3 @@
-from typing import TypedDict
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
@@ -6,16 +5,7 @@ import dgl
 from dgl import DGLGraph
 
 from Utils import Utils
-
-
-class GeoGNNDataElement(TypedDict):
-    """A data entry for GeoGNN."""
-
-    smiles: str
-    """SMILES string of the data's molecule."""
-
-    data: Tensor
-    """Ground truth data. Size `(num_of_feats, num_of_entries)`"""
+from .shared_definitions import GeoGNNDataElement
 
 
 class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):

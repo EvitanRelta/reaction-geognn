@@ -3,7 +3,7 @@ import numpy as np
 from torch.utils.data import Dataset, Subset
 from rdkit.Chem.Scaffolds import MurckoScaffold
 
-from .GeoGNNDataLoader import GeoGNNDataElement
+from .shared_definitions import GeoGNNDataElement
 
 
 class ScaffoldSplitter:
