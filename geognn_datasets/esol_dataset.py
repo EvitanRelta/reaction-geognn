@@ -10,15 +10,10 @@ This is a PyTorch equivalent of GeoGNN's `esol_dataset.py`:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_dataset.py
 """
 
-from typing import cast
-import pandas as pd
-import torch
-from torch.utils.data import Dataset
-
-from .shared_definitions import GeoGNNDataElement
+from .shared_definitions import GeoGNNDataset
 
 
-class ESOLDataset(Dataset[GeoGNNDataElement]):
+class ESOLDataset(GeoGNNDataset):
     """
     Water solubility data (log-solubility in mols/L) for common small organic
     molecules.
@@ -32,28 +27,15 @@ class ESOLDataset(Dataset[GeoGNNDataElement]):
 
     def __init__(
         self,
-        csv_path: str = './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv'
+        csv_path: str = './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv',
     ) -> None:
         """
         Args:
             csv_path (str, optional): Path to the dataset's `.csv` file. \
                 Defaults to './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv'.
         """
-        columns_to_use = ['measured log solubility in mols per litre']
-
-        raw_df = pd.read_csv(csv_path, sep=',')
-        smiles_list = raw_df['smiles'].values
-        filtered_data = torch.tensor(raw_df[columns_to_use].values, dtype=torch.float32)
-
-        self.data_list: list[GeoGNNDataElement] = []
-        for i in range(len(filtered_data)):
-            self.data_list.append({
-                'smiles': cast(str, smiles_list[i]),
-                'data': filtered_data[i]
-            })
-
-    def __getitem__(self, index: int) -> GeoGNNDataElement:
-        return self.data_list[index]
-
-    def __len__(self) -> int:
-        return len(self.data_list)
+        super().__init__(
+            smiles_column_name = 'smiles',
+            data_columns_to_use = ['measured log solubility in mols per litre'],
+            csv_path = csv_path,
+        )

@@ -1,5 +1,8 @@
+import torch,  pandas as pd
 from typing import TypedDict
 from torch import Tensor
+from torch.utils.data import Dataset
+from typing import cast
 
 
 class GeoGNNDataElement(TypedDict):
@@ -10,3 +13,30 @@ class GeoGNNDataElement(TypedDict):
 
     data: Tensor
     """Ground truth data. Size `(num_of_feats, num_of_entries)`"""
+
+
+class GeoGNNDataset(Dataset[GeoGNNDataElement]):
+    """Base class for a dataset used by GeoGNN."""
+
+    def __init__(
+        self,
+        smiles_column_name: str,
+        data_columns_to_use: list[str],
+        csv_path: str,
+    ) -> None:
+        raw_df = pd.read_csv(csv_path, sep=',')
+        smiles_list = raw_df[smiles_column_name].values
+        filtered_data = torch.tensor(raw_df[data_columns_to_use].values, dtype=torch.float32)
+
+        self.data_list: list[GeoGNNDataElement] = []
+        for i in range(len(filtered_data)):
+            self.data_list.append({
+                'smiles': cast(str, smiles_list[i]),
+                'data': filtered_data[i]
+            })
+
+    def __getitem__(self, index: int) -> GeoGNNDataElement:
+        return self.data_list[index]
+
+    def __len__(self) -> int:
+        return len(self.data_list)
