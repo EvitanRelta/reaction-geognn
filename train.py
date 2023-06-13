@@ -39,10 +39,13 @@ def run_training(
     checkpoint_dir = os.path.join(base_checkpoint_dir, sub_dir_name)
 
     # Init / Load all the object instances.
-    compound_encoder, model, criterion, data_loader, encoder_optimizer, head_optimizer \
+    compound_encoder, model, criterion, metric, train_data_loader, \
+        valid_data_loader, test_data_loader, encoder_optimizer, head_optimizer \
         = _init_objects(device, encoder_lr, head_lr, dropout_rate)
     previous_epoch = -1
     epoch_losses: list[float] = []
+    epoch_valid_losses: list[float] = []
+    epoch_test_losses: list[float] = []
     if load_save_checkpoints:
         compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses \
             = _load_checkpoint_if_exists(checkpoint_dir, model, encoder_optimizer, head_optimizer)
@@ -50,17 +53,23 @@ def run_training(
     # Train model
     start_epoch: int = previous_epoch + 1   # start from the next epoch
     for epoch in range(start_epoch, num_epochs):
-        epoch_loss = _train(model, criterion, data_loader, encoder_optimizer, head_optimizer)
+        train_loss = _train(model, criterion, train_data_loader, encoder_optimizer, head_optimizer)
+        valid_loss = _evaluate(model, metric, valid_data_loader)
+        test_loss = _evaluate(model, metric, test_data_loader)
 
-        epoch_losses.append(epoch_loss)
+        epoch_losses.append(train_loss)
+        epoch_valid_losses.append(valid_loss)
+        epoch_test_losses.append(test_loss)
         prev_epoch_loss = epoch_losses[-2] if len(epoch_losses) >= 2 else 0.0
-        print(f'=== Epoch {epoch:04}, Avg loss: {epoch_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
+        print(f'=== Epoch {epoch:04}, Train loss: {train_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} (Valid | Test losses: {valid_loss:06.3f} | {test_loss:06.3f}) ===')
 
         if load_save_checkpoints:
             # Save checkpoint of epoch.
             checkpoint_dict: GeoGNNCheckpoint = {
                 'epoch': epoch,
                 'epoch_losses': epoch_losses,
+                'epoch_valid_losses': epoch_valid_losses,
+                'epoch_test_losses': epoch_test_losses,
                 'model_state_dict': model.state_dict(),
                 'encoder_optimizer_state_dict': encoder_optimizer.state_dict(),
                 'head_optimizer_state_dict': head_optimizer.state_dict()
@@ -75,9 +84,24 @@ def run_training(
 # ==================================================
 #          Helper types/classes/functions
 # ==================================================
-Criterion: TypeAlias = nn.L1Loss
+class RMSELoss(nn.Module):
+    """
+    Criterion that measures the root mean squared error.
+    """
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        mse_loss = nn.functional.mse_loss(input, target)
+        return torch.sqrt(mse_loss)
+
+
+TrainCriterion: TypeAlias = nn.L1Loss
+Metric: TypeAlias = RMSELoss
 EncoderOptimizer: TypeAlias = Adam
 HeadOptimizer: TypeAlias = Adam
+TrainDataLoader: TypeAlias = GeoGNNDataLoader
+ValidDataLoader: TypeAlias = GeoGNNDataLoader
+TestDataLoader: TypeAlias = GeoGNNDataLoader
+
 
 class GeoGNNCheckpoint(TypedDict):
     """Dict type of a loaded checkpoint."""
@@ -87,6 +111,12 @@ class GeoGNNCheckpoint(TypedDict):
 
     epoch_losses: list[float]
     """Losses for each epoch."""
+
+    epoch_valid_losses: list[float]
+    """Validation losses for each epoch."""
+
+    epoch_test_losses: list[float]
+    """Test losses for each epoch."""
 
     model_state_dict: dict
     """State dict of the `DownstreamModel` instance."""
@@ -106,7 +136,7 @@ def _init_objects(
     encoder_lr: float,
     head_lr: float,
     dropout_rate: float,
-) -> tuple[GeoGNNModel, DownstreamModel, Criterion, GeoGNNDataLoader, EncoderOptimizer, HeadOptimizer]:
+) -> tuple[GeoGNNModel, DownstreamModel, TrainCriterion, Metric, TrainDataLoader, ValidDataLoader, TestDataLoader, EncoderOptimizer, HeadOptimizer]:
     """
     Initialize all the required object instances.
     """
@@ -124,6 +154,12 @@ def _init_objects(
     # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L159-L160
     criterion = torch.nn.L1Loss()
 
+    # Loss function for evaluating against validation/test datasets,
+    # based on GeoGNN's `finetune_regr.py` metric for `esol` dataset:
+    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L103-L104
+    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L117-L118
+    metric = RMSELoss()
+
     # Get and split dataset.
     dataset = ESOLDataset()
     train_dataset, valid_dataset, test_dataset \
@@ -132,12 +168,28 @@ def _init_objects(
     # Defined data-loader, where the data is standardize with the
     # training mean and standard deviation.
     train_mean, train_std = GeoGNNDataLoader.get_stats(train_dataset)
-    data_loader = GeoGNNDataLoader(
-        dataset,
+    train_data_loader = GeoGNNDataLoader(
+        train_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
         batch_size = 32,
         shuffle = True,
+        device = device
+    )
+    valid_data_loader = GeoGNNDataLoader(
+        valid_dataset,
+        fit_mean = train_mean,
+        fit_std = train_std,
+        batch_size = 32,
+        shuffle = False,  # No need to shuffle validation and test data
+        device = device
+    )
+    test_data_loader = GeoGNNDataLoader(
+        test_dataset,
+        fit_mean = train_mean,
+        fit_std = train_std,
+        batch_size = 32,
+        shuffle = False,  # No need to shuffle validation and test data
         device = device
     )
 
@@ -153,7 +205,8 @@ def _init_objects(
     encoder_optimizer = Adam(compound_encoder_params, lr=encoder_lr)
     head_optimizer = Adam(head_params, lr=head_lr)
 
-    return compound_encoder, model, criterion, data_loader, encoder_optimizer, head_optimizer
+    return compound_encoder, model, criterion, metric, train_data_loader, \
+        valid_data_loader, test_data_loader, encoder_optimizer, head_optimizer
 
 
 def _load_checkpoint_if_exists(
@@ -191,8 +244,8 @@ def _load_checkpoint_if_exists(
 
 def _train(
     model: DownstreamModel,
-    criterion: Criterion,
-    data_loader: GeoGNNDataLoader,
+    criterion: TrainCriterion,
+    train_data_loader: TrainDataLoader,
     encoder_optimizer: EncoderOptimizer,
     head_optimizer: HeadOptimizer,
 ) -> float:
@@ -204,7 +257,7 @@ def _train(
     """
     start_time = time.time()
     losses: list[float] = []
-    for i, batch_data in enumerate(data_loader):
+    for i, batch_data in enumerate(train_data_loader):
         batch_atom_bond_graph, batch_bond_angle_graph, labels \
             = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
 
@@ -231,6 +284,44 @@ def _train(
         start_time = end_time
 
     avg_loss = sum(losses) / len(losses)
+    return avg_loss
+
+
+def _evaluate(
+    model: DownstreamModel,
+    metric: Metric,
+    data_loader: ValidDataLoader | TestDataLoader,
+) -> float:
+    """
+    Evaluates `model` with the loss function `metric` against the dataset
+    provided by `data_loader`.
+
+    Returns:
+        float: Average loss of all the batches in `data_loader`.
+    """
+    # Set model to "evaluate mode", disabling all the dropout layers.
+    model.eval()
+
+    with torch.no_grad():  # No need to track gradients in evaluation mode
+        losses = []
+        for i, batch_data in enumerate(data_loader):
+            batch_atom_bond_graph, batch_bond_angle_graph, labels \
+                = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
+            outputs = model.forward(batch_atom_bond_graph, batch_bond_angle_graph)
+
+            # Since the model is trained on standardized training data,
+            # it'll thus output standardized values too.
+            # Thus, we need to reverse the standardization both from the output and the
+            # data loader (which auto-standardizes to the training data's mean/std)
+            outputs = data_loader.unstandardize_data(outputs)
+            labels = data_loader.unstandardize_data(labels)
+
+            loss = metric.forward(outputs, labels)
+            losses.append(loss.item())
+        avg_loss = sum(losses) / len(losses)
+
+    # Switch back to training mode.
+    model.train()
     return avg_loss
 
 

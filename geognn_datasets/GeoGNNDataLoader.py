@@ -88,3 +88,24 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
                 errors. Defaults to 1e-5.
         """
         return (data - fit_mean) / (fit_std + epsilon)
+
+    def unstandardize_data(
+        self,
+        standardized_data: Tensor,
+    ) -> Tensor:
+        """
+        Reverse the standardization on the feature columns using the
+        `self.fit_mean` and `self.fit_std` (ie. the training data's mean and
+        standard deviation respectively).
+
+        Args:
+            standardized_data (Tensor): The standardized data, where each column \
+                is a feature that has been standardized.
+            fit_mean: (float): The mean to based the standardization on \
+                (eg. the training data's mean).
+            fit_std: (float): The standard deviation to based the \
+                standardization on (eg. the training data's standard deviation).
+            epsilon (float, optional): Small number to avoid division-by-zero \
+                errors. Defaults to 1e-5.
+        """
+        return (standardized_data * self.fit_std) + self.fit_mean
