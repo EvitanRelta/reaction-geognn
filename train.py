@@ -25,7 +25,8 @@ torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-def train_model(
+
+def run_training(
     encoder_lr: float,
     head_lr: float,
     dropout_rate: float,
@@ -48,40 +49,12 @@ def train_model(
 
     # Train model
     start_epoch: int = previous_epoch + 1   # start from the next epoch
-    start_time = time.time()
-    losses: list[float] = []
     for epoch in range(start_epoch, num_epochs):
-        for i, batch_data in enumerate(data_loader):
-            batch_atom_bond_graph, batch_bond_angle_graph, labels \
-                = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
+        epoch_loss = _train(model, criterion, data_loader, encoder_optimizer, head_optimizer)
 
-            # Zero grad the optimizers
-            encoder_optimizer.zero_grad()
-            head_optimizer.zero_grad()
-
-            # Forward pass
-            outputs = model.forward(batch_atom_bond_graph, batch_bond_angle_graph)
-
-            # Calculate loss
-            loss = criterion.forward(outputs, labels)
-
-            # Backward pass
-            loss.backward()
-
-            # Update weights
-            encoder_optimizer.step()
-            head_optimizer.step()
-
-            losses.append(loss.item())
-            end_time = time.time()
-            print(f'Batch {i+1:04}, Time: {end_time - start_time:.2f}, Loss: {loss.item():06.3f}')
-            start_time = end_time
-
-        avg_loss = sum(losses) / len(losses)
-        losses = []
-        epoch_losses.append(avg_loss)
+        epoch_losses.append(epoch_loss)
         prev_epoch_loss = epoch_losses[-2] if len(epoch_losses) >= 2 else 0.0
-        print(f'=== Epoch {epoch:04}, Avg loss: {avg_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
+        print(f'=== Epoch {epoch:04}, Avg loss: {epoch_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} ===')
 
         if load_save_checkpoints:
             # Save checkpoint of epoch.
@@ -216,6 +189,51 @@ def _load_checkpoint_if_exists(
     return model.compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses
 
 
+def _train(
+    model: DownstreamModel,
+    criterion: Criterion,
+    data_loader: GeoGNNDataLoader,
+    encoder_optimizer: EncoderOptimizer,
+    head_optimizer: HeadOptimizer,
+) -> float:
+    """
+    Trains `model` for 1 epoch.
+
+    Returns:
+        float: Average loss of all the batches in `data_loader` for this epoch of training.
+    """
+    start_time = time.time()
+    losses: list[float] = []
+    for i, batch_data in enumerate(data_loader):
+        batch_atom_bond_graph, batch_bond_angle_graph, labels \
+            = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
+
+        # Zero grad the optimizers
+        encoder_optimizer.zero_grad()
+        head_optimizer.zero_grad()
+
+        # Forward pass
+        outputs = model.forward(batch_atom_bond_graph, batch_bond_angle_graph)
+
+        # Calculate loss
+        loss = criterion.forward(outputs, labels)
+
+        # Backward pass
+        loss.backward()
+
+        # Update weights
+        encoder_optimizer.step()
+        head_optimizer.step()
+
+        losses.append(loss.item())
+        end_time = time.time()
+        print(f'Batch {i+1:04}, Time: {end_time - start_time:.2f}, Loss: {loss.item():06.3f}')
+        start_time = end_time
+
+    avg_loss = sum(losses) / len(losses)
+    return avg_loss
+
+
 if __name__ == "__main__":
     # Use GPU if available, else use CPU.
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -228,7 +246,7 @@ if __name__ == "__main__":
 
     for encoder_lr, head_lr in lr_pairs:
         for dropout_rate in dropout_rates:
-            train_model(
+            run_training(
                 encoder_lr = encoder_lr,
                 head_lr = head_lr,
                 dropout_rate = dropout_rate,
