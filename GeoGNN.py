@@ -36,7 +36,7 @@ class InnerGNN(nn.Module):
             hidden_size (int): Hidden layer's size of the MLP \
                 (the MLP after message-passing).
             out_feat_size (int): The output size for each feature.
-            dropout_rate (float, optional): Dropout rate for the dropout layers.
+            dropout_rate (float): Dropout rate for the dropout layers.
             has_last_act (bool, optional): Whether to pass the final output \
                 through an activation function (ie. ReLU). Defaults to True.
         """
@@ -228,7 +228,7 @@ class GeoGNNModel(nn.Module):
             embed_dim (int, optional): Dimension of the feature embeddings. \
                 Defaults to 32.
             dropout_rate (float, optional): Dropout rate for the dropout layers. \
-                Defaults to 0.2.
+                Defaults to 0.5.
             num_of_layers (int, optional): Number of `GeoGNNLayer` layers used. \
                 Defaults to 8.
             atom_feat_dict (dict[FeatureName, Feature], optional): Details for \
