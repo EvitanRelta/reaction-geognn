@@ -49,6 +49,7 @@ def run_training(
             = _load_checkpoint_if_exists(checkpoint_dir, model, encoder_optimizer, head_optimizer)
 
     # Train model
+    start_time = time.time()
     start_epoch: int = previous_epoch + 1   # start from the next epoch
     for epoch in range(start_epoch, num_epochs):
         train_loss = _train(model, criterion, train_data_loader, encoder_optimizer, head_optimizer)
@@ -59,7 +60,10 @@ def run_training(
         epoch_valid_losses.append(valid_loss)
         epoch_test_losses.append(test_loss)
         prev_epoch_loss = epoch_losses[-2] if len(epoch_losses) >= 2 else 0.0
-        print(f'=== Epoch {epoch:04}, Train loss: {train_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} (Valid | Test losses: {valid_loss:06.3f} | {test_loss:06.3f}) ===')
+
+        end_time = time.time()
+        print(f'Epoch {epoch:04}, Time: {end_time - start_time:.2f}, Train loss: {train_loss:06.3f}, Prev loss: {prev_epoch_loss:06.3f} (Valid | Test losses: {valid_loss:06.3f} | {test_loss:06.3f})')
+        start_time = end_time
 
         if load_save_checkpoints:
             # Save checkpoint of epoch.
@@ -366,7 +370,6 @@ def _train(
     Returns:
         float: Average loss of all the batches in `data_loader` for this epoch of training.
     """
-    start_time = time.time()
     losses: list[float] = []
     for i, batch_data in enumerate(train_data_loader):
         batch_atom_bond_graph, batch_bond_angle_graph, labels \
@@ -390,9 +393,6 @@ def _train(
         head_optimizer.step()
 
         losses.append(loss.item())
-        end_time = time.time()
-        print(f'Batch {i+1:04}, Time: {end_time - start_time:.2f}, Loss: {loss.item():06.3f}')
-        start_time = end_time
 
     avg_loss = sum(losses) / len(losses)
     return avg_loss
