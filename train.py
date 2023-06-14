@@ -326,8 +326,9 @@ def _evaluate(
 
 
 if __name__ == "__main__":
-    # Use GPU if available, else use CPU.
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    # Use GPU.
+    assert torch.cuda.is_available(), "No visible GPU."
+    device = torch.device('cuda:0')
 
     # Try various learning-rates and dropout-rates, based on GeoGNN's
     # `finetune_regr.sh` script:
