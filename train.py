@@ -1,4 +1,4 @@
-import os, time, random, torch, dgl, numpy as np
+import os, time, random, torch, dgl, numpy as np, subprocess
 from torch import Tensor, nn
 from torch.optim import Adam
 from dgl import DGLGraph
@@ -8,10 +8,6 @@ from DownstreamModel import DownstreamModel
 from GeoGNN import GeoGNNModel
 from geognn_datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter
 
-
-# Set to only use the 3rd GPU (ie. GPU-2).
-# Since GPU-0 is over-subscribed, and also I'm told to only use 1 out of our 4 GPUs.
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 # Set seed to make code deterministic.
 seed = 69420
@@ -129,6 +125,44 @@ class GeoGNNCheckpoint(TypedDict):
     State dict of the `Adam` optimizer for the `DownstreamModel` parameters but
     excluding those in `GeoGNN`.
     """
+
+
+def _get_least_utilized_and_allocated_gpu() -> torch.device:
+    """
+    Returns the `torch.device` of the GPU with the lowest utilization and memory
+    allocation.
+
+    Returns:
+        torch.device: The `torch.device` of the least utilized and memory allocated GPU.
+    """
+    result = subprocess.check_output(
+        [
+            'nvidia-smi', '--query-gpu=index,utilization.gpu,memory.used',
+            '--format=csv,nounits,noheader'
+        ], encoding='utf-8')
+
+    # GPU stats are returned in separate lines
+    gpu_stats = result.strip().split('\n')
+    assert len(gpu_stats) > 0, "No visible GPU."
+    assert len(gpu_stats) > 1, "Only 1 GPU (expected to run on a machine with multiple GPUs)."
+
+    parsed_stats: list[tuple[int, int, int]] = []
+    for gpu_stat in gpu_stats:
+        stats = gpu_stat.split(', ')
+        gpu_id = int(stats[0])
+        utilization = int(stats[1])
+        memory = int(stats[2])
+        parsed_stats.append((gpu_id, utilization, memory))
+
+        # Printing GPU stats for debugging.
+        print(f'GPU-{gpu_id}: Util = {utilization}, Mem alloc = {memory}')
+
+    # Sort GPUs by utilization first, then memory allocation.
+    sorted_gpus = sorted(parsed_stats, key=lambda x: (x[1], x[2]))
+
+    least_used_gpu_id = sorted_gpus[0][0]
+    print(f'Using GPU-{least_used_gpu_id}...\n')
+    return torch.device(f'cuda:{least_used_gpu_id}')
 
 
 def _init_objects(
@@ -328,7 +362,8 @@ def _evaluate(
 if __name__ == "__main__":
     # Use GPU.
     assert torch.cuda.is_available(), "No visible GPU."
-    device = torch.device('cuda:0')
+    assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
+    device = _get_least_utilized_and_allocated_gpu()
 
     # Try various learning-rates and dropout-rates, based on GeoGNN's
     # `finetune_regr.sh` script:
