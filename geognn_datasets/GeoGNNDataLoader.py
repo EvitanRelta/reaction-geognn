@@ -21,11 +21,13 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         batch_size: int,
         shuffle: bool = True,
         device: torch.device = torch.device('cpu'),
+        cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {},
     ) -> None:
         super().__init__(dataset, batch_size, shuffle, collate_fn=self._collate_fn)
         self.device = device
         self.fit_mean = fit_mean.to(device)
         self.fit_std = fit_std.to(device)
+        self._cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = cached_graphs
 
     @staticmethod
     def get_stats(dataset: Dataset[GeoGNNDataElement]) -> tuple[Tensor, Tensor]:
@@ -55,7 +57,14 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         data_list: list[Tensor] = []
         for elem in batch:
             smiles, data = elem['smiles'], elem['data']
-            atom_bond_graph, bond_angle_graph = Utils.smiles_to_graphs(smiles, self.device)
+
+            if smiles in self._cached_graphs:
+                atom_bond_graph, bond_angle_graph = self._cached_graphs[smiles]
+            else:
+                graphs = Utils.smiles_to_graphs(smiles, self.device)
+                atom_bond_graph, bond_angle_graph = graphs
+                self._cached_graphs[smiles] = graphs
+
             atom_bond_graphs.append(atom_bond_graph)
             bond_angle_graphs.append(bond_angle_graph)
             data_list.append(data)

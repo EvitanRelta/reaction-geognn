@@ -1,4 +1,5 @@
-import os, time, random, torch, dgl, numpy as np, subprocess
+import os, time, random, torch, dgl, numpy as np, subprocess, pickle
+from tqdm.autonotebook import tqdm
 from torch import Tensor, nn
 from torch.optim import Adam
 from dgl import DGLGraph
@@ -6,7 +7,8 @@ from typing import TypeAlias, TypedDict, cast
 
 from DownstreamModel import DownstreamModel
 from GeoGNN import GeoGNNModel
-from geognn_datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter
+from geognn_datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter, GeoGNNDataset
+from Utils import Utils
 
 
 # Set seed to make code deterministic.
@@ -165,6 +167,73 @@ def _get_least_utilized_and_allocated_gpu() -> torch.device:
     return torch.device(f'cuda:{least_used_gpu_id}')
 
 
+# ==================================================
+#           Precomputing/Caching of graphs
+# ==================================================
+def _get_cached_graphs(
+    dataset: GeoGNNDataset,
+    save_file_path: str,
+    device: torch.device,
+) -> dict[str, tuple[DGLGraph, DGLGraph]]:
+    # Extract all the SMILES strings from dataset.
+    smiles_list = [data['smiles'] for data in dataset.data_list]
+
+    # If the save file exists, load the graphs from it.
+    if os.path.exists(save_file_path):
+        print(f'Loading cached graphs file at "{save_file_path}"...\n')
+        cached_graphs = _load_cached_graphs(save_file_path, device)
+
+        assert len(cached_graphs) == len(dataset), \
+            "Length of saved cached-graphs doesn't match dataset length."
+        assert set(cached_graphs.keys()) == set(smiles_list), \
+            "SMILES of saved cached-graphs doesn't match those in the dataset."
+
+        return cached_graphs
+
+    # If the save file doesn't exist, compute all the graphs
+    cached_graphs = _compute_all_graphs(smiles_list, device)
+
+    # Create the parent directory of the save file path if it doesn't exist
+    os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
+
+    # Save the graphs to the save file path
+    _save_cached_graphs(cached_graphs, save_file_path)
+
+    return cached_graphs
+
+def _compute_all_graphs(
+    smiles_list: list[str],
+    device: torch.device,
+) -> dict[str, tuple[DGLGraph, DGLGraph]]:
+    precomputed_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {}
+    print(f'Precomputing graphs for {len(smiles_list)} SMILES strings:')
+    for smiles in tqdm(smiles_list):
+        precomputed_graphs[smiles] = Utils.smiles_to_graphs(smiles, device=device)
+    print('\n')
+    return precomputed_graphs
+
+def _save_cached_graphs(
+    cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]],
+    save_file_path: str,
+) -> None:
+    with open(save_file_path, 'wb') as f:
+        pickle.dump(cached_graphs, f)
+
+def _load_cached_graphs(save_file_path: str, device: torch.device) -> dict[str, tuple[DGLGraph, DGLGraph]]:
+    cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]]
+    with open(save_file_path, 'rb') as f:
+        cached_graphs = pickle.load(f)
+
+    # Move all graphs to device.
+    cached_graphs = {
+        smiles: (g1.to(device), g2.to(device)) \
+            for smiles, (g1, g2) in cached_graphs.items()
+    }
+    return cached_graphs
+# ==================================================
+# ==================================================
+
+
 def _init_objects(
     device: torch.device,
     encoder_lr: float,
@@ -196,6 +265,11 @@ def _init_objects(
 
     # Get and split dataset.
     dataset = ESOLDataset()
+    cached_graphs = _get_cached_graphs(
+        dataset,
+        save_file_path = './cached_graphs/cached_esol_graphs.bin',
+        device = device,
+    )
     train_dataset, valid_dataset, test_dataset \
         = ScaffoldSplitter().split(dataset, frac_train=0.8, frac_valid=0.1, frac_test=0.1)
 
@@ -208,7 +282,8 @@ def _init_objects(
         fit_std = train_std,
         batch_size = 32,
         shuffle = True,
-        device = device
+        device = device,
+        cached_graphs = cached_graphs,
     )
     valid_data_loader = GeoGNNDataLoader(
         valid_dataset,
@@ -216,7 +291,8 @@ def _init_objects(
         fit_std = train_std,
         batch_size = 32,
         shuffle = False,  # No need to shuffle validation and test data
-        device = device
+        device = device,
+        cached_graphs = cached_graphs,
     )
     test_data_loader = GeoGNNDataLoader(
         test_dataset,
@@ -224,7 +300,8 @@ def _init_objects(
         fit_std = train_std,
         batch_size = 32,
         shuffle = False,  # No need to shuffle validation and test data
-        device = device
+        device = device,
+        cached_graphs = cached_graphs,
     )
 
     compound_encoder_params = list(compound_encoder.parameters())
