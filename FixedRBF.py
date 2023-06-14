@@ -40,3 +40,10 @@ class FixedRBF(nn.Module):
         """
         x = torch.reshape(x, [-1, 1])
         return torch.exp(-self.gamma * torch.square(x - self.centers))
+
+    def __repr__(self) -> str:
+        repr_string = 'FixedRBF(\n'
+        repr_string += f'  centers={self.centers},\n'
+        repr_string += f'  gamma={self.gamma}\n'
+        repr_string += ")"
+        return repr_string
