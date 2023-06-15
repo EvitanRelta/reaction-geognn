@@ -12,13 +12,13 @@ from Utils import Utils
 
 
 # Set seed to make code deterministic.
-seed = 69420
-random.seed(seed)
-np.random.seed(seed)
-dgl.random.seed(seed)
+SEED = 69420
+random.seed(SEED)
+np.random.seed(SEED)
+dgl.random.seed(SEED)
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-torch.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
 torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
