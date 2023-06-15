@@ -239,12 +239,15 @@ class Utils:
         # Add node features.
         for feat_name, feat in Utils.FEATURES['atom_feats'].items():
             graph.ndata[feat_name] = torch.tensor([feat.get_encoded_feat_value(atom) for atom in mol.GetAtoms()])
-        graph.ndata['atom_pos'] = Utils._get_atom_positions(mol, conf)
+        graph.ndata['_atom_pos'] = Utils._get_atom_positions(mol, conf)
 
         # Add edge features.
         for feat_name, feat in Utils.FEATURES['bond_feats'].items():
             graph.edata[feat_name] = torch.tensor([feat.get_encoded_feat_value(bond) for bond in mol.GetBonds()])
         graph.edata['bond_length'] = Utils._get_bond_lengths(graph)
+
+        # Remove temporary feats used in computing other feats.
+        del graph.ndata['_atom_pos']
 
         graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
@@ -336,17 +339,17 @@ class Utils:
         Gets all the bond lengths in a molecule.
 
         Note: This requires the 3D-coords of the atoms to already be computed at
-        `graph.ndata['atom_pos']`.
+        `graph.ndata['_atom_pos']`.
 
         Args:
             graph (DGLGraph): The graph with atoms as nodes, bonds as edges, and \
                 with the 3D-coords of the atoms already computed at \
-                `graph.ndata['atom_pos']`.
+                `graph.ndata['_atom_pos']`.
 
         Returns:
             Tensor: Bond lengths of all the bonds in the molecule.
         """
-        atom_positions: Tensor = graph.ndata['atom_pos']
+        atom_positions: Tensor = graph.ndata['_atom_pos']
         edges_tuple: tuple[Tensor, Tensor] = graph.edges()
 
         src_node_idx, dst_node_idx = edges_tuple
