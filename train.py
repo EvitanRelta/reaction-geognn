@@ -27,19 +27,20 @@ torch.backends.cudnn.benchmark = False
 def run_training(
     encoder_lr: float,
     head_lr: float,
+    num_downstream_mlp_layers: int,
     dropout_rate: float,
     num_epochs: int,
     device: torch.device,
     load_save_checkpoints: bool = True,
     base_checkpoint_dir: str = './checkpoints',
 ) -> None:
-    sub_dir_name = f'esol_only_encoder_lr{encoder_lr}_head_lr{head_lr}_dropout_rate{dropout_rate}'
+    sub_dir_name = f'esol_only_encoder_lr{encoder_lr}_head_lr{head_lr}_dropout_rate{dropout_rate}_mlp{num_downstream_mlp_layers}'
     checkpoint_dir = os.path.join(base_checkpoint_dir, sub_dir_name)
 
     # Init / Load all the object instances.
     compound_encoder, model, criterion, metric, train_data_loader, \
         valid_data_loader, test_data_loader, encoder_optimizer, head_optimizer \
-        = _init_objects(device, encoder_lr, head_lr, dropout_rate)
+        = _init_objects(device, encoder_lr, head_lr, num_downstream_mlp_layers, dropout_rate)
     previous_epoch = -1
     epoch_losses: list[float] = []
     epoch_valid_losses: list[float] = []
@@ -242,6 +243,7 @@ def _init_objects(
     device: torch.device,
     encoder_lr: float,
     head_lr: float,
+    num_downstream_mlp_layers: int,
     dropout_rate: float,
 ) -> tuple[GeoGNNModel, DownstreamModel, TrainCriterion, Metric, TrainDataLoader, ValidDataLoader, TestDataLoader, EncoderOptimizer, HeadOptimizer]:
     """
@@ -253,6 +255,7 @@ def _init_objects(
         compound_encoder = compound_encoder,
         task_type = 'regression',
         out_size = 1,  # Since ESOL is a regression task with a single target value
+        num_of_mlp_layers = num_downstream_mlp_layers,
         dropout_rate = dropout_rate,
     )
     model = model.to(device)
@@ -442,18 +445,21 @@ if __name__ == "__main__":
     assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
     device = _get_least_utilized_and_allocated_gpu()
 
-    # Try various learning-rates and dropout-rates, based on GeoGNN's
-    # `finetune_regr.sh` script:
-    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/finetune_regr.sh#L38-L39
+    # Try various learning-rates, dropout-rates and layers of
+    # `DownstreamModel` MLP, based on GeoGNN's `finetune_regr.sh` script:
+    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/finetune_regr.sh#L37-L39
     lr_pairs = [(1e-3, 1e-3), (1e-3, 4e-3), (4e-3, 4e-3), (4e-4, 4e-3)]
     dropout_rates = [0.1, 0.2]
+    downstream_mlp_layers_list = [2, 3]
 
     for encoder_lr, head_lr in lr_pairs:
         for dropout_rate in dropout_rates:
-            run_training(
-                encoder_lr = encoder_lr,
-                head_lr = head_lr,
-                dropout_rate = dropout_rate,
-                device = device,
-                num_epochs = 100,
-            )
+            for num_downstream_mlp_layers in downstream_mlp_layers_list:
+                run_training(
+                    encoder_lr = encoder_lr,
+                    head_lr = head_lr,
+                    num_downstream_mlp_layers = num_downstream_mlp_layers,
+                    dropout_rate = dropout_rate,
+                    device = device,
+                    num_epochs = 100,
+                )
