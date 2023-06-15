@@ -73,7 +73,7 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         return (
             dgl.batch(atom_bond_graphs),
             dgl.batch(bond_angle_graphs),
-            GeoGNNDataLoader._standardize_data(data, self.fit_mean, self.fit_std)
+            GeoGNNDataLoader._standardize_data(data, self.fit_mean, self.fit_std),
         )
 
     @staticmethod

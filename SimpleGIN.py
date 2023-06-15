@@ -33,7 +33,7 @@ class SimpleGIN(nn.Module):
         self.mlp = nn.Sequential(
             nn.Linear(in_feat_size, mlp_hidden_size),
             nn.ReLU(),
-            nn.Linear(mlp_hidden_size, out_feat_size)
+            nn.Linear(mlp_hidden_size, out_feat_size),
         )
 
     def reset_parameters(self) -> None:
@@ -60,8 +60,8 @@ class SimpleGIN(nn.Module):
             graph.ndata['h_n'] = node_feats
             graph.edata['h_e'] = edge_feats
             graph.update_all(
-                message_func=fn.u_add_e('h_n', 'h_e', 'm'),
-                reduce_func=fn.sum('m', 'h_out'),
+                message_func = fn.u_add_e('h_n', 'h_e', 'm'),
+                reduce_func = fn.sum('m', 'h_out'),
             )
             output_node_feats = graph.ndata['h_out']
             return self.mlp.forward(output_node_feats)

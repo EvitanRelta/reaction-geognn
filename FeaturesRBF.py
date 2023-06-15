@@ -36,7 +36,7 @@ class FeaturesRBF(nn.Module):
         for feat_name, (centers, gamma) in rbf_param_dict.items():
             layer = nn.Sequential(
                 FixedRBF(centers, gamma),
-                nn.Linear(len(centers), output_dim)
+                nn.Linear(len(centers), output_dim),
             )
             self.module_dict[feat_name] = layer
 

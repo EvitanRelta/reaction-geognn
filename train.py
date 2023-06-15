@@ -142,11 +142,11 @@ def _get_least_utilized_and_allocated_gpu() -> torch.device:
     Returns:
         torch.device: The `torch.device` of the least utilized and memory allocated GPU.
     """
-    result = subprocess.check_output(
-        [
-            'nvidia-smi', '--query-gpu=index,utilization.gpu,memory.used',
-            '--format=csv,nounits,noheader'
-        ], encoding='utf-8')
+    result = subprocess.check_output([
+        'nvidia-smi',
+        '--query-gpu=index,utilization.gpu,memory.used',
+        '--format=csv,nounits,noheader'
+    ], encoding='utf-8')
 
     # GPU stats are returned in separate lines
     gpu_stats = result.strip().split('\n')

@@ -121,14 +121,14 @@ class GeoGNNLayer(nn.Module):
             hidden_size = embed_dim * 2,
             out_feat_size = embed_dim,
             dropout_rate = dropout_rate,
-            has_last_act = has_last_act
+            has_last_act = has_last_act,
         )
         self.bond_angle_gnn_block = InnerGNN(
             in_feat_size = embed_dim,
             hidden_size = embed_dim * 2,
             out_feat_size = embed_dim,
             dropout_rate = dropout_rate,
-            has_last_act = has_last_act
+            has_last_act = has_last_act,
         )
 
     def reset_parameters(self) -> None:

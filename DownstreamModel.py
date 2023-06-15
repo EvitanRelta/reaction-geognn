@@ -60,7 +60,7 @@ class DownstreamModel(nn.Module):
             hidden_size = mlp_hidden_size,
             out_size = out_size,
             activation = activation,
-            dropout_rate = dropout_rate
+            dropout_rate = dropout_rate,
         )
         if self.task_type == 'classification':
             self.out_act = nn.Sigmoid()
