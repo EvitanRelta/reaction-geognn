@@ -250,10 +250,10 @@ def _init_objects(
     # Instantiate GNN model
     compound_encoder = GeoGNNModel(dropout_rate=dropout_rate)
     model = DownstreamModel(
-        compound_encoder=compound_encoder,
-        task_type='regression',
-        out_size=1,  # Since ESOL is a regression task with a single target value
-        dropout_rate=dropout_rate,
+        compound_encoder = compound_encoder,
+        task_type = 'regression',
+        out_size = 1,  # Since ESOL is a regression task with a single target value
+        dropout_rate = dropout_rate,
     )
     model = model.to(device)
 
