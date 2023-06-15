@@ -19,8 +19,8 @@ class DownstreamModel(nn.Module):
         compound_encoder: GeoGNNModel,
         task_type: Literal['classification', 'regression'],
         out_size: int,
-        num_of_layers: int = 2,
-        hidden_size: int = 128,
+        num_of_mlp_layers: int = 2,
+        mlp_hidden_size: int = 128,
         activation: nn.Module = nn.LeakyReLU(),
         dropout_rate: float = 0.2,
     ):
@@ -41,9 +41,9 @@ class DownstreamModel(nn.Module):
         self.compound_encoder = compound_encoder
         self.norm = nn.LayerNorm(compound_encoder.embed_dim)
         self.mlp = DropoutMLP(
-            num_of_layers = num_of_layers,
+            num_of_layers = num_of_mlp_layers,
             in_size = compound_encoder.embed_dim,
-            hidden_size = hidden_size,
+            hidden_size = mlp_hidden_size,
             out_size = out_size,
             activation = activation,
             dropout_rate = dropout_rate
