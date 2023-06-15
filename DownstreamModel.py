@@ -37,6 +37,16 @@ class DownstreamModel(nn.Module):
 
         Both of GeoGNN's finetuning scripts tests both `num_of_layers = 2` and
         `num_of_layers = 3`.
+
+        Args:
+            compound_encoder (GeoGNNModel): GeoGNN encoder for the molecule graphs.
+            task_type (Literal['classification', 'regression']): Whether to \
+                perform a classification or regression.
+            out_size (int): Size of output tensor.
+            num_of_mlp_layers (int): Number of layers in the dropout MLP.
+            mlp_hidden_size (int, optional): Hidden size of dropout MLP. Defaults to 128.
+            activation (nn.Module, optional): Activation layer to use. Defaults to `nn.LeakyReLU()`.
+            dropout_rate (float, optional): Dropout rate of the dropout MLP. Defaults to 0.2.
         """
         super().__init__()
         self.task_type = task_type
