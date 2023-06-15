@@ -23,6 +23,16 @@ torch.use_deterministic_algorithms(True)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
+# Functions for preserving reproducibility in PyTorch's `DataLoader`.
+def _dataloader_worker(worker_id: int) -> None:
+    np.random.seed(SEED)
+    random.seed(SEED)
+
+def _get_dataloader_generator() -> torch.Generator:
+    g = torch.Generator()
+    g.manual_seed(SEED)
+    return g
+
 
 def run_training(
     encoder_lr: float,
@@ -291,6 +301,8 @@ def _init_objects(
         shuffle = True,
         device = device,
         cached_graphs = cached_graphs,
+        worker_init_fn=_dataloader_worker,
+        generator=_get_dataloader_generator(),
     )
     valid_data_loader = GeoGNNDataLoader(
         valid_dataset,
@@ -300,6 +312,8 @@ def _init_objects(
         shuffle = False,  # No need to shuffle validation and test data
         device = device,
         cached_graphs = cached_graphs,
+        worker_init_fn=_dataloader_worker,
+        generator=_get_dataloader_generator(),
     )
     test_data_loader = GeoGNNDataLoader(
         test_dataset,
@@ -309,6 +323,8 @@ def _init_objects(
         shuffle = False,  # No need to shuffle validation and test data
         device = device,
         cached_graphs = cached_graphs,
+        worker_init_fn=_dataloader_worker,
+        generator=_get_dataloader_generator(),
     )
 
     compound_encoder_params = list(compound_encoder.parameters())

@@ -3,6 +3,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 import dgl
 from dgl import DGLGraph
+from typing import Callable, Optional
 
 from Utils import Utils
 from .shared_definitions import GeoGNNDataElement
@@ -22,8 +23,17 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         shuffle: bool = True,
         device: torch.device = torch.device('cpu'),
         cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {},
+        worker_init_fn: Optional[Callable[[int], None]] = None,
+        generator: Optional[torch.Generator] = None,
     ) -> None:
-        super().__init__(dataset, batch_size, shuffle, collate_fn=self._collate_fn)
+        super().__init__(
+            dataset,
+            batch_size,
+            shuffle,
+            collate_fn = self._collate_fn,
+            worker_init_fn = worker_init_fn,
+            generator = generator,
+        )
         self.device = device
         self.fit_mean = fit_mean.to(device)
         self.fit_std = fit_std.to(device)
