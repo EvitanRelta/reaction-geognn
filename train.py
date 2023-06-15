@@ -1,4 +1,4 @@
-import os, time, random, torch, dgl, numpy as np, subprocess, pickle
+import os, time, random, torch, dgl, numpy as np, subprocess, pickle, argparse
 from tqdm.autonotebook import tqdm
 from torch import Tensor, nn
 from torch.optim import Adam
@@ -438,8 +438,25 @@ def _evaluate(
     model.train()
     return avg_loss
 
+class Arguments(TypedDict):
+    load_save_checkpoints: bool
+
+def _parse_script_args() -> Arguments:
+    parser = argparse.ArgumentParser(description='Training Script')
+    parser.add_argument('--no-load-save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
+    args = parser.parse_args()
+
+    output: Arguments = {
+        'load_save_checkpoints': not args.no_load_save
+    }
+    if not output['load_save_checkpoints']:
+        print('Warning: No loading/saving of checkpoints will be done.\n')
+    return output
+
 
 if __name__ == "__main__":
+    args_dict = _parse_script_args()
+
     # Use GPU.
     assert torch.cuda.is_available(), "No visible GPU."
     assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
@@ -462,4 +479,5 @@ if __name__ == "__main__":
                     dropout_rate = dropout_rate,
                     device = device,
                     num_epochs = 100,
+                    load_save_checkpoints = args_dict['load_save_checkpoints']
                 )
