@@ -3,6 +3,7 @@ This is an implementation of GeoGNN using PyTorch/PyTorch Geometric.
 """
 
 from torch import nn, Tensor
+import torch
 from SqrtGraphNorm import SqrtGraphNorm
 from SimpleGIN import SimpleGIN
 from FeaturesEmbedding import FeaturesEmbedding
@@ -172,6 +173,8 @@ class GeoGNNLayer(nn.Module):
         bond_angle_embed = self.bond_angle_rbf.forward(bond_angle_graph.edata)
         edge_out = self.bond_angle_gnn_block.forward(bond_angle_graph, bond_embed, bond_angle_embed)
 
+        # This reverses the `GeoGNNLayer._get_unidirected_feats` above.
+        edge_out = GeoGNNLayer._get_bidirected_feats(atom_bond_graph, edge_out)
         return node_out, edge_out
 
     @staticmethod
@@ -183,6 +186,8 @@ class GeoGNNLayer(nn.Module):
         Converts bi-directed edge features to uni-directed. Bi-directed graphs
         have 2 copies of each undirected-edge; this method removes the values of
         1 of those copies.
+
+        `GeoGNNLayer._get_bidirected_feats` performs the reversed operation.
         """
         u, v = bidirected_graph.edges()
 
@@ -190,6 +195,37 @@ class GeoGNNLayer(nn.Module):
         # the edge's source-node ID < the destination-node ID.
         mask = u < v
         return bidirected_edge_feats[mask]
+
+    @staticmethod
+    def _get_bidirected_feats(
+        bidirected_graph: DGLGraph,
+        unidirected_edge_feats: Tensor,
+    ) -> Tensor:
+        """
+        Converts uni-directed edge features to bi-directed. Bi-directed graphs
+        have 2 copies of each undirected-edge; this method duplicates the values
+        of each undirected-edge.
+
+        `GeoGNNLayer._get_unidirected_feats` performs the reversed operation.
+        """
+        (u, v) = cast(tuple[Tensor, Tensor], bidirected_graph.edges())
+
+        # Indices of the edges in the bi-directed graph that correspond to the undirected edges
+        undirected_indices = (u < v).nonzero(as_tuple=True)[0]
+
+        # Indices of the edges in the bi-directed graph that are the reverse of the undirected edges
+        reversed_indices = (v < u).nonzero(as_tuple=True)[0]
+
+        # Initialize bidirected edge features with zeros
+        bidirected_edge_feats = torch.zeros((len(u), unidirected_edge_feats.size(1)), device=unidirected_edge_feats.device, dtype=unidirected_edge_feats.dtype)
+
+        # Assign undirected features to the corresponding edges in the bi-directed graph
+        bidirected_edge_feats[undirected_indices] = unidirected_edge_feats
+
+        # Duplicate features for the reversed edges
+        bidirected_edge_feats[reversed_indices] = unidirected_edge_feats
+
+        return bidirected_edge_feats
 
 
 class GeoGNNModel(nn.Module):
@@ -290,7 +326,8 @@ class GeoGNNModel(nn.Module):
         node_out = node_embeddings
         edge_out = edge_embeddings
         for gnn_layer in self.gnn_layer_list:
-            cast(GeoGNNLayer, gnn_layer).forward(atom_bond_graph, bond_angle_graph, node_out, edge_out)
+            node_out, edge_out = cast(GeoGNNLayer, gnn_layer) \
+                .forward(atom_bond_graph, bond_angle_graph, node_out, edge_out)
 
         graph_repr = self.graph_pool.forward(atom_bond_graph, node_out)
         return node_out, edge_out, graph_repr
