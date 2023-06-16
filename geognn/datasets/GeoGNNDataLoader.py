@@ -67,6 +67,7 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         data_list: list[Tensor] = []
         for elem in batch:
             smiles, data = elem['smiles'], elem['data']
+            assert isinstance(smiles, str) and isinstance(data, Tensor)
 
             if smiles in self._cached_graphs:
                 atom_bond_graph, bond_angle_graph = self._cached_graphs[smiles]

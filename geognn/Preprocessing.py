@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Final, Literal, TypeAlias
+from typing import Any, Callable, Final, Literal, TypeAlias, overload
 
 import dgl
 import numpy as np
@@ -178,9 +178,18 @@ class Preprocessing:
     `BondAngleFloatRBF` in:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py
     """
-
+    @overload
     @staticmethod
-    def smiles_to_graphs(smiles: str, device: torch.device = torch.device('cpu')) -> tuple[DGLGraph, DGLGraph]:
+    def smiles_to_graphs(smiles: str, device: torch.device, return_mol_conf: Literal[True]) ->  tuple[DGLGraph, DGLGraph, Mol, Conformer]: ...
+    @overload
+    @staticmethod
+    def smiles_to_graphs(smiles: str, device: torch.device, return_mol_conf: Literal[False] = False) -> tuple[DGLGraph, DGLGraph]: ...
+    @staticmethod
+    def smiles_to_graphs(
+        smiles: str,
+        device: torch.device = torch.device('cpu'),
+        return_mol_conf: bool = False,
+    ) -> tuple[DGLGraph, DGLGraph] | tuple[DGLGraph, DGLGraph, Mol, Conformer]:
         """
         Convert a molecule's SMILES string into 2 DGL graphs:
         - a graph with atoms as nodes, bonds as edges
@@ -199,6 +208,8 @@ class Preprocessing:
 
         atom_bond_graph = Preprocessing._get_atom_bond_graph(mol, conf, device)
         bond_angle_graph = Preprocessing._get_bond_angle_graph(mol, conf, device)
+        if return_mol_conf:
+            return atom_bond_graph, bond_angle_graph, mol, conf
         return atom_bond_graph, bond_angle_graph
 
     @staticmethod
