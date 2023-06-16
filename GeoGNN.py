@@ -8,7 +8,7 @@ from SqrtGraphNorm import SqrtGraphNorm
 from SimpleGIN import SimpleGIN
 from FeaturesEmbedding import FeaturesEmbedding
 from FeaturesRBF import FeaturesRBF
-from Utils import Feature, FeatureName, RBFCenters, RBFGamma, Utils
+from Preprocessing import Feature, FeatureName, RBFCenters, RBFGamma, Preprocessing
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import AvgPooling
 from typing import cast
@@ -93,7 +93,7 @@ class GeoGNNLayer(nn.Module):
         atom_feat_dict: dict[FeatureName, Feature],
         bond_feat_dict: dict[FeatureName, Feature],
         bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]],
-        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Utils.RBF_PARAMS['bond_angle'],
+        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Preprocessing.RBF_PARAMS['bond_angle'],
     ) -> None:
         """
         Args:
@@ -242,12 +242,12 @@ class GeoGNNModel(nn.Module):
         dropout_rate: float = 0.5,
 
         num_of_layers: int = 8,
-        atom_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['atom_feats'],
-        bond_feat_dict: dict[FeatureName, Feature] = Utils.FEATURES['bond_feats'],
+        atom_feat_dict: dict[FeatureName, Feature] = Preprocessing.FEATURES['atom_feats'],
+        bond_feat_dict: dict[FeatureName, Feature] = Preprocessing.FEATURES['bond_feats'],
         bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] \
-            = Utils.RBF_PARAMS['bond'],
+            = Preprocessing.RBF_PARAMS['bond'],
         bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] \
-            = Utils.RBF_PARAMS['bond_angle'],
+            = Preprocessing.RBF_PARAMS['bond_angle'],
     ) -> None:
         """
         Default values for `embed_dim`, `dropout_rate` and `num_of_layers` and
@@ -268,13 +268,13 @@ class GeoGNNModel(nn.Module):
             num_of_layers (int, optional): Number of `GeoGNNLayer` layers used. \
                 Defaults to 8.
             atom_feat_dict (dict[FeatureName, Feature], optional): Details for \
-                the atom features. Defaults to Utils.FEATURES['atom_feats'].
+                the atom features. Defaults to Preprocessing.FEATURES['atom_feats'].
             bond_feat_dict (dict[FeatureName, Feature], optional): Details for \
-                the bond features. Defaults to Utils.FEATURES['bond_feats'].
+                the bond features. Defaults to Preprocessing.FEATURES['bond_feats'].
             bond_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]], optional): \
-                RBF-layer's params for the bonds. Defaults to Utils.RBF_PARAMS['bond'].
+                RBF-layer's params for the bonds. Defaults to Preprocessing.RBF_PARAMS['bond'].
             bond_angle_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]], optional): \
-                RBF-layer's params for the bond-angles. Defaults to Utils.RBF_PARAMS['bond_angle'].
+                RBF-layer's params for the bond-angles. Defaults to Preprocessing.RBF_PARAMS['bond_angle'].
         """
         super().__init__()
 

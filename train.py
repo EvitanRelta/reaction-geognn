@@ -8,7 +8,7 @@ from typing import TypeAlias, TypedDict, cast
 from DownstreamModel import DownstreamModel
 from GeoGNN import GeoGNNModel
 from geognn_datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter, GeoGNNDataset
-from Utils import Utils
+from Preprocessing import Preprocessing
 
 
 # Set seed to make code deterministic.
@@ -223,7 +223,7 @@ def _compute_all_graphs(
     precomputed_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {}
     print(f'Precomputing graphs for {len(smiles_list)} SMILES strings:')
     for smiles in tqdm(smiles_list):
-        precomputed_graphs[smiles] = Utils.smiles_to_graphs(smiles, device=device)
+        precomputed_graphs[smiles] = Preprocessing.smiles_to_graphs(smiles, device=device)
     print('\n')
     return precomputed_graphs
 

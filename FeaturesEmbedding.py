@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor, nn
-from Utils import Feature, FeatureName
+from Preprocessing import Feature, FeatureName
 from typing import cast
 
 

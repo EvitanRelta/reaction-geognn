@@ -5,7 +5,7 @@ import dgl
 from dgl import DGLGraph
 from typing import Callable, Optional
 
-from Utils import Utils
+from Preprocessing import Preprocessing
 from .shared_definitions import GeoGNNDataElement
 
 
@@ -71,7 +71,7 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
             if smiles in self._cached_graphs:
                 atom_bond_graph, bond_angle_graph = self._cached_graphs[smiles]
             else:
-                graphs = Utils.smiles_to_graphs(smiles, self.device)
+                graphs = Preprocessing.smiles_to_graphs(smiles, self.device)
                 atom_bond_graph, bond_angle_graph = graphs
                 self._cached_graphs[smiles] = graphs
 

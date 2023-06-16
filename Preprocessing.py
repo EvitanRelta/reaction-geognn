@@ -81,7 +81,7 @@ def to_bidirected_copy(g: DGLGraph) -> DGLGraph:
     return g
 
 
-class Utils:
+class Preprocessing:
     RdChemEnum: TypeAlias = Any     # RdChem's enums have no proper typings.
     @staticmethod
     def _rdchem_enum_to_list(rdchem_enum: RdChemEnum) -> list[RdChemEnum]:
@@ -193,10 +193,10 @@ class Utils:
                 is the bond-angle graph.
         """
         mol = AllChem.MolFromSmiles(smiles)
-        mol, conf = Utils._generate_conformer(mol)
+        mol, conf = Preprocessing._generate_conformer(mol)
 
-        atom_bond_graph = Utils._get_atom_bond_graph(mol, conf, device)
-        bond_angle_graph = Utils._get_bond_angle_graph(mol, conf, device)
+        atom_bond_graph = Preprocessing._get_atom_bond_graph(mol, conf, device)
+        bond_angle_graph = Preprocessing._get_bond_angle_graph(mol, conf, device)
         return atom_bond_graph, bond_angle_graph
 
     @staticmethod
@@ -237,14 +237,14 @@ class Utils:
         graph = dgl.graph(edges, num_nodes=mol.GetNumAtoms(), idtype=torch.int32)
 
         # Add node features.
-        for feat_name, feat in Utils.FEATURES['atom_feats'].items():
+        for feat_name, feat in Preprocessing.FEATURES['atom_feats'].items():
             graph.ndata[feat_name] = torch.tensor([feat.get_encoded_feat_value(atom) for atom in mol.GetAtoms()])
-        graph.ndata['_atom_pos'] = Utils._get_atom_positions(mol, conf)
+        graph.ndata['_atom_pos'] = Preprocessing._get_atom_positions(mol, conf)
 
         # Add edge features.
-        for feat_name, feat in Utils.FEATURES['bond_feats'].items():
+        for feat_name, feat in Preprocessing.FEATURES['bond_feats'].items():
             graph.edata[feat_name] = torch.tensor([feat.get_encoded_feat_value(bond) for bond in mol.GetBonds()])
-        graph.edata['bond_length'] = Utils._get_bond_lengths(graph)
+        graph.edata['bond_length'] = Preprocessing._get_bond_lengths(graph)
 
         # Remove temporary feats used in computing other feats.
         del graph.ndata['_atom_pos']
