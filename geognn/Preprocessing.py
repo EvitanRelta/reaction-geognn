@@ -68,7 +68,7 @@ class Feature:
         return self.possible_values.index(value) + 1
 
 
-def to_bidirected_copy(g: DGLGraph) -> DGLGraph:
+def _to_bidirected_copy(g: DGLGraph) -> DGLGraph:
     """Exactly the same as `dgl.to_bidirected`, but copies both node and edge
     features.
 
@@ -251,7 +251,7 @@ class Preprocessing:
         # Remove temporary feats used in computing other feats.
         del graph.ndata['_atom_pos']
 
-        graph = to_bidirected_copy(graph)   # Convert to undirected graph.
+        graph = _to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
         return graph
 
@@ -311,7 +311,7 @@ class Preprocessing:
                     # Add an edge to the graph for this bond angle.
                     graph.add_edges(i, j, {'bond_angle': torch.tensor([angle])})
 
-        graph = to_bidirected_copy(graph)   # Convert to undirected graph.
+        graph = _to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
         return graph
 
