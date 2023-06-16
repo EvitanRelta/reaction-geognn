@@ -1,13 +1,16 @@
-import os, time, random, torch, dgl, numpy as np, subprocess, pickle, argparse
-from tqdm.autonotebook import tqdm
-from torch import Tensor, nn
-from torch.optim import Adam
-from dgl import DGLGraph
+import argparse, os, pickle, random, subprocess, time
 from typing import TypeAlias, TypedDict, cast
 
+import dgl
+import numpy as np
+import torch
+from dgl import DGLGraph
 from geognn import DownstreamModel, GeoGNNModel, Preprocessing
-from geognn.datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter, GeoGNNDataset
-
+from geognn.datasets import ESOLDataset, GeoGNNDataLoader, GeoGNNDataset, \
+    ScaffoldSplitter
+from torch import Tensor, nn
+from torch.optim import Adam
+from tqdm.autonotebook import tqdm
 
 # Set seed to make code deterministic.
 SEED = 69420

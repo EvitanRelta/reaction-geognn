@@ -1,7 +1,9 @@
+from typing import cast
+
 import torch
 from torch import Tensor, nn
+
 from ..Preprocessing import Feature, FeatureName
-from typing import cast
 
 
 class FeaturesEmbedding(nn.Module):

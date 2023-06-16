@@ -1,7 +1,9 @@
+from typing import cast
+
 import torch
 from torch import Tensor, nn
+
 from ..Preprocessing import FeatureName, RBFCenters, RBFGamma
-from typing import cast
 from .FixedRBF import FixedRBF
 
 

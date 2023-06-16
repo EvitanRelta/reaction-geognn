@@ -1,6 +1,7 @@
-from torch import nn, Tensor
-from dgl import DGLGraph, function as fn
 from typing import cast
+
+from dgl import DGLGraph, function as fn
+from torch import Tensor, nn
 
 
 class SimpleGIN(nn.Module):

@@ -2,13 +2,16 @@
 This is an implementation of GeoGNN using PyTorch/PyTorch Geometric.
 """
 
-from torch import nn, Tensor
+from typing import cast
+
 import torch
-from .layers import SqrtGraphNorm, SimpleGIN, FeaturesEmbedding, FeaturesRBF
-from .Preprocessing import Feature, FeatureName, RBFCenters, RBFGamma, Preprocessing
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import AvgPooling
-from typing import cast
+from torch import Tensor, nn
+
+from .layers import FeaturesEmbedding, FeaturesRBF, SimpleGIN, SqrtGraphNorm
+from .Preprocessing import Feature, FeatureName, Preprocessing, RBFCenters, \
+    RBFGamma
 
 
 class InnerGNN(nn.Module):

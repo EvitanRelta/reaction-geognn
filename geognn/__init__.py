@@ -1,4 +1,5 @@
 from .DownstreamModel import DownstreamModel
-from .GeoGNN import InnerGNN, GeoGNNLayer, GeoGNNModel
-from .Preprocessing import Atom, Bond, Mol, Conformer, FeatureCategory, \
-    FeatureName, RBFFeatureCategory, RBFCenters, RBFGamma, Feature, Preprocessing
+from .GeoGNN import GeoGNNLayer, GeoGNNModel, InnerGNN
+from .Preprocessing import Atom, Bond, Conformer, Feature, FeatureCategory, \
+    FeatureName, Mol, Preprocessing, RBFCenters, RBFFeatureCategory, \
+    RBFGamma

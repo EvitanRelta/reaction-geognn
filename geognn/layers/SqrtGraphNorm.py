@@ -1,7 +1,8 @@
-import torch
-from torch import Tensor, IntTensor
-from dgl import DGLGraph
 from typing import cast
+
+import torch
+from dgl import DGLGraph
+from torch import IntTensor, Tensor
 
 
 class SqrtGraphNorm(torch.nn.Module):

@@ -1,7 +1,7 @@
 
 import numpy as np
-from torch.utils.data import Dataset, Subset
 from rdkit.Chem.Scaffolds import MurckoScaffold
+from torch.utils.data import Dataset, Subset
 
 from .shared_definitions import GeoGNNDataElement
 

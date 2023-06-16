@@ -1,8 +1,9 @@
-import torch,  pandas as pd
-from typing import TypedDict
+from typing import TypedDict, cast
+
+import pandas as pd
+import torch
 from torch import Tensor
 from torch.utils.data import Dataset
-from typing import cast
 
 
 class GeoGNNDataElement(TypedDict):

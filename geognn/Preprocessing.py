@@ -1,12 +1,14 @@
-import dgl, torch, numpy as np
-from rdkit import Chem
-from rdkit.Chem import rdchem, AllChem, rdMolTransforms as rdmt
+from dataclasses import dataclass
+from typing import Any, Callable, Final, Literal, TypeAlias
+
+import dgl
+import numpy as np
+import torch
 from dgl import DGLGraph
 from dgl.transforms.functional import add_reverse_edges, to_simple
-from typing import TypeAlias, Any, Callable, Literal, Final
-from dataclasses import dataclass
+from rdkit import Chem
+from rdkit.Chem import AllChem, rdchem, rdMolTransforms as rdmt
 from torch import Tensor
-
 
 Atom: TypeAlias = rdchem.Atom
 Bond: TypeAlias = rdchem.Bond

@@ -1,8 +1,10 @@
 from typing import Literal
+
+from dgl import DGLGraph
 from torch import Tensor, nn
+
 from .GeoGNN import GeoGNNModel
 from .layers import DropoutMLP
-from dgl import DGLGraph
 
 
 class DownstreamModel(nn.Module):

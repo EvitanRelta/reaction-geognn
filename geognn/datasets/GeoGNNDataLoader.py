@@ -1,9 +1,9 @@
-import torch
+from typing import Callable, Optional
+
+import dgl, torch
+from dgl import DGLGraph
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
-import dgl
-from dgl import DGLGraph
-from typing import Callable, Optional
 
 from .. import Preprocessing
 from .shared_definitions import GeoGNNDataElement
