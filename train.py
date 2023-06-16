@@ -7,7 +7,7 @@ from typing import TypeAlias, TypedDict, cast
 
 from DownstreamModel import DownstreamModel
 from GeoGNN import GeoGNNModel
-from geognn_datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter, GeoGNNDataset
+from datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter, GeoGNNDataset
 from Preprocessing import Preprocessing
 
 
