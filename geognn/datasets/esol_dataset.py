@@ -10,6 +10,8 @@ This is a PyTorch equivalent of GeoGNN's `esol_dataset.py`:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_dataset.py
 """
 
+import os
+
 from .shared_definitions import GeoGNNDataset
 
 
@@ -27,15 +29,16 @@ class ESOLDataset(GeoGNNDataset):
 
     def __init__(
         self,
-        csv_path: str = './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv',
+        csv_path: str = './chemrl_downstream_datasets/esol/raw/delaney-processed.csv',
     ) -> None:
         """
         Args:
             csv_path (str, optional): Path to the dataset's `.csv` file. \
-                Defaults to './geognn_datasets/chemrl_downstream_datasets/esol/raw/delaney-processed.csv'.
+                Defaults to './chemrl_downstream_datasets/esol/raw/delaney-processed.csv'.
         """
+        current_dir = os.path.dirname(os.path.realpath(__file__))
         super().__init__(
             smiles_column_name = 'smiles',
             data_columns_to_use = ['measured log solubility in mols per litre'],
-            csv_path = csv_path,
+            csv_path = os.path.join(current_dir, csv_path), # Set path relative to this file.
         )
