@@ -5,7 +5,7 @@ import dgl
 from dgl import DGLGraph
 from typing import Callable, Optional
 
-from Preprocessing import Preprocessing
+from ..Preprocessing import Preprocessing
 from .shared_definitions import GeoGNNDataElement
 
 

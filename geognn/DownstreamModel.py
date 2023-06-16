@@ -1,7 +1,7 @@
 from typing import Literal
 from torch import Tensor, nn
-from GeoGNN import GeoGNNModel
-from mygnn.layers.DropoutMLP import DropoutMLP
+from .GeoGNN import GeoGNNModel
+from .layers.DropoutMLP import DropoutMLP
 from dgl import DGLGraph
 
 
