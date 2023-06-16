@@ -5,10 +5,8 @@ from torch.optim import Adam
 from dgl import DGLGraph
 from typing import TypeAlias, TypedDict, cast
 
-from geognn.DownstreamModel import DownstreamModel
-from geognn.GeoGNN import GeoGNNModel
+from geognn import DownstreamModel, GeoGNNModel, Preprocessing
 from geognn.datasets import GeoGNNDataLoader, ESOLDataset, ScaffoldSplitter, GeoGNNDataset
-from geognn.Preprocessing import Preprocessing
 
 
 # Set seed to make code deterministic.

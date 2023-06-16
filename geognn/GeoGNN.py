@@ -4,10 +4,7 @@ This is an implementation of GeoGNN using PyTorch/PyTorch Geometric.
 
 from torch import nn, Tensor
 import torch
-from .layers.SqrtGraphNorm import SqrtGraphNorm
-from .layers.SimpleGIN import SimpleGIN
-from .layers.FeaturesEmbedding import FeaturesEmbedding
-from .layers.FeaturesRBF import FeaturesRBF
+from .layers import SqrtGraphNorm, SimpleGIN, FeaturesEmbedding, FeaturesRBF
 from .Preprocessing import Feature, FeatureName, RBFCenters, RBFGamma, Preprocessing
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import AvgPooling
