@@ -1,8 +1,6 @@
-from typing import cast
-
 import torch
 from dgl import DGLGraph
-from torch import IntTensor, Tensor
+from torch import Tensor
 
 
 class SqrtGraphNorm(torch.nn.Module):
@@ -23,7 +21,9 @@ class SqrtGraphNorm(torch.nn.Module):
         Returns:
             Tensor: The node features that's been normalized via dividing by sqrt(num_of_nodes) for each graph.
         """
-        batch_num_of_nodes = cast(IntTensor, batched_graph.batch_num_nodes())
+        batch_num_of_nodes = batched_graph.batch_num_nodes()
+        assert isinstance(batch_num_of_nodes, Tensor)
+
         norm_factors = torch.sqrt(batch_num_of_nodes.float())
         norm_factors = norm_factors.repeat_interleave(batch_num_of_nodes).reshape(-1, 1)
         return node_feats / norm_factors

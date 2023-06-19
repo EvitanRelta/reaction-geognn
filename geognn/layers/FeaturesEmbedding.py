@@ -1,5 +1,3 @@
-from typing import cast
-
 import torch
 from torch import Tensor, nn
 
@@ -51,7 +49,8 @@ class FeaturesEmbedding(nn.Module):
         each of their weights using Xavier Uniform initialisation.
         """
         for _, embedding in self.embed_dict.items():
-            nn.init.xavier_uniform_(cast(nn.Embedding, embedding).weight)
+            assert isinstance(embedding, nn.Embedding)
+            nn.init.xavier_uniform_(embedding.weight)
 
     def forward(self, feat_tensor_dict: dict[FeatureName, Tensor]) -> Tensor:
         """
@@ -71,7 +70,10 @@ class FeaturesEmbedding(nn.Module):
         for feat_name, tensor in feat_tensor_dict.items():
             if feat_name not in self.embed_dict:
                 continue
-            embedding_layer: nn.Embedding = self.embed_dict[feat_name]
+
+            embedding_layer = self.embed_dict[feat_name]
+            assert isinstance(embedding_layer, nn.Embedding)
+
             layer_output = embedding_layer.forward(tensor)
             output_embed += layer_output
 

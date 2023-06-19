@@ -1,4 +1,4 @@
-from typing import TypedDict, cast
+from typing import Sequence, TypedDict, cast
 
 import pandas as pd
 import torch
@@ -27,12 +27,14 @@ class GeoGNNDataset(Dataset[GeoGNNDataElement]):
     ) -> None:
         raw_df = pd.read_csv(csv_path, sep=',')
         smiles_list = raw_df[smiles_column_name].values
+        smiles_list = cast(Sequence[str], smiles_list)
+
         filtered_data = torch.tensor(raw_df[data_columns_to_use].values, dtype=torch.float32)
 
         self.data_list: list[GeoGNNDataElement] = []
         for i in range(len(filtered_data)):
             self.data_list.append({
-                'smiles': cast(str, smiles_list[i]),
+                'smiles': smiles_list[i],
                 'data': filtered_data[i]
             })
 

@@ -48,6 +48,7 @@ class FeaturesRBF(nn.Module):
         `nn.Linear.reset_parameters()` on each of them.
         """
         for _, sequential in self.module_dict.items():
+            assert isinstance(sequential, nn.Sequential)
             cast(nn.Linear, sequential[1]).reset_parameters()
 
     def forward(self, feat_tensor_dict: dict[FeatureName, Tensor]) -> Tensor:
@@ -68,8 +69,12 @@ class FeaturesRBF(nn.Module):
         for feat_name, tensor in feat_tensor_dict.items():
             if feat_name not in self.module_dict:
                 continue
-            layer: nn.Sequential = self.module_dict[feat_name]
-            layer_output = cast(Tensor, layer.forward(tensor))
+            layer = self.module_dict[feat_name]
+            assert isinstance(layer, nn.Sequential)
+
+            layer_output = layer.forward(tensor)
+            assert isinstance(layer_output, Tensor)
+
             output_embed += layer_output
 
         return output_embed

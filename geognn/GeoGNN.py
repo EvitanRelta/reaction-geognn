@@ -2,8 +2,6 @@
 This is an implementation of GeoGNN using PyTorch/PyTorch Geometric.
 """
 
-from typing import cast
-
 import torch
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import AvgPooling
@@ -190,6 +188,7 @@ class GeoGNNLayer(nn.Module):
         `GeoGNNLayer._get_bidirected_feats` performs the reversed operation.
         """
         u, v = bidirected_graph.edges()
+        assert isinstance(u, Tensor) and isinstance(v, Tensor)
 
         # Include only edge features where
         # the edge's source-node ID < the destination-node ID.
@@ -208,7 +207,8 @@ class GeoGNNLayer(nn.Module):
 
         `GeoGNNLayer._get_unidirected_feats` performs the reversed operation.
         """
-        (u, v) = cast(tuple[Tensor, Tensor], bidirected_graph.edges())
+        (u, v) = bidirected_graph.edges()
+        assert isinstance(u, Tensor) and isinstance(v, Tensor)
 
         # Indices of the edges in the bi-directed graph that correspond to the undirected edges
         undirected_indices = (u < v).nonzero(as_tuple=True)[0]
@@ -301,7 +301,8 @@ class GeoGNNModel(nn.Module):
         self.init_bond_rbf.reset_parameters()
 
         for gnn_layer in self.gnn_layer_list:
-            cast(GeoGNNLayer, gnn_layer).reset_parameters()
+            assert isinstance(gnn_layer, GeoGNNLayer)
+            gnn_layer.reset_parameters()
 
     def forward(
         self,
@@ -326,8 +327,8 @@ class GeoGNNModel(nn.Module):
         node_out = node_embeddings
         edge_out = edge_embeddings
         for gnn_layer in self.gnn_layer_list:
-            node_out, edge_out = cast(GeoGNNLayer, gnn_layer) \
-                .forward(atom_bond_graph, bond_angle_graph, node_out, edge_out)
+            assert isinstance(gnn_layer, GeoGNNLayer)
+            node_out, edge_out = gnn_layer.forward(atom_bond_graph, bond_angle_graph, node_out, edge_out)
 
         graph_repr = self.graph_pool.forward(atom_bond_graph, node_out)
         return node_out, edge_out, graph_repr

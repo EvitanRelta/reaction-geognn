@@ -364,7 +364,7 @@ def _load_checkpoint_if_exists(
     # Load the last checkpoint.
     latest_checkpoint = checkpoint_files[-1]
     checkpoint = torch.load(os.path.join(checkpoint_dir, latest_checkpoint))
-    checkpoint = cast(GeoGNNCheckpoint, checkpoint)
+    assert isinstance(checkpoint, GeoGNNCheckpoint)
 
     # Load the saved values in the checkpoint.
     model.load_state_dict(checkpoint['model_state_dict'])
