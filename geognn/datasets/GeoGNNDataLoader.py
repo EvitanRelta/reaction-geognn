@@ -1,4 +1,4 @@
-from typing import Callable, Iterator, Optional
+from typing import Callable, Iterator
 
 import dgl, torch
 from dgl import DGLGraph
@@ -24,8 +24,8 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         shuffle: bool = True,
         device: torch.device = torch.device('cpu'),
         cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {},
-        worker_init_fn: Optional[Callable[[int], None]] = None,
-        generator: Optional[torch.Generator] = None,
+        worker_init_fn: Callable[[int], None] | None = None,
+        generator: torch.Generator | None = None,
     ) -> None:
         super().__init__(
             dataset,
