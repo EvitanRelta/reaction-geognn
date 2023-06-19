@@ -1,9 +1,10 @@
-from typing import Callable, Optional
+from typing import Callable, Iterator, Optional
 
 import dgl, torch
 from dgl import DGLGraph
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.dataloader import _BaseDataLoaderIter
 
 from .. import Preprocessing
 from .shared_definitions import GeoGNNDataElement
@@ -129,3 +130,6 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
                 errors. Defaults to 1e-5.
         """
         return (standardized_data * self.fit_std) + self.fit_mean
+
+    def __iter__(self) -> Iterator[tuple[DGLGraph, DGLGraph, Tensor]]:
+        return super().__iter__()

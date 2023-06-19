@@ -1,5 +1,5 @@
 import argparse, os, pickle, random, subprocess, time
-from typing import TypeAlias, TypedDict, cast
+from typing import TypeAlias, TypedDict
 
 import dgl
 import numpy as np
@@ -392,8 +392,7 @@ def _train(
     """
     losses: list[float] = []
     for i, batch_data in enumerate(train_data_loader):
-        batch_atom_bond_graph, batch_bond_angle_graph, labels \
-            = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
+        batch_atom_bond_graph, batch_bond_angle_graph, labels = batch_data
 
         # Zero grad the optimizers
         encoder_optimizer.zero_grad()
@@ -436,8 +435,7 @@ def _evaluate(
     with torch.no_grad():  # No need to track gradients in evaluation mode
         losses = []
         for i, batch_data in enumerate(data_loader):
-            batch_atom_bond_graph, batch_bond_angle_graph, labels \
-                = cast(tuple[DGLGraph, DGLGraph, Tensor], batch_data)
+            batch_atom_bond_graph, batch_bond_angle_graph, labels = batch_data
             outputs = model.forward(batch_atom_bond_graph, batch_bond_angle_graph)
 
             # Since the model is trained on standardized training data,
