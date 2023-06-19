@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Mapping, cast
 
 import torch
 from torch import Tensor, nn
@@ -51,22 +51,22 @@ class FeaturesRBF(nn.Module):
             assert isinstance(sequential, nn.Sequential)
             cast(nn.Linear, sequential[1]).reset_parameters()
 
-    def forward(self, feat_tensor_dict: dict[FeatureName, Tensor]) -> Tensor:
+    def forward(self, feat_tensor_map: Mapping[FeatureName, Tensor]) -> Tensor:
         """
         Args:
-            feat_tensor_dict (dict[FeatureName, Tensor]): Dictionary of \
+            feat_tensor_map (Mapping[FeatureName, Tensor]): Mapping of \
                 features, where the keys are the features' names and the values \
                 are the features' `Tensor` values (eg. from `DGLGraph.ndata`).
 
         Returns:
             Tensor: Embedding of size `(num_elements, self.output_dim)`.
         """
-        feat_values = list(feat_tensor_dict.values())
+        feat_values = list(feat_tensor_map.values())
         num_of_elements = len(feat_values[0])
         device = next(self.parameters()).device
         output_embed = torch.zeros(num_of_elements, self.output_dim, dtype=torch.float32, device=device)
 
-        for feat_name, tensor in feat_tensor_dict.items():
+        for feat_name, tensor in feat_tensor_map.items():
             if feat_name not in self.module_dict:
                 continue
             layer = self.module_dict[feat_name]
