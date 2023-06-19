@@ -21,8 +21,8 @@ os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 torch.manual_seed(SEED)
 torch.cuda.manual_seed_all(SEED)
 torch.use_deterministic_algorithms(True)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True   # type: ignore
+torch.backends.cudnn.benchmark = False      # type: ignore
 
 # Functions for preserving reproducibility in PyTorch's `DataLoader`.
 def _dataloader_worker(worker_id: int) -> None:

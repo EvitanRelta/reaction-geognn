@@ -7,7 +7,7 @@ import torch
 from dgl import DGLGraph
 from dgl.transforms.functional import add_reverse_edges, to_simple
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdchem, rdMolTransforms as rdmt
+from rdkit.Chem import AllChem, rdchem, rdMolTransforms as rdmt  # type: ignore
 from torch import Tensor
 
 Atom: TypeAlias = rdchem.Atom
@@ -79,7 +79,7 @@ def _to_bidirected_copy(g: DGLGraph) -> DGLGraph:
         DGLGraph: Graph `g` but bidirected and with copied node/edge features.
     """
     g = add_reverse_edges(g, copy_ndata=True, copy_edata=True)
-    g = to_simple(g, return_counts=None, copy_ndata=True, copy_edata=True)
+    g = to_simple(g, return_counts=None, copy_ndata=True, copy_edata=True)      # type: ignore
     return g
 
 
@@ -203,7 +203,7 @@ class Preprocessing:
             tuple[DGLGraph, DGLGraph]: 1st graph is the atom-bond graph, 2nd \
                 is the bond-angle graph.
         """
-        mol = AllChem.MolFromSmiles(smiles)
+        mol = AllChem.MolFromSmiles(smiles)                                     # type: ignore
         mol, conf = Preprocessing._generate_conformer(mol)
 
         atom_bond_graph = Preprocessing._get_atom_bond_graph(mol, conf, device)
@@ -214,11 +214,11 @@ class Preprocessing:
 
     @staticmethod
     def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
-        new_mol = Chem.AddHs(mol)
-        res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)
+        new_mol = Chem.AddHs(mol)                                               # type: ignore
+        res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)            # type: ignore
         ### MMFF generates multiple conformations
-        res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)
-        new_mol = Chem.RemoveHs(new_mol)
+        res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)                        # type: ignore
+        new_mol = Chem.RemoveHs(new_mol)                                        # type: ignore
         index = np.argmin([x[1] for x in res])
         conf = new_mol.GetConformer(id=int(index))
         return new_mol, conf
@@ -362,7 +362,7 @@ class Preprocessing:
         Returns:
             Tensor: Bond lengths of all the bonds in the molecule.
         """
-        atom_positions: Tensor = graph.ndata['_atom_pos']
+        atom_positions: Tensor = graph.ndata['_atom_pos']                       # type: ignore
         edges_tuple: tuple[Tensor, Tensor] = graph.edges()
 
         src_node_idx, dst_node_idx = edges_tuple
