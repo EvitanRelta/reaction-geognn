@@ -157,10 +157,36 @@ class IsInRing(BondFeature):
         return int(x.IsInRing())
 
 
+class BondLength(BondFeature):
+    @override
+    def _get_possible_values(self):
+        raise NotImplementedError("Bond length doesn't have finite number of possible values.")
+    @override
+    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
+        raise NotImplementedError("Bond lengths are not computed bond-by-bond, but all at once in `get_feat_values`.")
+    @override
+    def get_feat_values(self, mol, conf, atom_bond_graph = None) -> Tensor:
+        assert atom_bond_graph != None, 'Bond length feature requires `atom_bond_graph`.'
+        assert '_atom_pos' in atom_bond_graph.ndata, \
+            "Bond length feat requires 3D atom position feat to be first computed at `atom_bond_graph.ndata['_atom_pos']`."
+
+        atom_positions = atom_bond_graph.ndata['_atom_pos']
+        assert isinstance(atom_positions, Tensor)
+
+        edges_tuple: tuple[Tensor, Tensor] = atom_bond_graph.edges()
+        src_node_idx, dst_node_idx = edges_tuple
+
+        # To use as tensor indexing, these index tensors needs to be `dtype=long`.
+        src_node_idx, dst_node_idx = src_node_idx.long(), dst_node_idx.long()
+
+        return torch.norm(atom_positions[dst_node_idx] - atom_positions[src_node_idx], dim=1)
+
+
 BOND_FEATURES: Final[list[BondFeature]] = [
     BondDirection('bond_dir'),
     BondType('bond_type'),
     IsInRing('is_in_ring'),
+    BondLength('bond_length'),
 ]
 """
 All predefined bond features.
