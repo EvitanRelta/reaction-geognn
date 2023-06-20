@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from typing import Any, Callable, Final, Literal, TypeAlias, overload
+from typing import Literal, TypeAlias, overload
 
 import dgl
 import numpy as np
@@ -7,8 +6,11 @@ import torch
 from dgl import DGLGraph
 from dgl.transforms.functional import add_reverse_edges, to_simple
 from rdkit import Chem
-from rdkit.Chem import AllChem, rdchem, rdMolTransforms as rdmt  # type: ignore
+from rdkit.Chem import AllChem, rdMolTransforms as rdmt  # type: ignore
 from torch import Tensor
+
+from .features import ATOM_FEATURES, BOND_FEATURES
+from .rdkit_types import Conformer, Mol
 
 FeatureCategory: TypeAlias = Literal['atom_feats', 'bond_feats']
 FeatureName: TypeAlias = str
@@ -21,12 +23,9 @@ RBFGamma: TypeAlias = float
 
 
 @overload
-@staticmethod
 def smiles_to_graphs(smiles: str, device: torch.device, return_mol_conf: Literal[True]) ->  tuple[DGLGraph, DGLGraph, Mol, Conformer]: ...
 @overload
-@staticmethod
 def smiles_to_graphs(smiles: str, device: torch.device, return_mol_conf: Literal[False] = False) -> tuple[DGLGraph, DGLGraph]: ...
-@staticmethod
 def smiles_to_graphs(
     smiles: str,
     device: torch.device = torch.device('cpu'),
@@ -45,18 +44,19 @@ def smiles_to_graphs(
         tuple[DGLGraph, DGLGraph]: 1st graph is the atom-bond graph, 2nd \
             is the bond-angle graph.
     """
-    mol = AllChem.MolFromSmiles(smiles)                                     # type: ignore
-    mol, conf = Preprocessing._generate_conformer(mol)
+    mol = AllChem.MolFromSmiles(smiles)                                         # type: ignore
+    mol, conf = _generate_conformer(mol)
 
-    atom_bond_graph = Preprocessing._get_atom_bond_graph(mol, conf, device)
-    bond_angle_graph = Preprocessing._get_bond_angle_graph(mol, conf, device)
+    atom_bond_graph = _get_atom_bond_graph(mol, conf, device)
+    bond_angle_graph = _get_bond_angle_graph(mol, conf, device)
     if return_mol_conf:
         return atom_bond_graph, bond_angle_graph, mol, conf
     return atom_bond_graph, bond_angle_graph
 
 
 def _to_bidirected_copy(g: DGLGraph) -> DGLGraph:
-    """Exactly the same as `dgl.to_bidirected`, but copies both node and edge
+    """
+    Exactly the same as `dgl.to_bidirected`, but copies both node and edge
     features.
 
     Args:
@@ -70,19 +70,16 @@ def _to_bidirected_copy(g: DGLGraph) -> DGLGraph:
     return g
 
 
-@staticmethod
 def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
-    new_mol = Chem.AddHs(mol)                                               # type: ignore
-    res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)            # type: ignore
-    ### MMFF generates multiple conformations
-    res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)                        # type: ignore
-    new_mol = Chem.RemoveHs(new_mol)                                        # type: ignore
+    new_mol = Chem.AddHs(mol)                                                   # type: ignore
+    res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)                # type: ignore
+    res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)                            # type: ignore
+    new_mol = Chem.RemoveHs(new_mol)                                            # type: ignore
     index = np.argmin([x[1] for x in res])
     conf = new_mol.GetConformer(id=int(index))
     return new_mol, conf
 
 
-@staticmethod
 def _get_atom_bond_graph(
     mol: Mol,
     conf: Conformer,
@@ -109,14 +106,12 @@ def _get_atom_bond_graph(
     graph = dgl.graph(edges, num_nodes=mol.GetNumAtoms(), idtype=torch.int32)
 
     # Add node features.
-    for feat_name, feat in Preprocessing.FEATURES['atom_feats'].items():
-        graph.ndata[feat_name] = torch.tensor([feat.get_encoded_feat_value(atom) for atom in mol.GetAtoms()])
-    graph.ndata['_atom_pos'] = Preprocessing._get_atom_positions(mol, conf)
+    for feat in ATOM_FEATURES:
+        graph.ndata[feat.name] = feat.get_feat_values(mol, conf, graph)
 
-    # Add edge features.
-    for feat_name, feat in Preprocessing.FEATURES['bond_feats'].items():
-        graph.edata[feat_name] = torch.tensor([feat.get_encoded_feat_value(bond) for bond in mol.GetBonds()])
-    graph.edata['bond_length'] = Preprocessing._get_bond_lengths(graph)
+    # Add node features.
+    for feat in BOND_FEATURES:
+        graph.edata[feat.name] = feat.get_feat_values(mol, conf, graph)
 
     # Remove temporary feats used in computing other feats.
     del graph.ndata['_atom_pos']
@@ -126,7 +121,6 @@ def _get_atom_bond_graph(
     return graph
 
 
-@staticmethod
 def _get_bond_angle_graph(
     mol: Mol,
     conf: Conformer,
