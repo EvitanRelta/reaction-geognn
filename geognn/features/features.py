@@ -1,3 +1,13 @@
+"""
+Features as defined in GeoGNN's utility functions/classes:
+https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/utils/compound_tools.py
+
+Not all features in the above `compound_tools.py` are included, as not all
+was actually used by the GeoGNN model. Only those specified in the GeoGNN's
+config are included:
+https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/model_configs/geognn_l8.json
+"""
+
 from typing import Final
 
 import torch
@@ -112,6 +122,9 @@ ATOM_FEATURES: Final[list[AtomFeature]] = [
     TotalNumHs('total_numHs'),
     AtomPosition('_atom_pos'),  # Temp feat used for generating bond lengths.
 ]
+"""
+All predefined atom features.
+"""
 
 
 # ==============================================================================
@@ -149,3 +162,6 @@ BOND_FEATURES: Final[list[BondFeature]] = [
     BondType('bond_type'),
     IsInRing('is_in_ring'),
 ]
+"""
+All predefined bond features.
+"""
