@@ -15,7 +15,8 @@ from rdkit.Chem import rdchem  # type: ignore
 from torch import Tensor
 from typing_extensions import override
 
-from .base_feature_classes import AtomFeature, BondFeature
+from .base_feature_classes import AtomFeature, BondFeature, Feature, \
+    LabelEncodedFeature
 from .rdkit_types import RDKitEnum, RDKitEnumValue
 
 
@@ -37,73 +38,70 @@ def _rdkit_enum_to_list(rdkit_enum: RDKitEnum) -> list[RDKitEnumValue]:
 # ==============================================================================
 #                                  Atom features
 # ==============================================================================
-class AtomicNum(AtomFeature):
+class AtomicNum(AtomFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return list(range(1, 119)) + ['misc']
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return x.GetAtomicNum()
 
 
-class ChiralTag(AtomFeature):
+class ChiralTag(AtomFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return _rdkit_enum_to_list(rdchem.ChiralType)
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
         return x.GetChiralTag()
 
 
-class Degree(AtomFeature):
+class Degree(AtomFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc']
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return x.GetDegree()
 
 
-class FormalCharge(AtomFeature):
+class FormalCharge(AtomFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return x.GetFormalCharge()
 
 
-class Hybridization(AtomFeature):
+class Hybridization(AtomFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return _rdkit_enum_to_list(rdchem.HybridizationType)
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
         return x.GetHybridization()
 
 
-class IsAromatic(AtomFeature):
+class IsAromatic(AtomFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return [0, 1]
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return int(x.GetIsAromatic())
 
 
-class TotalNumHs(AtomFeature):
+class TotalNumHs(AtomFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return [0, 1, 2, 3, 4, 5, 6, 7, 8, 'misc']
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return x.GetTotalNumHs()
 
 
 class AtomPosition(AtomFeature):
-    @override
-    def _get_possible_values(self):
-        raise NotImplementedError("Atom positions doesn't have finite number of possible values.")
     @override
     def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         raise NotImplementedError("Atom positions are not computed atom-by-atom, but all at once in `get_feat_values`.")
@@ -112,7 +110,7 @@ class AtomPosition(AtomFeature):
         return torch.from_numpy(conf.GetPositions()).float()
 
 
-ATOM_FEATURES: Final[list[AtomFeature]] = [
+ATOM_FEATURES: Final[list[Feature]] = [
     AtomicNum('atomic_num'),
     ChiralTag('chiral_tag'),
     Degree('degree'),
@@ -130,37 +128,34 @@ All predefined atom features.
 # ==============================================================================
 #                                  Bond features
 # ==============================================================================
-class BondDirection(BondFeature):
+class BondDirection(BondFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return _rdkit_enum_to_list(rdchem.BondDir)
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
         return x.GetBondDir()
 
 
-class BondType(BondFeature):
+class BondType(BondFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return _rdkit_enum_to_list(rdchem.BondType)
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
         return x.GetBondType()
 
 
-class IsInRing(BondFeature):
+class IsInRing(BondFeature, LabelEncodedFeature):
     @override
     def _get_possible_values(self):
         return [0, 1]
     @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
+    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return int(x.IsInRing())
 
 
 class BondLength(BondFeature):
-    @override
-    def _get_possible_values(self):
-        raise NotImplementedError("Bond length doesn't have finite number of possible values.")
     @override
     def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         raise NotImplementedError("Bond lengths are not computed bond-by-bond, but all at once in `get_feat_values`.")
@@ -182,7 +177,7 @@ class BondLength(BondFeature):
         return torch.norm(atom_positions[dst_node_idx] - atom_positions[src_node_idx], dim=1)
 
 
-BOND_FEATURES: Final[list[BondFeature]] = [
+BOND_FEATURES: Final[list[Feature]] = [
     BondDirection('bond_dir'),
     BondType('bond_type'),
     IsInRing('is_in_ring'),
