@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from numbers import Number
 from typing import Any
 
@@ -10,7 +10,7 @@ from typing_extensions import override
 from .rdkit_types import Atom, Bond, Conformer, Mol
 
 
-class Feature(ABC):
+class Feature:
     """
     Base abstract class for a feature.
     """
