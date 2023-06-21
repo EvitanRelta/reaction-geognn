@@ -8,7 +8,7 @@ config are included:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/model_configs/geognn_l8.json
 """
 
-from typing import Final
+from typing import Final, Protocol
 
 import torch
 from rdkit.Chem import rdchem  # type: ignore
@@ -38,64 +38,51 @@ def _rdkit_enum_to_list(rdkit_enum: RDKitEnum) -> list[RDKitEnumValue]:
 # ==============================================================================
 #                                  Atom features
 # ==============================================================================
+
 class AtomicNum(AtomFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return list(range(1, 119)) + ['misc']
+    possible_values = list(range(1, 119)) + ['misc']
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return x.GetAtomicNum()
 
 
 class ChiralTag(AtomFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return _rdkit_enum_to_list(rdchem.ChiralType)
+    possible_values = _rdkit_enum_to_list(rdchem.ChiralType)
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
         return x.GetChiralTag()
 
 
 class Degree(AtomFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc']
+    possible_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc']
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return x.GetDegree()
 
 
 class FormalCharge(AtomFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
+    possible_values = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc']
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return x.GetFormalCharge()
 
 
 class Hybridization(AtomFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return _rdkit_enum_to_list(rdchem.HybridizationType)
+    possible_values = _rdkit_enum_to_list(rdchem.HybridizationType)
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
         return x.GetHybridization()
 
 
 class IsAromatic(AtomFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return [0, 1]
+    possible_values = [0, 1]
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return int(x.GetIsAromatic())
 
 
 class TotalNumHs(AtomFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return [0, 1, 2, 3, 4, 5, 6, 7, 8, 'misc']
+    possible_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 'misc']
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return x.GetTotalNumHs()
@@ -133,27 +120,21 @@ that'll be in the graphs.
 #                                  Bond features
 # ==============================================================================
 class BondDirection(BondFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return _rdkit_enum_to_list(rdchem.BondDir)
+    possible_values = _rdkit_enum_to_list(rdchem.BondDir)
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
         return x.GetBondDir()
 
 
 class BondType(BondFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return _rdkit_enum_to_list(rdchem.BondType)
+    possible_values = _rdkit_enum_to_list(rdchem.BondType)
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
         return x.GetBondType()
 
 
 class IsInRing(BondFeature, LabelEncodedFeature):
-    @override
-    def _get_possible_values(self):
-        return [0, 1]
+    possible_values = [0, 1]
     @override
     def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
         return int(x.IsInRing())

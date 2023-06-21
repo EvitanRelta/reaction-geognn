@@ -1,48 +1,26 @@
-from abc import abstractmethod
 from numbers import Number
 from typing import Any
 
 import torch
 from dgl import DGLGraph
-from torch import IntTensor, Tensor
-from typing_extensions import override
+from torch import FloatTensor, IntTensor, Tensor
 
 from .rdkit_types import Atom, Bond, Conformer, Mol
 
 
 class Feature:
-    """
-    Base abstract class for a feature.
-    """
+    """Base class for a feature."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         """
         Args:
             name (str): Name of this feature, which will be the feature's key \
                 in `DGLGraph.ndata` / `.edata`.
         """
-        self.name: str = name
-        """
-        Name of this feature, which will be the feature's key in
-        `DGLGraph.ndata` / `.edata`.
-        """
+        self.name = name
+        """Name of this feature, which will be the feature's key in `DGLGraph.ndata` / `.edata`."""
 
-    @abstractmethod
-    def _get_value(self, x: Atom | Bond, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> Number:
-        """
-        Gets the feature value of a atom/bond.
-
-        Args:
-            mol (Mol): Target molecule, type `rdkit.Chem.rdchem.Mol`.
-            conf (Conformer): Target molecular conformer, type `rdkit.Chem.rdchem.Conformer`.
-            atom_bond_graph (DGLGraph | None, optional): Graph of the molecule, \
-                with atoms as nodes, bonds as edges. Defaults to `None`.
-
-        Returns:
-            Number: _description_
-        """
-
-    @abstractmethod
+    # Methods that needs implementing.
     def get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> Tensor:
         """
         Gets the feature values of all atoms/bonds from a `rdkit.Chem.rdchem.Mol`
@@ -57,31 +35,23 @@ class Feature:
         Returns:
             Tensor: Feature values, size `(num_of_atoms/bonds, )`.
         """
+        raise NotImplementedError()
+
+
+class FloatFeature(Feature):
+    """Base class for a feature with values of datatype `float`."""
+
+    # Variables/Methods that needs implementing.
+    centers: list[float]
+    gamma: float
+    def get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> FloatTensor: raise NotImplementedError()
 
 
 class LabelEncodedFeature(Feature):
-    def __init__(self, name: str):
-        super().__init__(name)
-        self._possible_values: list[Any] | None = None
+    # Variables/Methods that needs implementing.
+    possible_values: list[Any]
+    """All the possible unencoded values this feature can take on."""
 
-    @property
-    def possible_values(self) -> list[Any]:
-        """
-        All the possible unencoded values this feature can take on.
-
-        Return value is memorized in `self._possible_values`.
-        """
-        if self._possible_values == None:
-            self._possible_values = self._get_possible_values()
-        return self._possible_values
-
-    @abstractmethod
-    def _get_possible_values(self) -> list[Any]:
-        """
-        Gets all the possible unencoded values this feature can take on.
-        """
-
-    @abstractmethod
     def _get_unencoded_value(self, x: Atom | Bond, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> Any:
         """
         Gets the feature's unencoded value from a `rdkit.Chem.rdchem.Atom`
@@ -95,27 +65,13 @@ class LabelEncodedFeature(Feature):
                 with atoms as nodes, bonds as edges. Defaults to `None`.
 
         Returns:
-            Any: The unencoded
+            Any: The unencoded value of the feature.
         """
+        raise NotImplementedError()
 
-    @abstractmethod
-    def get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> IntTensor:
-        """
-        Gets the label-encoded (one-indexed, relative to `self.possible_values`)
-        feature values of all atoms/bonds from a `rdkit.Chem.rdchem.Mol` and
-        `Conformer` instance.
+    def get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> IntTensor: raise NotImplementedError()
 
-        Args:
-            mol (Mol): Target molecule, type `rdkit.Chem.rdchem.Mol`.
-            conf (Conformer): Target molecular conformer, type `rdkit.Chem.rdchem.Conformer`.
-            atom_bond_graph (DGLGraph | None, optional): Graph of the molecule, \
-                with atoms as nodes, bonds as edges. Defaults to `None`.
-
-        Returns:
-            Tensor: Label-encoded feature values, size `(num_of_atoms/bonds, )`.
-        """
-
-    @override
+    # Implementations.
     def _get_value(self, x: Atom | Bond, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> int:
         """
         Gets the label-encoded (one-indexed, relative to `self.possible_values`)
@@ -163,23 +119,30 @@ class LabelEncodedFeature(Feature):
 
 
 class AtomFeature(Feature):
-    """
-    Base abstract class for atom features.
-    """
+    """Base class for atom features."""
 
-    @override
+    # Variables/Methods that needs implementing.
+    def _get_value(self, x: Atom, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> Number:
+        """Gets the feature's value from a `rdkit.Chem.rdchem.Atom` instance."""
+        raise NotImplementedError()
+
+    # Implementations.
     def get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> Tensor:
         return torch.tensor([
             self._get_value(atom, mol, conf, atom_bond_graph) \
                 for atom in mol.GetAtoms()
         ])
 
-class BondFeature(Feature):
-    """
-    Base abstract class for bond features.
-    """
 
-    @override
+class BondFeature(Feature):
+    """Base class for bond features."""
+
+    # Variables/Methods that needs implementing.
+    def _get_value(self, x: Bond, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> Number:
+        """Gets the feature's value from a `rdkit.Chem.rdchem.Bond` instance."""
+        raise NotImplementedError()
+
+    # Implementations.
     def get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> Tensor:
         return torch.tensor([
             self._get_value(bond, mol, conf, atom_bond_graph) \
