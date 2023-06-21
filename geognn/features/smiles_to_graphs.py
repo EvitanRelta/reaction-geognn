@@ -9,7 +9,8 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolTransforms as rdmt  # type: ignore
 from torch import Tensor
 
-from .features import ATOM_FEATURES, BOND_FEATURES
+from .features import FLOAT_ATOM_FEATURES, FLOAT_BOND_FEATURES, \
+    LABEL_ENCODED_ATOM_FEATURES, LABEL_ENCODED_BOND_FEATURES, AtomPosition
 from .rdkit_types import Conformer, Mol
 
 FeatureCategory: TypeAlias = Literal['atom_feats', 'bond_feats']
@@ -106,14 +107,18 @@ def _get_atom_bond_graph(
     graph = dgl.graph(edges, num_nodes=mol.GetNumAtoms(), idtype=torch.int32)
 
     # Add node features.
-    for feat in ATOM_FEATURES:
+    for feat in LABEL_ENCODED_ATOM_FEATURES + FLOAT_ATOM_FEATURES:
         graph.ndata[feat.name] = feat.get_feat_values(mol, conf, graph)
 
-    # Add node features.
-    for feat in BOND_FEATURES:
+    # Temp feat used for generating bond lengths (edge feat).
+    temp_feat = AtomPosition('_atom_pos')
+    graph.ndata[temp_feat.name] = temp_feat.get_feat_values(mol, conf, graph)
+
+    # Add edge features.
+    for feat in LABEL_ENCODED_BOND_FEATURES + FLOAT_BOND_FEATURES:
         graph.edata[feat.name] = feat.get_feat_values(mol, conf, graph)
 
-    # Remove temporary feats used in computing other feats.
+    # Remove temporary feat used in computing other feats.
     del graph.ndata['_atom_pos']
 
     graph = _to_bidirected_copy(graph)   # Convert to undirected graph.

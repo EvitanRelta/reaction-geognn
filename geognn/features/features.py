@@ -110,7 +110,7 @@ class AtomPosition(AtomFeature):
         return torch.from_numpy(conf.GetPositions()).float()
 
 
-ATOM_FEATURES: Final[list[Feature]] = [
+LABEL_ENCODED_ATOM_FEATURES: Final[list[LabelEncodedFeature]] = [
     AtomicNum('atomic_num'),
     ChiralTag('chiral_tag'),
     Degree('degree'),
@@ -118,12 +118,16 @@ ATOM_FEATURES: Final[list[Feature]] = [
     Hybridization('hybridization'),
     IsAromatic('is_aromatic'),
     TotalNumHs('total_numHs'),
-    AtomPosition('_atom_pos'),  # Temp feat used for generating bond lengths.
 ]
 """
-All predefined atom features.
+All predefined label-encoded atom features that'll be in the graphs.
 """
 
+FLOAT_ATOM_FEATURES: Final[list[Feature]] = []
+"""
+All predefined atom features that have feature values of datatype `float`
+that'll be in the graphs.
+"""
 
 # ==============================================================================
 #                                  Bond features
@@ -177,12 +181,19 @@ class BondLength(BondFeature):
         return torch.norm(atom_positions[dst_node_idx] - atom_positions[src_node_idx], dim=1)
 
 
-BOND_FEATURES: Final[list[Feature]] = [
+LABEL_ENCODED_BOND_FEATURES: Final[list[LabelEncodedFeature]] = [
     BondDirection('bond_dir'),
     BondType('bond_type'),
     IsInRing('is_in_ring'),
+]
+"""
+All predefined label-encoded bond features that'll be in the graphs.
+"""
+
+FLOAT_BOND_FEATURES: Final[list[Feature]] = [
     BondLength('bond_length'),
 ]
 """
-All predefined bond features.
+All predefined bond features that have feature values of datatype `float`
+that'll be in the graphs.
 """
