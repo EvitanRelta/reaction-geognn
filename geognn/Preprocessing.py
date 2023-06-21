@@ -214,13 +214,18 @@ class Preprocessing:
 
     @staticmethod
     def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
-        new_mol = Chem.AddHs(mol)                                               # type: ignore
-        res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)            # type: ignore
-        ### MMFF generates multiple conformations
-        res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)                        # type: ignore
-        new_mol = Chem.RemoveHs(new_mol)                                        # type: ignore
-        index = np.argmin([x[1] for x in res])
-        conf = new_mol.GetConformer(id=int(index))
+        try:
+            new_mol = Chem.AddHs(mol)                                           # type: ignore
+            res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)        # type: ignore
+            ### MMFF generates multiple conformations
+            res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)                    # type: ignore
+            new_mol = Chem.RemoveHs(new_mol)                                    # type: ignore
+            index = np.argmin([x[1] for x in res])
+            conf = new_mol.GetConformer(id=int(index))
+        except:
+            new_mol = mol
+            AllChem.Compute2DCoords(new_mol)                                    # type: ignore
+            conf = new_mol.GetConformer()
         return new_mol, conf
 
     @staticmethod
