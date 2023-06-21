@@ -4,7 +4,7 @@ from typing import Any
 
 import torch
 from dgl import DGLGraph
-from torch import Tensor
+from torch import IntTensor, Tensor
 from typing_extensions import override
 
 from .rdkit_types import Atom, Bond, Conformer, Mol
@@ -99,7 +99,7 @@ class LabelEncodedFeature(Feature):
         """
 
     @abstractmethod
-    def get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> Tensor:
+    def get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None) -> IntTensor:
         """
         Gets the label-encoded (one-indexed, relative to `self.possible_values`)
         feature values of all atoms/bonds from a `rdkit.Chem.rdchem.Mol` and
