@@ -1,19 +1,24 @@
 import argparse, os, pickle, random, subprocess, time
-from typing import TypeAlias, TypedDict
+from typing import Literal, TypeAlias, TypedDict
 
 import dgl
 import numpy as np
 import torch
 from dgl import DGLGraph
-from geognn import DownstreamModel, GeoGNNModel, Preprocessing
-from geognn.datasets import ESOLDataset, GeoGNNDataLoader, GeoGNNDataset, \
-    ScaffoldSplitter
+from geognn import GeoGNNModel
+from geognn.datasets import GeoGNNDataElement, GeoGNNDataset
+from reaction_geognn.datasets import get_wb97_fold_dataset
+from reaction_geognn.model import ProtoDataLoader, ProtoModel
+from reaction_geognn.preprocessing import reaction_smart_to_graph
 from torch import Tensor, nn
 from torch.optim import Adam
+from torch.utils.data import Dataset
 from tqdm.autonotebook import tqdm
 
 # Set seed to make code deterministic.
-SEED = 69420
+# Seed 0 based on chemprop's default seed:
+# https://github.com/chemprop/chemprop/blob/0c3f334/README.md#trainvalidationtest-splits
+SEED = 0
 random.seed(SEED)
 np.random.seed(SEED)
 dgl.random.seed(SEED)
@@ -38,20 +43,20 @@ def _get_dataloader_generator() -> torch.Generator:
 def run_training(
     encoder_lr: float,
     head_lr: float,
-    num_downstream_mlp_layers: int,
     dropout_rate: float,
+    fold_num: Literal[0, 1, 2, 3, 4],
     num_epochs: int,
     device: torch.device,
     load_save_checkpoints: bool = True,
-    base_checkpoint_dir: str = './checkpoints',
+    base_checkpoint_dir: str = './checkpoints/reaction_geognn',
 ) -> None:
-    sub_dir_name = f'esol_only_encoder_lr{encoder_lr}_head_lr{head_lr}_dropout_rate{dropout_rate}_mlp{num_downstream_mlp_layers}'
+    sub_dir_name = f'/encoderlr{encoder_lr}_headlr{head_lr}_dropout{dropout_rate}/fold_{fold_num}'
     checkpoint_dir = os.path.join(base_checkpoint_dir, sub_dir_name)
 
     # Init / Load all the object instances.
     compound_encoder, model, criterion, metric, train_data_loader, \
         valid_data_loader, test_data_loader, encoder_optimizer, head_optimizer \
-        = _init_objects(device, encoder_lr, head_lr, num_downstream_mlp_layers, dropout_rate)
+        = _init_objects(device, encoder_lr, head_lr, dropout_rate, fold_num)
     previous_epoch = -1
     epoch_losses: list[float] = []
     epoch_valid_losses: list[float] = []
@@ -108,13 +113,13 @@ class RMSELoss(nn.Module):
         return torch.sqrt(mse_loss)
 
 
-TrainCriterion: TypeAlias = nn.L1Loss
+TrainCriterion: TypeAlias = nn.MSELoss
 Metric: TypeAlias = RMSELoss
 EncoderOptimizer: TypeAlias = Adam
 HeadOptimizer: TypeAlias = Adam
-TrainDataLoader: TypeAlias = GeoGNNDataLoader
-ValidDataLoader: TypeAlias = GeoGNNDataLoader
-TestDataLoader: TypeAlias = GeoGNNDataLoader
+TrainDataLoader: TypeAlias = ProtoDataLoader
+ValidDataLoader: TypeAlias = ProtoDataLoader
+TestDataLoader: TypeAlias = ProtoDataLoader
 
 
 class GeoGNNCheckpoint(TypedDict):
@@ -187,20 +192,22 @@ def _get_least_utilized_and_allocated_gpu() -> torch.device:
 #           Precomputing/Caching of graphs
 # ==================================================
 def _get_cached_graphs(
-    dataset: GeoGNNDataset,
+    datasets: list[GeoGNNDataset],
     save_file_path: str,
     device: torch.device,
 ) -> dict[str, tuple[DGLGraph, DGLGraph]]:
-    # Extract all the SMILES strings from dataset.
-    smiles_list = [data['smiles'] for data in dataset.data_list]
+    # Extract all the SMILES strings from datasets.
+    smiles_list: list[str] = []
+    for dataset in datasets:
+        smiles_list.extend([data['smiles'] for data in dataset.data_list])
 
     # If the save file exists, load the graphs from it.
     if os.path.exists(save_file_path):
         print(f'Loading cached graphs file at "{save_file_path}"...\n')
         cached_graphs = _load_cached_graphs(save_file_path, device)
 
-        assert len(cached_graphs) == len(dataset), \
-            "Length of saved cached-graphs doesn't match dataset length."
+        assert len(cached_graphs) == sum([len(dataset) for dataset in datasets]), \
+            "Length of saved cached-graphs doesn't match datasets' total length."
         assert set(cached_graphs.keys()) == set(smiles_list), \
             "SMILES of saved cached-graphs doesn't match those in the dataset."
 
@@ -224,7 +231,7 @@ def _compute_all_graphs(
     precomputed_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {}
     print(f'Precomputing graphs for {len(smiles_list)} SMILES strings:')
     for smiles in tqdm(smiles_list):
-        precomputed_graphs[smiles] = Preprocessing.smiles_to_graphs(smiles, device=device)
+        precomputed_graphs[smiles] = reaction_smart_to_graph(smiles, device=device)
     print('\n')
     return precomputed_graphs
 
@@ -254,58 +261,56 @@ def _init_objects(
     device: torch.device,
     encoder_lr: float,
     head_lr: float,
-    num_downstream_mlp_layers: int,
     dropout_rate: float,
-) -> tuple[GeoGNNModel, DownstreamModel, TrainCriterion, Metric, TrainDataLoader, ValidDataLoader, TestDataLoader, EncoderOptimizer, HeadOptimizer]:
+    fold_num: Literal[0, 1, 2, 3, 4],
+) -> tuple[GeoGNNModel, ProtoModel, TrainCriterion, Metric, TrainDataLoader, ValidDataLoader, TestDataLoader, EncoderOptimizer, HeadOptimizer]:
     """
     Initialize all the required object instances.
     """
     # Instantiate GNN model
     compound_encoder = GeoGNNModel(dropout_rate=dropout_rate)
-    model = DownstreamModel(
+    model = ProtoModel(
         compound_encoder = compound_encoder,
-        task_type = 'regression',
-        out_size = 1,  # Since ESOL is a regression task with a single target value
-        num_of_mlp_layers = num_downstream_mlp_layers,
+        out_size = 1,
         dropout_rate = dropout_rate,
     )
     model = model.to(device)
 
-    # Loss function based on GeoGNN's `finetune_regr.py`:
-    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L159-L160
-    criterion = torch.nn.L1Loss()
+    # Based on the default Chemprop regression loss (ie. mse) as defined here:
+    # https://github.com/chemprop/chemprop/blob/0c3f334/README.md#loss-functions
+    # Which uses this PyTorch loss function:
+    # https://github.com/chemprop/chemprop/blob/0c3f334/chemprop/train/loss_functions.py#L21
+    criterion = nn.MSELoss(reduction="none")
 
-    # Loss function for evaluating against validation/test datasets,
-    # based on GeoGNN's `finetune_regr.py` metric for `esol` dataset:
-    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L103-L104
-    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/finetune_regr.py#L117-L118
+    # Based on the default Chemprop regression metric (ie. rmse) as defined here:
+    # https://github.com/chemprop/chemprop/blob/0c3f334/README.md#metrics
     metric = RMSELoss()
 
-    # Get and split dataset.
-    dataset = ESOLDataset()
+    # Get already-split dataset.
+    train_dataset, valid_dataset, test_dataset = get_wb97_fold_dataset(fold_num)
+
+    # Get/Compute graph cache.
     cached_graphs = _get_cached_graphs(
-        dataset,
-        save_file_path = './cached_graphs/cached_esol_graphs.bin',
+        [train_dataset, valid_dataset, test_dataset], # type: ignore
+        save_file_path = './cached_graphs/cached_wb97.bin',
         device = device,
     )
-    train_dataset, valid_dataset, test_dataset \
-        = ScaffoldSplitter().split(dataset, frac_train=0.8, frac_valid=0.1, frac_test=0.1)
 
     # Defined data-loader, where the data is standardize with the
     # training mean and standard deviation.
-    train_mean, train_std = GeoGNNDataLoader.get_stats(train_dataset)
-    train_data_loader = GeoGNNDataLoader(
+    train_mean, train_std = ProtoDataLoader.get_stats(train_dataset)
+    train_data_loader = ProtoDataLoader(
         train_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
         batch_size = 32,
-        shuffle = True,
+        shuffle = False, # No shuffling to ensure reproducibility.
         device = device,
         cached_graphs = cached_graphs,
         worker_init_fn=_dataloader_worker,
         generator=_get_dataloader_generator(),
     )
-    valid_data_loader = GeoGNNDataLoader(
+    valid_data_loader = ProtoDataLoader(
         valid_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
@@ -316,7 +321,7 @@ def _init_objects(
         worker_init_fn=_dataloader_worker,
         generator=_get_dataloader_generator(),
     )
-    test_data_loader = GeoGNNDataLoader(
+    test_data_loader = ProtoDataLoader(
         test_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
@@ -331,7 +336,7 @@ def _init_objects(
     compound_encoder_params = list(compound_encoder.parameters())
     model_params = list(model.parameters())
 
-    # DownstreamModel params but excluding those in GeoGNN.
+    # Head-model params, excluding those in GeoGNNModel.
     # `head_params` is the difference in elements between `model_params` &
     # `compound_encoder_params`.
     is_in = lambda x, lst: any(element is x for element in lst)
@@ -346,10 +351,10 @@ def _init_objects(
 
 def _load_checkpoint_if_exists(
     checkpoint_dir: str,
-    model: DownstreamModel,
+    model: ProtoModel,
     encoder_optimizer: Adam,
     head_optimizer: Adam,
-) -> tuple[GeoGNNModel, DownstreamModel, EncoderOptimizer, HeadOptimizer, int, list[float]]:
+) -> tuple[GeoGNNModel, ProtoModel, EncoderOptimizer, HeadOptimizer, int, list[float]]:
     # Make the checkpoint dir if it doesn't exist.
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -364,7 +369,6 @@ def _load_checkpoint_if_exists(
     # Load the last checkpoint.
     latest_checkpoint = checkpoint_files[-1]
     checkpoint = torch.load(os.path.join(checkpoint_dir, latest_checkpoint))
-    assert isinstance(checkpoint, GeoGNNCheckpoint)
 
     # Load the saved values in the checkpoint.
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -378,7 +382,7 @@ def _load_checkpoint_if_exists(
 
 
 def _train(
-    model: DownstreamModel,
+    model: ProtoModel,
     criterion: TrainCriterion,
     train_data_loader: TrainDataLoader,
     encoder_optimizer: EncoderOptimizer,
@@ -418,7 +422,7 @@ def _train(
 
 
 def _evaluate(
-    model: DownstreamModel,
+    model: ProtoModel,
     metric: Metric,
     data_loader: ValidDataLoader | TestDataLoader,
 ) -> float:
@@ -477,22 +481,13 @@ if __name__ == "__main__":
     assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
     device = _get_least_utilized_and_allocated_gpu()
 
-    # Try various learning-rates, dropout-rates and layers of
-    # `DownstreamModel` MLP, based on GeoGNN's `finetune_regr.sh` script:
-    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/finetune_regr.sh#L37-L39
-    lr_pairs = [(1e-3, 1e-3), (1e-3, 4e-3), (4e-3, 4e-3), (4e-4, 4e-3)]
-    dropout_rates = [0.1, 0.2]
-    downstream_mlp_layers_list = [2, 3]
-
-    for encoder_lr, head_lr in lr_pairs:
-        for dropout_rate in dropout_rates:
-            for num_downstream_mlp_layers in downstream_mlp_layers_list:
-                run_training(
-                    encoder_lr = encoder_lr,
-                    head_lr = head_lr,
-                    num_downstream_mlp_layers = num_downstream_mlp_layers,
-                    dropout_rate = dropout_rate,
-                    device = device,
-                    num_epochs = 100,
-                    load_save_checkpoints = args_dict['load_save_checkpoints']
-                )
+    for fold_num in range(0, 5):
+        run_training(
+            encoder_lr = 1e-3,
+            head_lr = 1e-3,
+            dropout_rate = 0.2,
+            fold_num = fold_num, # type: ignore
+            device = device,
+            num_epochs = 100,
+            load_save_checkpoints = args_dict['load_save_checkpoints']
+        )
