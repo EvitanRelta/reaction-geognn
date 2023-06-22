@@ -211,22 +211,25 @@ class Preprocessing:
         smiles_parser.removeHs = False
         mol = AllChem.MolFromSmiles(smiles, smiles_parser)                      # type: ignore
 
-        mol, conf = Preprocessing._generate_conformer(mol)
+        has_atom_mapping = mol.GetAtomWithIdx(0).GetAtomMapNum() != 0
+        mol, conf = Preprocessing._generate_conformer(mol, add_rm_hydrogens=not has_atom_mapping)
 
-        atom_bond_graph = Preprocessing._get_atom_bond_graph(mol, conf, device)
-        bond_angle_graph = Preprocessing._get_bond_angle_graph(mol, conf, device)
+        atom_bond_graph = Preprocessing._get_atom_bond_graph(mol, conf, sort_by_atom_mapping=has_atom_mapping, device=device)
+        bond_angle_graph = Preprocessing._get_bond_angle_graph(mol, conf, device=device)
         if return_mol_conf:
             return atom_bond_graph, bond_angle_graph, mol, conf
         return atom_bond_graph, bond_angle_graph
 
     @staticmethod
-    def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
+    def _generate_conformer(mol: Mol, numConfs: int = 10, add_rm_hydrogens: bool = True) -> tuple[Mol, Conformer]:
         try:
-            new_mol = Chem.AddHs(mol)                                           # type: ignore
+            new_mol = mol
+            if add_rm_hydrogens:
+                new_mol = Chem.AddHs(mol)                                       # type: ignore
             res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)        # type: ignore
-            ### MMFF generates multiple conformations
             res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)                    # type: ignore
-            new_mol = Chem.RemoveHs(new_mol)                                    # type: ignore
+            if add_rm_hydrogens:
+                new_mol = Chem.RemoveHs(new_mol)                                # type: ignore
             index = np.argmin([x[1] for x in res])
             conf = new_mol.GetConformer(id=int(index))
         except:
@@ -239,6 +242,7 @@ class Preprocessing:
     def _get_atom_bond_graph(
         mol: Mol,
         conf: Conformer,
+        sort_by_atom_mapping: bool = False,
         device: torch.device = torch.device('cpu'),
     ) -> DGLGraph:
         """
@@ -257,8 +261,7 @@ class Preprocessing:
         num_bonds = mol.GetNumBonds()
         edges = torch.zeros(num_bonds, dtype=torch.int32), torch.zeros(num_bonds, dtype=torch.int32)
 
-        has_atom_mapping = any(atom.GetAtomMapNum() != 0 for atom in mol.GetAtoms())
-        if has_atom_mapping:
+        if sort_by_atom_mapping:
             for i, bond in enumerate(mol.GetBonds()):
                 edges[0][i] = bond.GetBeginAtom().GetAtomMapNum() - 1
                 edges[1][i] = bond.GetEndAtom().GetAtomMapNum() - 1
