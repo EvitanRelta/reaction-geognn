@@ -197,24 +197,24 @@ def _get_cached_graphs(
     device: torch.device,
 ) -> dict[str, tuple[DGLGraph, DGLGraph]]:
     # Extract all the SMILES strings from datasets.
-    smiles_list: list[str] = []
+    smiles_set: set[str] = set()
     for dataset in datasets:
-        smiles_list.extend([data['smiles'] for data in dataset.data_list])
+        smiles_set.update({ data['smiles'] for data in dataset.data_list })
 
     # If the save file exists, load the graphs from it.
     if os.path.exists(save_file_path):
         print(f'Loading cached graphs file at "{save_file_path}"...\n')
         cached_graphs = _load_cached_graphs(save_file_path, device)
 
-        assert len(cached_graphs) == sum([len(dataset) for dataset in datasets]), \
+        assert len(cached_graphs) == len(smiles_set), \
             "Length of saved cached-graphs doesn't match datasets' total length."
-        assert set(cached_graphs.keys()) == set(smiles_list), \
+        assert set(cached_graphs.keys()) == smiles_set, \
             "SMILES of saved cached-graphs doesn't match those in the dataset."
 
         return cached_graphs
 
     # If the save file doesn't exist, compute all the graphs
-    cached_graphs = _compute_all_graphs(smiles_list, device)
+    cached_graphs = _compute_all_graphs(smiles_set, device)
 
     # Create the parent directory of the save file path if it doesn't exist
     os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
@@ -225,12 +225,12 @@ def _get_cached_graphs(
     return cached_graphs
 
 def _compute_all_graphs(
-    smiles_list: list[str],
+    smiles_set: set[str],
     device: torch.device,
 ) -> dict[str, tuple[DGLGraph, DGLGraph]]:
     precomputed_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {}
-    print(f'Precomputing graphs for {len(smiles_list)} SMILES strings:')
-    for smiles in tqdm(smiles_list):
+    print(f'Precomputing graphs for {len(smiles_set)} SMILES strings:')
+    for smiles in tqdm(smiles_set):
         precomputed_graphs[smiles] = reaction_smart_to_graph(smiles, device=device)
     print('\n')
     return precomputed_graphs
