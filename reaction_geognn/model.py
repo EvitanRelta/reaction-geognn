@@ -15,14 +15,19 @@ from .preprocessing import reaction_smart_to_graph
 
 
 class ProtoModel(nn.Module):
-    def __init__(self, out_size: int, dropout_rate: float = 0.2) -> None:
+    def __init__(
+        self,
+        compound_encoder: GeoGNNModel,
+        out_size: int,
+        dropout_rate: float = 0.2
+    ) -> None:
         super().__init__()
         self.embed_dim = 32
-        self.geognn = GeoGNNModel(dropout_rate=dropout_rate)
-        self.norm = nn.LayerNorm(self.geognn.embed_dim)
+        self.compound_encoder = compound_encoder
+        self.norm = nn.LayerNorm(self.compound_encoder.embed_dim)
         self.mlp = DropoutMLP(
             num_of_layers = 2,
-            in_size = self.geognn.embed_dim,
+            in_size = self.compound_encoder.embed_dim,
             hidden_size = 128,
             out_size = out_size,
             activation = nn.LeakyReLU(),
@@ -41,7 +46,7 @@ class ProtoModel(nn.Module):
             Tensor: Predicted values with size `(self.out_size, )`.
         """
         batched_node_repr, batched_edge_repr, batched_graph_repr \
-            = self.geognn.forward(atom_bond_graph, bond_angle_graph)
+            = self.compound_encoder.forward(atom_bond_graph, bond_angle_graph)
 
 
         pred_list: list[Tensor] = []
