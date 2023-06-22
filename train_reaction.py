@@ -278,9 +278,7 @@ def _init_objects(
 
     # Based on the default Chemprop regression loss (ie. mse) as defined here:
     # https://github.com/chemprop/chemprop/blob/0c3f334/README.md#loss-functions
-    # Which uses this PyTorch loss function:
-    # https://github.com/chemprop/chemprop/blob/0c3f334/chemprop/train/loss_functions.py#L21
-    criterion = nn.MSELoss(reduction="none")
+    criterion = nn.MSELoss()
 
     # Based on the default Chemprop regression metric (ie. rmse) as defined here:
     # https://github.com/chemprop/chemprop/blob/0c3f334/README.md#metrics
