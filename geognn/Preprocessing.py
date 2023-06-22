@@ -203,7 +203,14 @@ class Preprocessing:
             tuple[DGLGraph, DGLGraph]: 1st graph is the atom-bond graph, 2nd \
                 is the bond-angle graph.
         """
-        mol = AllChem.MolFromSmiles(smiles)                                     # type: ignore
+        # Prevents `AllChem.MolFromSmiles` from removing the hydrogens explicitly
+        # defined in the SMILES.
+        # (but this won't add hydrogens if the SMILES doesn't have it)
+        # Based on: https://github.com/rdkit/rdkit/discussions/4703#discussioncomment-1656372
+        smiles_parser = Chem.SmilesParserParams()                               # type: ignore
+        smiles_parser.removeHs = False
+        mol = AllChem.MolFromSmiles(smiles, smiles_parser)                      # type: ignore
+
         mol, conf = Preprocessing._generate_conformer(mol)
 
         atom_bond_graph = Preprocessing._get_atom_bond_graph(mol, conf, device)
