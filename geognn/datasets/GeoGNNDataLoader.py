@@ -24,6 +24,7 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         shuffle: bool = True,
         device: torch.device = torch.device('cpu'),
         cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {},
+        collate_fn: Callable | None = None,
         worker_init_fn: Callable[[int], None] | None = None,
         generator: torch.Generator | None = None,
     ) -> None:
@@ -31,7 +32,8 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
             dataset,
             batch_size,
             shuffle,
-            collate_fn = self._collate_fn,
+            collate_fn = self._collate_fn if collate_fn is None \
+                else collate_fn,
             worker_init_fn = worker_init_fn,
             generator = generator,
         )
@@ -62,13 +64,12 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         std = torch.std(data, dim=0)
         return mean, std
 
-    def _collate_fn(self, batch: list[dict]) -> tuple[DGLGraph, DGLGraph, Tensor]:
+    def _collate_fn(self, batch: list[GeoGNNDataElement]) -> tuple[DGLGraph, DGLGraph, Tensor]:
         atom_bond_graphs: list[DGLGraph] = []
         bond_angle_graphs: list[DGLGraph] = []
         data_list: list[Tensor] = []
         for elem in batch:
             smiles, data = elem['smiles'], elem['data']
-            assert isinstance(smiles, str) and isinstance(data, Tensor)
 
             if smiles in self._cached_graphs:
                 atom_bond_graph, bond_angle_graph = self._cached_graphs[smiles]
