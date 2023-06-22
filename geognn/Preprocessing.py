@@ -256,9 +256,17 @@ class Preprocessing:
         # Create an undirected DGL graph with all the molecule's nodes and edges.
         num_bonds = mol.GetNumBonds()
         edges = torch.zeros(num_bonds, dtype=torch.int32), torch.zeros(num_bonds, dtype=torch.int32)
-        for i, bond in enumerate(mol.GetBonds()):
-            edges[0][i] = bond.GetBeginAtomIdx()
-            edges[1][i] = bond.GetEndAtomIdx()
+
+        has_atom_mapping = any(atom.GetAtomMapNum() != 0 for atom in mol.GetAtoms())
+        if has_atom_mapping:
+            for i, bond in enumerate(mol.GetBonds()):
+                edges[0][i] = bond.GetBeginAtom().GetAtomMapNum() - 1
+                edges[1][i] = bond.GetEndAtom().GetAtomMapNum() - 1
+        else:
+            for i, bond in enumerate(mol.GetBonds()):
+                edges[0][i] = bond.GetBeginAtomIdx()
+                edges[1][i] = bond.GetEndAtomIdx()
+
         graph = dgl.graph(edges, num_nodes=mol.GetNumAtoms(), idtype=torch.int32)
 
         # Add node features.
