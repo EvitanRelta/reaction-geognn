@@ -8,16 +8,15 @@ config are included:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/model_configs/geognn_l8.json
 """
 
-from typing import Final, Protocol
+from typing import Final
 
 import torch
+from dgl import DGLGraph
 from rdkit.Chem import rdchem  # type: ignore
 from torch import Tensor
-from typing_extensions import override
 
-from .base_feature_classes import AtomFeature, BondFeature, Feature, \
-    LabelEncodedFeature
-from .rdkit_types import RDKitEnum, RDKitEnumValue
+from .base_feature_classes import Feature, FloatFeature, LabelEncodedFeature
+from .rdkit_types import Conformer, Mol, RDKitEnum, RDKitEnumValue
 
 
 def _rdkit_enum_to_list(rdkit_enum: RDKitEnum) -> list[RDKitEnumValue]:
@@ -39,72 +38,77 @@ def _rdkit_enum_to_list(rdkit_enum: RDKitEnum) -> list[RDKitEnumValue]:
 #                                  Atom features
 # ==============================================================================
 
-class AtomicNum(AtomFeature, LabelEncodedFeature):
-    possible_values = list(range(1, 119)) + ['misc']
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
-        return x.GetAtomicNum()
+atomic_num_atom_feat = LabelEncodedFeature(
+    name = 'atomic_num',
+    feat_type = 'atom',
+    possible_values = list(range(1, 119)) + ['misc'],
+    get_raw_value = lambda x, *_ : x.GetAtomicNum(),
+)
 
 
-class ChiralTag(AtomFeature, LabelEncodedFeature):
-    possible_values = _rdkit_enum_to_list(rdchem.ChiralType)
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
-        return x.GetChiralTag()
+chiral_tag_atom_feat = LabelEncodedFeature(
+    name = 'chiral_tag',
+    feat_type = 'atom',
+    possible_values = _rdkit_enum_to_list(rdchem.ChiralType),
+    get_raw_value = lambda x, *_ : x.GetChiralTag(),
+)
 
 
-class Degree(AtomFeature, LabelEncodedFeature):
-    possible_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc']
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
-        return x.GetDegree()
+degree_atom_feat = LabelEncodedFeature(
+    name = 'degree',
+    feat_type = 'atom',
+    possible_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
+    get_raw_value = lambda x, *_ : x.GetDegree(),
+)
 
 
-class FormalCharge(AtomFeature, LabelEncodedFeature):
-    possible_values = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc']
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
-        return x.GetFormalCharge()
+formal_charge_atom_feat = LabelEncodedFeature(
+    name = 'formal_charge',
+    feat_type = 'atom',
+    possible_values = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
+    get_raw_value = lambda x, *_ : x.GetFormalCharge(),
+)
 
 
-class Hybridization(AtomFeature, LabelEncodedFeature):
-    possible_values = _rdkit_enum_to_list(rdchem.HybridizationType)
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
-        return x.GetHybridization()
+hybridization_atom_feat = LabelEncodedFeature(
+    name = 'hybridization',
+    feat_type = 'atom',
+    possible_values = _rdkit_enum_to_list(rdchem.HybridizationType),
+    get_raw_value = lambda x, *_ : x.GetHybridization(),
+)
 
 
-class IsAromatic(AtomFeature, LabelEncodedFeature):
-    possible_values = [0, 1]
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
-        return int(x.GetIsAromatic())
+is_aromatic_atom_feat = LabelEncodedFeature(
+    name = 'is_aromatic',
+    feat_type = 'atom',
+    possible_values = [0, 1],
+    get_raw_value = lambda x, *_ : x.GetIsAromatic(),
+    dtype = torch.bool,
+)
 
 
-class TotalNumHs(AtomFeature, LabelEncodedFeature):
-    possible_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 'misc']
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
-        return x.GetTotalNumHs()
+total_numHs_atom_feat = LabelEncodedFeature(
+    name = 'total_numHs',
+    feat_type = 'atom',
+    possible_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 'misc'],
+    get_raw_value = lambda x, *_ : x.GetTotalNumHs(),
+)
 
 
-class AtomPosition(AtomFeature):
-    @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
-        raise NotImplementedError("Atom positions are not computed atom-by-atom, but all at once in `get_feat_values`.")
-    @override
-    def get_feat_values(self, mol, conf, atom_bond_graph = None) -> Tensor:
-        return torch.from_numpy(conf.GetPositions()).float()
+atom_pos_atom_feat = Feature(
+    name = '_atom_pos',
+    get_feat_values = lambda _, conf, *__ : torch.from_numpy(conf.GetPositions()).float(),
+)
 
 
 LABEL_ENCODED_ATOM_FEATURES: Final[list[LabelEncodedFeature]] = [
-    AtomicNum('atomic_num'),
-    ChiralTag('chiral_tag'),
-    Degree('degree'),
-    FormalCharge('formal_charge'),
-    Hybridization('hybridization'),
-    IsAromatic('is_aromatic'),
-    TotalNumHs('total_numHs'),
+    atomic_num_atom_feat,
+    chiral_tag_atom_feat,
+    degree_atom_feat,
+    formal_charge_atom_feat,
+    hybridization_atom_feat,
+    is_aromatic_atom_feat,
+    total_numHs_atom_feat,
 ]
 """
 All predefined label-encoded atom features that'll be in the graphs.
@@ -119,60 +123,66 @@ that'll be in the graphs.
 # ==============================================================================
 #                                  Bond features
 # ==============================================================================
-class BondDirection(BondFeature, LabelEncodedFeature):
-    possible_values = _rdkit_enum_to_list(rdchem.BondDir)
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
-        return x.GetBondDir()
+bond_dir_bond_feat = LabelEncodedFeature(
+    name = 'bond_dir',
+    feat_type = 'bond',
+    possible_values = _rdkit_enum_to_list(rdchem.BondDir),
+    get_raw_value = lambda x, *_ : x.GetBondDir(),
+)
 
 
-class BondType(BondFeature, LabelEncodedFeature):
-    possible_values = _rdkit_enum_to_list(rdchem.BondType)
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> RDKitEnumValue:
-        return x.GetBondType()
+bond_type_bond_feat = LabelEncodedFeature(
+    name = 'bond_type',
+    feat_type = 'bond',
+    possible_values = _rdkit_enum_to_list(rdchem.BondType),
+    get_raw_value = lambda x, *_ : x.GetBondType(),
+)
 
 
-class IsInRing(BondFeature, LabelEncodedFeature):
-    possible_values = [0, 1]
-    @override
-    def _get_unencoded_value(self, x, mol, conf, atom_bond_graph = None) -> int:
-        return int(x.IsInRing())
+is_in_ring_bond_feat = LabelEncodedFeature(
+    name = 'is_in_ring',
+    feat_type = 'bond',
+    possible_values = [0, 1],
+    get_raw_value = lambda x, *_ : int(x.IsInRing()),
+    dtype = torch.bool,
+)
 
 
-class BondLength(BondFeature):
-    @override
-    def _get_value(self, x, mol, conf, atom_bond_graph = None) -> int:
-        raise NotImplementedError("Bond lengths are not computed bond-by-bond, but all at once in `get_feat_values`.")
-    @override
-    def get_feat_values(self, mol, conf, atom_bond_graph = None) -> Tensor:
-        assert atom_bond_graph != None, 'Bond length feature requires `atom_bond_graph`.'
-        assert '_atom_pos' in atom_bond_graph.ndata, \
-            "Bond length feat requires 3D atom position feat to be first computed at `atom_bond_graph.ndata['_atom_pos']`."
+def _bond_length_get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None):
+    assert atom_bond_graph != None, 'Bond length feature requires `atom_bond_graph`.'
+    assert '_atom_pos' in atom_bond_graph.ndata, \
+        "Bond length feat requires 3D atom position feat to be first computed at `atom_bond_graph.ndata['_atom_pos']`."
 
-        atom_positions = atom_bond_graph.ndata['_atom_pos']
-        assert isinstance(atom_positions, Tensor)
+    atom_positions = atom_bond_graph.ndata['_atom_pos']
+    assert isinstance(atom_positions, Tensor)
 
-        edges_tuple: tuple[Tensor, Tensor] = atom_bond_graph.edges()
-        src_node_idx, dst_node_idx = edges_tuple
+    edges_tuple: tuple[Tensor, Tensor] = atom_bond_graph.edges()
+    src_node_idx, dst_node_idx = edges_tuple
 
-        # To use as tensor indexing, these index tensors needs to be `dtype=long`.
-        src_node_idx, dst_node_idx = src_node_idx.long(), dst_node_idx.long()
+    # To use as tensor indexing, these index tensors needs to be `dtype=long`.
+    src_node_idx, dst_node_idx = src_node_idx.long(), dst_node_idx.long()
 
-        return torch.norm(atom_positions[dst_node_idx] - atom_positions[src_node_idx], dim=1)
+    return torch.norm(atom_positions[dst_node_idx] - atom_positions[src_node_idx], dim=1)
+
+bond_length_bond_feat = FloatFeature(
+    name = 'bond_length',
+    centers = torch.arange(0, 2, 0.1),
+    gamma = 10.0,
+    get_feat_values = _bond_length_get_feat_values,
+)
 
 
 LABEL_ENCODED_BOND_FEATURES: Final[list[LabelEncodedFeature]] = [
-    BondDirection('bond_dir'),
-    BondType('bond_type'),
-    IsInRing('is_in_ring'),
+    bond_dir_bond_feat,
+    bond_type_bond_feat,
+    is_in_ring_bond_feat,
 ]
 """
 All predefined label-encoded bond features that'll be in the graphs.
 """
 
 FLOAT_BOND_FEATURES: Final[list[Feature]] = [
-    BondLength('bond_length'),
+    bond_length_bond_feat,
 ]
 """
 All predefined bond features that have feature values of datatype `float`

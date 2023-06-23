@@ -10,7 +10,8 @@ from rdkit.Chem import AllChem, rdMolTransforms as rdmt  # type: ignore
 from torch import Tensor
 
 from .features import FLOAT_ATOM_FEATURES, FLOAT_BOND_FEATURES, \
-    LABEL_ENCODED_ATOM_FEATURES, LABEL_ENCODED_BOND_FEATURES, AtomPosition
+    LABEL_ENCODED_ATOM_FEATURES, LABEL_ENCODED_BOND_FEATURES, \
+    atom_pos_atom_feat
 from .rdkit_types import Conformer, Mol
 
 FeatureCategory: TypeAlias = Literal['atom_feats', 'bond_feats']
@@ -111,15 +112,14 @@ def _get_atom_bond_graph(
         graph.ndata[feat.name] = feat.get_feat_values(mol, conf, graph)
 
     # Temp feat used for generating bond lengths (edge feat).
-    temp_feat = AtomPosition('_atom_pos')
-    graph.ndata[temp_feat.name] = temp_feat.get_feat_values(mol, conf, graph)
+    graph.ndata[atom_pos_atom_feat.name] = atom_pos_atom_feat.get_feat_values(mol, conf, graph)
 
     # Add edge features.
     for feat in LABEL_ENCODED_BOND_FEATURES + FLOAT_BOND_FEATURES:
         graph.edata[feat.name] = feat.get_feat_values(mol, conf, graph)
 
     # Remove temporary feat used in computing other feats.
-    del graph.ndata['_atom_pos']
+    del graph.ndata[atom_pos_atom_feat.name]
 
     graph = _to_bidirected_copy(graph)   # Convert to undirected graph.
     graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
