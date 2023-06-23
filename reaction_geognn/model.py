@@ -75,6 +75,7 @@ class ProtoModel(nn.Module):
         for graph in dgl.unbatch(batched_atom_bond_graph):
             num_nodes = graph.number_of_nodes()
             node_repr = batched_node_repr[start_index : start_index + num_nodes]
+            start_index += num_nodes
             output.append((node_repr, graph))
         return output
 
