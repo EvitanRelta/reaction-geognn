@@ -98,6 +98,8 @@ def _merge_graphs(graph_list: list[DGLGraph]) -> DGLGraph:
     Merge multiple graphs into a single graph. Similar to `dgl.batch` but it
     it doesn't "batch" the graphs.
     """
+    device = graph_list[0].device
+
     # Initialize empty lists for the new nodes and edges
     new_edges_src: list[int] = []
     new_edges_dst: list[int] = []
@@ -133,14 +135,14 @@ def _merge_graphs(graph_list: list[DGLGraph]) -> DGLGraph:
         num_nodes_so_far += cast(int, g.number_of_nodes())
 
     # Create the new graph
-    new_g = dgl.graph((new_edges_src, new_edges_dst), num_nodes=num_nodes_so_far)
+    new_g = dgl.graph((new_edges_src, new_edges_dst), num_nodes=num_nodes_so_far, device=device)
 
     # Add the node features to the new graph
     for feature_name, features in new_node_features.items():
-        new_g.ndata[feature_name] = torch.tensor(features)
+        new_g.ndata[feature_name] = torch.tensor(features, device=device)
 
     # Add the edge features to the new graph
     for feature_name, features in new_edge_features.items():
-        new_g.edata[feature_name] = torch.tensor(features)
+        new_g.edata[feature_name] = torch.tensor(features, device=device)
 
     return new_g
