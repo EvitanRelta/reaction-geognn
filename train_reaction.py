@@ -46,17 +46,18 @@ def run_training(
     dropout_rate: float,
     fold_num: Literal[0, 1, 2, 3, 4],
     num_epochs: int,
+    batch_size: int,
     device: torch.device,
     load_save_checkpoints: bool = True,
     base_checkpoint_dir: str = './checkpoints/reaction_geognn',
 ) -> None:
-    sub_dir_name = f'/encoderlr{encoder_lr}_headlr{head_lr}_dropout{dropout_rate}/fold_{fold_num}'
+    sub_dir_name = f'/encoderlr{encoder_lr}_headlr{head_lr}_dropout{dropout_rate}_batchsize{batch_size}/fold_{fold_num}'
     checkpoint_dir = os.path.join(base_checkpoint_dir, sub_dir_name)
 
     # Init / Load all the object instances.
     compound_encoder, model, criterion, metric, train_data_loader, \
         valid_data_loader, test_data_loader, encoder_optimizer, head_optimizer \
-        = _init_objects(device, encoder_lr, head_lr, dropout_rate, fold_num)
+        = _init_objects(device, encoder_lr, head_lr, dropout_rate, fold_num, batch_size)
     previous_epoch = -1
     epoch_losses: list[float] = []
     epoch_valid_losses: list[float] = []
@@ -263,6 +264,7 @@ def _init_objects(
     head_lr: float,
     dropout_rate: float,
     fold_num: Literal[0, 1, 2, 3, 4],
+    batch_size: int,
 ) -> tuple[GeoGNNModel, ProtoModel, TrainCriterion, Metric, TrainDataLoader, ValidDataLoader, TestDataLoader, EncoderOptimizer, HeadOptimizer]:
     """
     Initialize all the required object instances.
@@ -301,7 +303,7 @@ def _init_objects(
         train_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
-        batch_size = 32,
+        batch_size = batch_size,
         shuffle = False, # No shuffling to ensure reproducibility.
         device = device,
         cached_graphs = cached_graphs,
@@ -312,7 +314,7 @@ def _init_objects(
         valid_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
-        batch_size = 32,
+        batch_size = batch_size,
         shuffle = False,  # No need to shuffle validation and test data
         device = device,
         cached_graphs = cached_graphs,
@@ -323,7 +325,7 @@ def _init_objects(
         test_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
-        batch_size = 32,
+        batch_size = batch_size,
         shuffle = False,  # No need to shuffle validation and test data
         device = device,
         cached_graphs = cached_graphs,
@@ -483,9 +485,10 @@ if __name__ == "__main__":
         run_training(
             encoder_lr = 1e-3,
             head_lr = 1e-3,
-            dropout_rate = 0.2,
+            dropout_rate = 0,
             fold_num = fold_num, # type: ignore
             device = device,
             num_epochs = 100,
+            batch_size = 50,
             load_save_checkpoints = args_dict['load_save_checkpoints']
         )
