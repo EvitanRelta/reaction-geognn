@@ -49,6 +49,7 @@ def run_training(
     batch_size: int,
     device: torch.device,
     load_save_checkpoints: bool = True,
+    cache_graphs: bool = True,
     base_checkpoint_dir: str = './checkpoints/reaction_geognn',
 ) -> None:
     sub_dir_name = f'/encoderlr{encoder_lr}_headlr{head_lr}_dropout{dropout_rate}_batchsize{batch_size}/fold_{fold_num}'
@@ -57,7 +58,7 @@ def run_training(
     # Init / Load all the object instances.
     compound_encoder, model, criterion, metric, train_data_loader, \
         valid_data_loader, test_data_loader, encoder_optimizer, head_optimizer \
-        = _init_objects(device, encoder_lr, head_lr, dropout_rate, fold_num, batch_size)
+        = _init_objects(device, encoder_lr, head_lr, dropout_rate, fold_num, batch_size, cache_graphs)
     previous_epoch = -1
     epoch_losses: list[float] = []
     epoch_valid_losses: list[float] = []
@@ -265,6 +266,7 @@ def _init_objects(
     dropout_rate: float,
     fold_num: Literal[0, 1, 2, 3, 4],
     batch_size: int,
+    cache_graphs: bool,
 ) -> tuple[GeoGNNModel, ProtoModel, TrainCriterion, Metric, TrainDataLoader, ValidDataLoader, TestDataLoader, EncoderOptimizer, HeadOptimizer]:
     """
     Initialize all the required object instances.
@@ -290,11 +292,14 @@ def _init_objects(
     train_dataset, valid_dataset, test_dataset = get_wb97_fold_dataset(fold_num)
 
     # Get/Compute graph cache.
-    cached_graphs = _get_cached_graphs(
-        [train_dataset, valid_dataset, test_dataset], # type: ignore
-        save_file_path = './cached_graphs/cached_wb97.bin',
-        device = device,
-    )
+    if cache_graphs:
+        cached_graphs = _get_cached_graphs(
+            [train_dataset, valid_dataset, test_dataset], # type: ignore
+            save_file_path = './cached_graphs/cached_wb97.bin',
+            device = device,
+        )
+    else:
+        cached_graphs = {}
 
     # Defined data-loader, where the data is standardize with the
     # training mean and standard deviation.
@@ -459,17 +464,23 @@ def _evaluate(
 
 class Arguments(TypedDict):
     load_save_checkpoints: bool
+    cache_graphs: bool
 
 def _parse_script_args() -> Arguments:
     parser = argparse.ArgumentParser(description='Training Script')
     parser.add_argument('--no-load-save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
+    parser.add_argument('--no-cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
     args = parser.parse_args()
 
     output: Arguments = {
-        'load_save_checkpoints': not args.no_load_save
+        'load_save_checkpoints': not args.no_load_save,
+        'cache_graphs': not args.no_cache,
     }
     if not output['load_save_checkpoints']:
-        print('Warning: No loading/saving of checkpoints will be done.\n')
+        print('Warning: No loading/saving of checkpoints will be done.')
+    if not output['cache_graphs']:
+        print('Warning: No loading/saving/precomputing of graph cache file will be done.')
+    print('\n')
     return output
 
 
@@ -490,5 +501,6 @@ if __name__ == "__main__":
             device = device,
             num_epochs = 100,
             batch_size = 50,
-            load_save_checkpoints = args_dict['load_save_checkpoints']
+            load_save_checkpoints = args_dict['load_save_checkpoints'],
+            cache_graphs = args_dict['cache_graphs'],
         )
