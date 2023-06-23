@@ -485,7 +485,7 @@ if __name__ == "__main__":
         run_training(
             encoder_lr = 1e-3,
             head_lr = 1e-3,
-            dropout_rate = 0,
+            dropout_rate = 0.1,
             fold_num = fold_num, # type: ignore
             device = device,
             num_epochs = 100,
