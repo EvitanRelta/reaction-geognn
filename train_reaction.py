@@ -509,7 +509,7 @@ if __name__ == "__main__":
             dropout_rate = 0.1,
             fold_num = fold_num, # type: ignore
             device = device,
-            num_epochs = 100,
+            num_epochs = 200,
             batch_size = 50,
             load_save_checkpoints = args_dict['load_save_checkpoints'],
             cache_graphs = args_dict['cache_graphs'],
