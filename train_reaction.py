@@ -1,5 +1,5 @@
 import argparse, os, pickle, random, subprocess, time
-from typing import Literal, TypeAlias, TypedDict
+from typing import Literal, TypeAlias, TypedDict, cast
 
 import dgl
 import numpy as np
@@ -60,21 +60,24 @@ def run_training(
         valid_data_loader, test_data_loader, encoder_optimizer, head_optimizer \
         = _init_objects(device, encoder_lr, head_lr, dropout_rate, fold_num, batch_size, cache_graphs)
     previous_epoch = -1
+    epoch_mse_losses: list[float] = []
     epoch_losses: list[float] = []
     epoch_valid_losses: list[float] = []
     epoch_test_losses: list[float] = []
     if load_save_checkpoints:
-        compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses, epoch_valid_losses, epoch_test_losses \
+        compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_mse_losses, epoch_losses, epoch_valid_losses, epoch_test_losses \
             = _load_checkpoint_if_exists(checkpoint_dir, model, encoder_optimizer, head_optimizer)
 
     # Train model
     start_time = time.time()
     start_epoch: int = previous_epoch + 1   # start from the next epoch
     for epoch in range(start_epoch, num_epochs):
-        train_loss = _train(model, criterion, train_data_loader, encoder_optimizer, head_optimizer)
+        mse_train_loss = _train(model, criterion, train_data_loader, encoder_optimizer, head_optimizer)
+        train_loss = mse_train_loss * train_data_loader.fit_std.item()
         valid_loss = _evaluate(model, metric, valid_data_loader)
         test_loss = _evaluate(model, metric, test_data_loader)
 
+        epoch_mse_losses.append(mse_train_loss)
         epoch_losses.append(train_loss)
         epoch_valid_losses.append(valid_loss)
         epoch_test_losses.append(test_loss)
@@ -88,6 +91,7 @@ def run_training(
             # Save checkpoint of epoch.
             checkpoint_dict: GeoGNNCheckpoint = {
                 'epoch': epoch,
+                'epoch_mse_losses': epoch_mse_losses,
                 'epoch_losses': epoch_losses,
                 'epoch_valid_losses': epoch_valid_losses,
                 'epoch_test_losses': epoch_test_losses,
@@ -130,8 +134,11 @@ class GeoGNNCheckpoint(TypedDict):
     epoch: int
     """Epoch for this checkpoint (zero-indexed)."""
 
+    epoch_mse_losses: list[float]
+    """MSE training losses for each epoch"""
+
     epoch_losses: list[float]
-    """Losses for each epoch."""
+    """RMSE training losses for each epoch."""
 
     epoch_valid_losses: list[float]
     """Validation losses for each epoch."""
@@ -359,7 +366,7 @@ def _load_checkpoint_if_exists(
     model: ProtoModel,
     encoder_optimizer: Adam,
     head_optimizer: Adam,
-) -> tuple[GeoGNNModel, ProtoModel, EncoderOptimizer, HeadOptimizer, int, list[float], list[float], list[float]]:
+) -> tuple[GeoGNNModel, ProtoModel, EncoderOptimizer, HeadOptimizer, int, list[float], list[float], list[float], list[float]]:
     # Make the checkpoint dir if it doesn't exist.
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -369,23 +376,24 @@ def _load_checkpoint_if_exists(
     has_checkpoint = len(checkpoint_files) > 0
     if not has_checkpoint:
         # If not, return the arguments as is / default values for epoch/loss-list.
-        return model.compound_encoder, model, encoder_optimizer, head_optimizer, -1, [], [], []
+        return model.compound_encoder, model, encoder_optimizer, head_optimizer, -1, [], [], [], []
 
     # Load the last checkpoint.
     latest_checkpoint = checkpoint_files[-1]
-    checkpoint = torch.load(os.path.join(checkpoint_dir, latest_checkpoint))
+    checkpoint = cast(GeoGNNCheckpoint, torch.load(os.path.join(checkpoint_dir, latest_checkpoint)))
 
     # Load the saved values in the checkpoint.
     model.load_state_dict(checkpoint['model_state_dict'])
     encoder_optimizer.load_state_dict(checkpoint['encoder_optimizer_state_dict'])
     head_optimizer.load_state_dict(checkpoint['head_optimizer_state_dict'])
     previous_epoch = checkpoint['epoch']
+    epoch_mse_losses = checkpoint['epoch_mse_losses']
     epoch_losses = checkpoint['epoch_losses']
     epoch_valid_losses = checkpoint['epoch_valid_losses']
     epoch_test_losses = checkpoint['epoch_test_losses']
     print(f'Loaded checkpoint from epoch {previous_epoch}')
 
-    return model.compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses, epoch_valid_losses, epoch_test_losses
+    return model.compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_mse_losses, epoch_losses, epoch_valid_losses, epoch_test_losses
 
 
 def _train(
