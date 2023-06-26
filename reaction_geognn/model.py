@@ -22,7 +22,6 @@ class ProtoModel(nn.Module):
         dropout_rate: float = 0.2
     ) -> None:
         super().__init__()
-        self.embed_dim = 32
         self.compound_encoder = compound_encoder
         self.norm = nn.LayerNorm(self.compound_encoder.embed_dim)
         self.mlp = DropoutMLP(
