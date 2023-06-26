@@ -52,7 +52,7 @@ def run_training(
     cache_graphs: bool = True,
     base_checkpoint_dir: str = './checkpoints/reaction_geognn',
 ) -> None:
-    sub_dir_name = f'/encoderlr{encoder_lr}_headlr{head_lr}_dropout{dropout_rate}_batchsize{batch_size}/fold_{fold_num}'
+    sub_dir_name = f'./encoderlr{encoder_lr}_headlr{head_lr}_dropout{dropout_rate}_batchsize{batch_size}_embeddim128/fold_{fold_num}'
     checkpoint_dir = os.path.join(base_checkpoint_dir, sub_dir_name)
 
     # Init / Load all the object instances.
@@ -272,7 +272,7 @@ def _init_objects(
     Initialize all the required object instances.
     """
     # Instantiate GNN model
-    compound_encoder = GeoGNNModel(dropout_rate=dropout_rate)
+    compound_encoder = GeoGNNModel(embed_dim=128, dropout_rate=dropout_rate)
     model = ProtoModel(
         compound_encoder = compound_encoder,
         out_size = 1,
