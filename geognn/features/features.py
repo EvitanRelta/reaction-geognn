@@ -38,58 +38,51 @@ def _rdkit_enum_to_list(rdkit_enum: RDKitEnum) -> list[RDKitEnumValue]:
 #                                  Atom features
 # ==============================================================================
 
-atomic_num_atom_feat = LabelEncodedFeature(
+atomic_num_atom_feat = LabelEncodedFeature.create_atom_feat(
     name = 'atomic_num',
-    feat_type = 'atom',
     possible_values = list(range(1, 119)) + ['misc'],
     get_raw_value = lambda x, *_ : x.GetAtomicNum(),
 )
 
 
-chiral_tag_atom_feat = LabelEncodedFeature(
+chiral_tag_atom_feat = LabelEncodedFeature.create_atom_feat(
     name = 'chiral_tag',
-    feat_type = 'atom',
     possible_values = _rdkit_enum_to_list(rdchem.ChiralType),
     get_raw_value = lambda x, *_ : x.GetChiralTag(),
 )
 
 
-degree_atom_feat = LabelEncodedFeature(
+degree_atom_feat = LabelEncodedFeature.create_atom_feat(
     name = 'degree',
-    feat_type = 'atom',
     possible_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
     get_raw_value = lambda x, *_ : x.GetDegree(),
 )
 
 
-formal_charge_atom_feat = LabelEncodedFeature(
+formal_charge_atom_feat = LabelEncodedFeature.create_atom_feat(
     name = 'formal_charge',
-    feat_type = 'atom',
     possible_values = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 'misc'],
     get_raw_value = lambda x, *_ : x.GetFormalCharge(),
 )
 
 
-hybridization_atom_feat = LabelEncodedFeature(
+hybridization_atom_feat = LabelEncodedFeature.create_atom_feat(
     name = 'hybridization',
-    feat_type = 'atom',
     possible_values = _rdkit_enum_to_list(rdchem.HybridizationType),
     get_raw_value = lambda x, *_ : x.GetHybridization(),
 )
 
 
-is_aromatic_atom_feat = LabelEncodedFeature(
+is_aromatic_atom_feat = LabelEncodedFeature.create_atom_feat(
     name = 'is_aromatic',
-    feat_type = 'atom',
     possible_values = [0, 1],
     get_raw_value = lambda x, *_ : x.GetIsAromatic(),
     dtype = torch.bool,
 )
 
 
-total_numHs_atom_feat = LabelEncodedFeature(
+total_numHs_atom_feat = LabelEncodedFeature.create_atom_feat(
     name = 'total_numHs',
-    feat_type = 'atom',
     possible_values = [0, 1, 2, 3, 4, 5, 6, 7, 8, 'misc'],
     get_raw_value = lambda x, *_ : x.GetTotalNumHs(),
 )
@@ -123,25 +116,22 @@ that'll be in the graphs.
 # ==============================================================================
 #                                  Bond features
 # ==============================================================================
-bond_dir_bond_feat = LabelEncodedFeature(
+bond_dir_bond_feat = LabelEncodedFeature.create_bond_feat(
     name = 'bond_dir',
-    feat_type = 'bond',
     possible_values = _rdkit_enum_to_list(rdchem.BondDir),
     get_raw_value = lambda x, *_ : x.GetBondDir(),
 )
 
 
-bond_type_bond_feat = LabelEncodedFeature(
+bond_type_bond_feat = LabelEncodedFeature.create_bond_feat(
     name = 'bond_type',
-    feat_type = 'bond',
     possible_values = _rdkit_enum_to_list(rdchem.BondType),
     get_raw_value = lambda x, *_ : x.GetBondType(),
 )
 
 
-is_in_ring_bond_feat = LabelEncodedFeature(
+is_in_ring_bond_feat = LabelEncodedFeature.create_bond_feat(
     name = 'is_in_ring',
-    feat_type = 'bond',
     possible_values = [0, 1],
     get_raw_value = lambda x, *_ : int(x.IsInRing()),
     dtype = torch.bool,
@@ -166,8 +156,8 @@ def _bond_length_get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_grap
 
 bond_length_bond_feat = FloatFeature(
     name = 'bond_length',
-    centers = torch.arange(0, 2, 0.1),
-    gamma = 10.0,
+    rbf_centers = torch.arange(0, 2, 0.1),
+    rbf_gamma = 10.0,
     get_feat_values = _bond_length_get_feat_values,
 )
 
