@@ -57,7 +57,7 @@ def run_training(
     epoch_valid_losses: list[float] = []
     epoch_test_losses: list[float] = []
     if load_save_checkpoints:
-        compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses \
+        compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses, epoch_valid_losses, epoch_test_losses \
             = _load_checkpoint_if_exists(checkpoint_dir, model, encoder_optimizer, head_optimizer)
 
     # Train model
@@ -349,7 +349,7 @@ def _load_checkpoint_if_exists(
     model: DownstreamModel,
     encoder_optimizer: Adam,
     head_optimizer: Adam,
-) -> tuple[GeoGNNModel, DownstreamModel, EncoderOptimizer, HeadOptimizer, int, list[float]]:
+) -> tuple[GeoGNNModel, DownstreamModel, EncoderOptimizer, HeadOptimizer, int, list[float], list[float], list[float]]:
     # Make the checkpoint dir if it doesn't exist.
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
@@ -359,7 +359,7 @@ def _load_checkpoint_if_exists(
     has_checkpoint = len(checkpoint_files) > 0
     if not has_checkpoint:
         # If not, return the arguments as is / default values for epoch/loss-list.
-        return model.compound_encoder, model, encoder_optimizer, head_optimizer, -1, []
+        return model.compound_encoder, model, encoder_optimizer, head_optimizer, -1, [], [], []
 
     # Load the last checkpoint.
     latest_checkpoint = checkpoint_files[-1]
@@ -372,9 +372,11 @@ def _load_checkpoint_if_exists(
     head_optimizer.load_state_dict(checkpoint['head_optimizer_state_dict'])
     previous_epoch = checkpoint['epoch']
     epoch_losses = checkpoint['epoch_losses']
+    epoch_valid_losses = checkpoint['epoch_valid_losses']
+    epoch_test_losses = checkpoint['epoch_test_losses']
     print(f'Loaded checkpoint from epoch {previous_epoch}')
 
-    return model.compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses
+    return model.compound_encoder, model, encoder_optimizer, head_optimizer, previous_epoch, epoch_losses, epoch_valid_losses, epoch_test_losses
 
 
 def _train(
