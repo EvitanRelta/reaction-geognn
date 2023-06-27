@@ -99,7 +99,7 @@ def run_training(
                 'encoder_optimizer_state_dict': encoder_optimizer.state_dict(),
                 'head_optimizer_state_dict': head_optimizer.state_dict()
             }
-            checkpoint_filename = f'epoch_{epoch}.pth'
+            checkpoint_filename = f'epoch_{epoch:05}.pth'
             torch.save(checkpoint_dict, os.path.join(checkpoint_dir, checkpoint_filename))
 
 
