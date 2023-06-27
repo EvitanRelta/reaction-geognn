@@ -1,4 +1,4 @@
-import argparse, os, pickle, random, subprocess, time
+import argparse, math, os, pickle, random, subprocess, time
 from typing import Literal, TypeAlias, TypedDict, cast
 
 import dgl
@@ -73,7 +73,7 @@ def run_training(
     start_epoch: int = previous_epoch + 1   # start from the next epoch
     for epoch in range(start_epoch, num_epochs):
         mse_train_loss = _train(model, criterion, train_data_loader, encoder_optimizer, head_optimizer)
-        train_loss = mse_train_loss * train_data_loader.fit_std.item()
+        train_loss = math.sqrt(mse_train_loss) * train_data_loader.fit_std.item()
         valid_loss = _evaluate(model, metric, valid_data_loader)
         test_loss = _evaluate(model, metric, test_data_loader)
 
