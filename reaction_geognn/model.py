@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Protocol, cast
 
 import dgl
 import lightning.pytorch as pl
@@ -14,14 +14,26 @@ from torch.optim import Adam
 from .data_module import BATCH_TUPLE, Wb97DataModule
 
 
+class HyperParams(Protocol):
+    """Type hint for `self.hparams` in `ProtoModel`."""
+    out_size: int
+    dropout_rate: float
+    encoder_lr: float
+    head_lr: float
+
 class ProtoModel(pl.LightningModule):
     def __init__(
         self,
         compound_encoder: GeoGNNModel,
         out_size: int,
         dropout_rate: float,
+        encoder_lr: float = 1e-3,
+        head_lr: float = 1e-3,
     ) -> None:
         super().__init__()
+        self.hparams: HyperParams
+        self.save_hyperparameters(ignore=['compound_encoder'])
+
         self.compound_encoder = compound_encoder
         self.norm = nn.LayerNorm(self.compound_encoder.embed_dim)
         self.mlp = DropoutMLP(
@@ -116,8 +128,9 @@ class ProtoModel(pl.LightningModule):
         is_in = lambda x, lst: any(element is x for element in lst)
         head_params = [p for p in model_params if not is_in(p, compound_encoder_params)]
 
-        encoder_optim = Adam(compound_encoder_params, lr=1e-3)
-        head_optim = Adam(head_params, lr=1e-3)
+        assert self.hparams.encoder_lr and self.hparams.head_lr
+        encoder_optim = Adam(compound_encoder_params, lr=self.hparams.encoder_lr)
+        head_optim = Adam(head_params, lr=self.hparams.head_lr)
         return encoder_optim, head_optim
 
 
