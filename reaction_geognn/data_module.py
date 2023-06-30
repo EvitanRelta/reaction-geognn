@@ -47,7 +47,7 @@ class Wb97DataModule(pl.LightningDataModule):
     def __init__(
         self,
         fold_num: Literal[0, 1, 2, 3, 4],
-        batch_size: int,
+        batch_size: int | None,
         cache_path: str | None = None
     ):
         super().__init__()
@@ -122,13 +122,25 @@ class Wb97DataModule(pl.LightningDataModule):
     #                        Dataloader-related methods
     # ==========================================================================
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(dataset=self.train_dataset, collate_fn=self._collate_fn)
+        return DataLoader(
+            dataset = self.train_dataset,
+            batch_size = self.batch_size,
+            collate_fn = self._collate_fn,
+        )
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(dataset=self.val_dataset, collate_fn=self._collate_fn)
+        return DataLoader(
+            dataset = self.val_dataset,
+            batch_size = self.batch_size,
+            collate_fn = self._collate_fn,
+        )
 
     def test_dataloader(self) -> DataLoader:
-        return DataLoader(dataset=self.test_dataset, collate_fn=self._collate_fn)
+        return DataLoader(
+            dataset = self.test_dataset,
+            batch_size = self.batch_size,
+            collate_fn = self._collate_fn,
+        )
 
     def _collate_fn(self, batch: list[GeoGNNDataElement]) -> BATCH_TUPLE:
         """Collate-function used in the train/val/test dataloaders.
