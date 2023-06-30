@@ -1,25 +1,25 @@
-import os
-from typing import Callable, cast
+from typing import cast
 
 import dgl
-import pandas as pd
+import lightning.pytorch as pl
 import torch
+import torchmetrics
 from dgl import DGLGraph
 from geognn import GeoGNNModel
-from geognn.datasets import GeoGNNDataElement, GeoGNNDataLoader, GeoGNNDataset
 from geognn.layers import DropoutMLP
+from lightning.pytorch.core.optimizer import LightningOptimizer
 from torch import Tensor, nn
-from torch.utils.data import Dataset
+from torch.optim import Adam
 
-from .preprocessing import reaction_smart_to_graph
+from .data_module import BATCH_TUPLE, Wb97DataModule
 
 
-class ProtoModel(nn.Module):
+class ProtoModel(pl.LightningModule):
     def __init__(
         self,
         compound_encoder: GeoGNNModel,
         out_size: int,
-        dropout_rate: float = 0.2
+        dropout_rate: float,
     ) -> None:
         super().__init__()
         self.compound_encoder = compound_encoder
@@ -32,6 +32,12 @@ class ProtoModel(nn.Module):
             activation = nn.LeakyReLU(),
             dropout_rate = dropout_rate,
         )
+        # Needed as auto-optimization doesn't support multiple optimizers.
+        self.automatic_optimization = False
+
+        # Loss/Metric functions.
+        self.loss_fn = torchmetrics.MeanSquaredError() # MSE
+        self.metric = torchmetrics.MeanSquaredError(squared=False) # RMSE
 
     def forward(self, atom_bond_graph: DGLGraph, bond_angle_graph: DGLGraph) -> Tensor:
         """
@@ -97,53 +103,66 @@ class ProtoModel(nn.Module):
         return reactant_node_repr, product_node_repr
 
 
-class ProtoDataLoader(GeoGNNDataLoader):
-    def __init__(
-        self,
-        dataset: Dataset[GeoGNNDataElement],
-        fit_mean: Tensor,
-        fit_std: Tensor,
-        batch_size: int,
-        shuffle: bool = True,
-        device: torch.device = torch.device('cpu'),
-        cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {},
-        worker_init_fn: Callable[[int], None] | None = None,
-        generator: torch.Generator | None = None
-    ) -> None:
-        super().__init__(
-            dataset,
-            fit_mean,
-            fit_std,
-            batch_size,
-            shuffle,
-            device,
-            cached_graphs,
-            self._collate_fn,
-            worker_init_fn,
-            generator,
-        )
+    # ==========================================================================
+    #                        Training-related methods
+    # ==========================================================================
+    def configure_optimizers(self):
+        compound_encoder_params = list(self.compound_encoder.parameters())
+        model_params = list(self.parameters())
 
-    def _collate_fn(self, batch: list[GeoGNNDataElement]) -> tuple[DGLGraph, DGLGraph, Tensor]:
-        atom_bond_graphs: list[DGLGraph] = []
-        bond_angle_graphs: list[DGLGraph] = []
-        data_list: list[Tensor] = []
-        for elem in batch:
-            smiles, data = elem['smiles'], elem['data']
+        # Head-model params, excluding those in `self.compound_encoder`.
+        # `head_params` is the difference in elements between `model_params` &
+        # `compound_encoder_params`.
+        is_in = lambda x, lst: any(element is x for element in lst)
+        head_params = [p for p in model_params if not is_in(p, compound_encoder_params)]
 
-            if smiles in self._cached_graphs:
-                atom_bond_graph, bond_angle_graph = self._cached_graphs[smiles]
-            else:
-                graphs = reaction_smart_to_graph(smiles, self.device)
-                atom_bond_graph, bond_angle_graph = graphs
-                self._cached_graphs[smiles] = graphs
+        encoder_optim = Adam(compound_encoder_params, lr=1e-3)
+        head_optim = Adam(head_params, lr=1e-3)
+        return encoder_optim, head_optim
 
-            atom_bond_graphs.append(atom_bond_graph)
-            bond_angle_graphs.append(bond_angle_graph)
-            data_list.append(data)
 
-        data = torch.stack(data_list).to(self.device)
-        return (
-            dgl.batch(atom_bond_graphs),
-            dgl.batch(bond_angle_graphs),
-            GeoGNNDataLoader._standardize_data(data, self.fit_mean, self.fit_std),
-        )
+    def training_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
+        # Zeroing optimizers' gradients.
+        encoder_optim, head_optim = cast(list[LightningOptimizer], self.optimizers())
+        encoder_optim.zero_grad() # type: ignore
+        head_optim.zero_grad() # type: ignore
+
+        atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
+        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+        loss = self.loss_fn(pred, labels)
+        assert isinstance(loss, Tensor)
+
+        # Log loss to the progress bar and logger
+        datamodule = cast(Wb97DataModule, self.trainer.datamodule) # type: ignore
+        rmse_loss = torch.sqrt(loss) * datamodule.scaler.fit_std.to(loss) # type: ignore
+        self.log("train_loss", rmse_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+
+        # Manual backpropagation.
+        self.manual_backward(loss)
+        encoder_optim.step()
+        head_optim.step()
+        return loss
+
+    def validation_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
+        loss = self._metric_step(batch, batch_idx)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+
+    def test_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
+        loss = self._metric_step(batch, batch_idx)
+        self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+
+    def _metric_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
+        """Shared step function for both validation/test steps."""
+        atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
+        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+
+        # Unstandardize values before computing loss.
+        datamodule = cast(Wb97DataModule, self.trainer.datamodule) # type: ignore
+        pred = datamodule.scaler.inverse_transform(pred)
+        labels = datamodule.scaler.inverse_transform(labels)
+
+        loss = self.metric(pred, labels)
+        assert isinstance(loss, Tensor)
+        return loss
