@@ -2,3 +2,4 @@ __pycache__/
 checkpoints/
 cached_graphs/
 test.ipynb
+lightning_logs/
