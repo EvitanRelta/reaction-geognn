@@ -39,7 +39,7 @@ class ProtoModel(pl.LightningModule):
         self.mlp = DropoutMLP(
             num_of_layers = 2,
             in_size = self.compound_encoder.embed_dim,
-            hidden_size = 128,
+            hidden_size = self.compound_encoder.embed_dim * 4,
             out_size = out_size,
             activation = nn.LeakyReLU(),
             dropout_rate = dropout_rate,
