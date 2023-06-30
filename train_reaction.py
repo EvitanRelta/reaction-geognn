@@ -33,6 +33,7 @@ def main():
     )
 
     trainer = Trainer(
+        limit_val_batches = 0, # disable validation
         enable_checkpointing = args['load_save_checkpoints'],
         accelerator = device.type,
         devices = [device.index],
