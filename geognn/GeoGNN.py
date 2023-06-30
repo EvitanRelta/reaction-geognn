@@ -163,69 +163,19 @@ class GeoGNNLayer(nn.Module):
         bond_embed = self.bond_embedding.forward(atom_bond_graph.edata) \
             + self.bond_rbf.forward(atom_bond_graph.edata)
 
-        # Since `atom_bond_graph` is bidirected, there's 2 copies of each edge
-        # (ie. the bonds). This removes one of the bond edge copies, so as to
-        # match the number of bond nodes in `bond_angle_graph`.
-        bond_embed = GeoGNNLayer._get_unidirected_feats(atom_bond_graph, bond_embed)
+        # Since `atom_bond_graph` is bidirected, there's 2 copies of each edge (ie. the bonds),
+        # where the forward and backward edges were interleaved during the preprocessing.
+        # (ie. [edge_1, edge_opp_1, edge_2, edge_opp_2, ...])
+        # This removes one of the bond edge copies, so as to match the number of
+        # bond nodes in `bond_angle_graph`.
+        bond_embed = bond_embed[::2]
 
         bond_angle_embed = self.bond_angle_rbf.forward(bond_angle_graph.edata)
         edge_out = self.bond_angle_gnn_block.forward(bond_angle_graph, bond_embed, bond_angle_embed)
 
-        # This reverses the `GeoGNNLayer._get_unidirected_feats` above.
-        edge_out = GeoGNNLayer._get_bidirected_feats(atom_bond_graph, edge_out)
+        # This re-adds the bond-edge copies that was removed above.
+        edge_out = edge_out.repeat_interleave(2, dim=0)
         return node_out, edge_out
-
-    @staticmethod
-    def _get_unidirected_feats(
-        bidirected_graph: DGLGraph,
-        bidirected_edge_feats: Tensor,
-    ) -> Tensor:
-        """
-        Converts bi-directed edge features to uni-directed. Bi-directed graphs
-        have 2 copies of each undirected-edge; this method removes the values of
-        1 of those copies.
-
-        `GeoGNNLayer._get_bidirected_feats` performs the reversed operation.
-        """
-        u, v = bidirected_graph.edges()
-        assert isinstance(u, Tensor) and isinstance(v, Tensor)
-
-        # Include only edge features where
-        # the edge's source-node ID < the destination-node ID.
-        mask = u < v
-        return bidirected_edge_feats[mask]
-
-    @staticmethod
-    def _get_bidirected_feats(
-        bidirected_graph: DGLGraph,
-        unidirected_edge_feats: Tensor,
-    ) -> Tensor:
-        """
-        Converts uni-directed edge features to bi-directed. Bi-directed graphs
-        have 2 copies of each undirected-edge; this method duplicates the values
-        of each undirected-edge.
-
-        `GeoGNNLayer._get_unidirected_feats` performs the reversed operation.
-        """
-        (u, v) = bidirected_graph.edges()
-        assert isinstance(u, Tensor) and isinstance(v, Tensor)
-
-        # Indices of the edges in the bi-directed graph that correspond to the undirected edges
-        undirected_indices = (u < v).nonzero(as_tuple=True)[0]
-
-        # Indices of the edges in the bi-directed graph that are the reverse of the undirected edges
-        reversed_indices = (v < u).nonzero(as_tuple=True)[0]
-
-        # Initialize bidirected edge features with zeros
-        bidirected_edge_feats = torch.zeros((len(u), unidirected_edge_feats.size(1)), device=unidirected_edge_feats.device, dtype=unidirected_edge_feats.dtype)
-
-        # Assign undirected features to the corresponding edges in the bi-directed graph
-        bidirected_edge_feats[undirected_indices] = unidirected_edge_feats
-
-        # Duplicate features for the reversed edges
-        bidirected_edge_feats[reversed_indices] = unidirected_edge_feats
-
-        return bidirected_edge_feats
 
 
 class GeoGNNModel(nn.Module):
