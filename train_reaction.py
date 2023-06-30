@@ -19,19 +19,14 @@ def main():
     assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
     device = get_least_utilized_and_allocated_gpu()
 
-    compound_encoder = GeoGNNModel(
-        embed_dim = args['embed_dim'],
-        dropout_rate = args['dropout_rate'],
-        num_of_layers = args['gnn_layers'],
-    )
     model = ProtoModel(
-        compound_encoder = compound_encoder,
+        embed_dim = args['embed_dim'],
+        gnn_layers = args['gnn_layers'],
         dropout_rate = args['dropout_rate'],
         out_size = 1,
         encoder_lr = args['encoder_lr'],
         head_lr = args['head_lr'],
     )
-
     trainer = Trainer(
         limit_val_batches = 0, # disable validation
         enable_checkpointing = args['load_save_checkpoints'],

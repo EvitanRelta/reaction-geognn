@@ -16,6 +16,8 @@ from .data_module import BATCH_TUPLE, Wb97DataModule
 
 class HyperParams(Protocol):
     """Type hint for `self.hparams` in `ProtoModel`."""
+    embed_dim: int
+    gnn_layers: int
     out_size: int
     dropout_rate: float
     encoder_lr: float
@@ -24,7 +26,8 @@ class HyperParams(Protocol):
 class ProtoModel(pl.LightningModule):
     def __init__(
         self,
-        compound_encoder: GeoGNNModel,
+        embed_dim: int,
+        gnn_layers: int,
         out_size: int,
         dropout_rate: float,
         encoder_lr: float = 1e-3,
@@ -32,9 +35,13 @@ class ProtoModel(pl.LightningModule):
     ) -> None:
         super().__init__()
         self.hparams: HyperParams
-        self.save_hyperparameters(ignore=['compound_encoder'])
+        self.save_hyperparameters()
 
-        self.compound_encoder = compound_encoder
+        self.compound_encoder = GeoGNNModel(
+            embed_dim = embed_dim,
+            dropout_rate = dropout_rate,
+            num_of_layers = gnn_layers,
+        )
         self.norm = nn.LayerNorm(self.compound_encoder.embed_dim)
         self.mlp = DropoutMLP(
             num_of_layers = 2,
