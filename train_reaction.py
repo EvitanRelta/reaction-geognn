@@ -28,7 +28,9 @@ def main():
         head_lr = args['head_lr'],
     )
     trainer = Trainer(
-        limit_val_batches = 0, # disable validation
+        # disable validation when overfitting.
+        limit_val_batches = 0 if args['overfit_one_batch'] else None,
+
         enable_checkpointing = args['load_save_checkpoints'],
         accelerator = device.type,
         devices = [device.index],
@@ -67,7 +69,7 @@ def _parse_script_args() -> Arguments:
     parser = argparse.ArgumentParser(description='Training Script')
     parser.add_argument('--no-load-save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
     parser.add_argument('--no-cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
-    parser.add_argument('--overfit-one-batch', default=False, action='store_true', help='train on 1 batch to attempt to overfit')
+    parser.add_argument('--overfit-one-batch', default=False, action='store_true', help='train on 1 batch and disable validation to attempt to overfit')
 
     parser.add_argument('--embed-dim', type=int, default=128, help='embedding dimension')
     parser.add_argument('--dropout-rate', type=float, default=0.1, help='dropout rate')
