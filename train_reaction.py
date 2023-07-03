@@ -50,6 +50,12 @@ def main():
         overfit_batches = 1 if args['overfit_one_batch'] else 0,
         max_epochs = args['epochs'],
     )
+
+    # disable validation doesn't seem to work with overfit_batches.
+    # this should force it to work.
+    if args['overfit_one_batch']:
+        trainer.limit_val_batches = 0
+
     trainer.fit(model, datamodule=wb97_data_module)
 
 
