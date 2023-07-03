@@ -30,7 +30,8 @@ def main():
     # Use GPU.
     assert torch.cuda.is_available(), "No visible GPU."
     assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
-    device = get_least_utilized_and_allocated_gpu()
+    device = args['device'] if args['device'] \
+        else get_least_utilized_and_allocated_gpu()
 
     model = ProtoModel(
         embed_dim = args['embed_dim'],
@@ -73,6 +74,7 @@ class Arguments(TypedDict):
     gnn_layers: int
     encoder_lr: float
     head_lr: float
+    device: torch.device | None
 
     # Trainer/Data module's params.
     batch_size: int
@@ -95,6 +97,7 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
     parser.add_argument('--encoder-lr', type=float, default=1e-3, help="learning rate of the GeoGNN encoder")
     parser.add_argument('--head-lr', type=float, default=1e-3, help="learning rate of the downstream-model's head")
+    parser.add_argument('--device', type=str, default=None, help="device to run on")
     args = parser.parse_args()
 
     output: Arguments = {
@@ -108,6 +111,7 @@ def _parse_script_args() -> Arguments:
         'gnn_layers': args.gnn_layers,
         'encoder_lr': args.encoder_lr,
         'head_lr': args.head_lr,
+        'device': torch.device(args.device) if args.device else None,
 
         'batch_size': args.batch_size,
         'epochs': args.epochs,
