@@ -41,8 +41,7 @@ def main():
         gnn_layers = args['gnn_layers'],
         dropout_rate = args['dropout_rate'],
         out_size = 1,
-        encoder_lr = args['encoder_lr'],
-        head_lr = args['head_lr'],
+        lr = args['lr'],
     )
     trainer = Trainer(
         deterministic = True,
@@ -76,8 +75,7 @@ class Arguments(TypedDict):
     embed_dim: int
     dropout_rate: float
     gnn_layers: int
-    encoder_lr: float
-    head_lr: float
+    lr: float
     device: torch.device | None
 
     # Trainer/Data module's params.
@@ -99,8 +97,7 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--fold-num', type=int, default=0, help='wb97xd3 fold_num-dataset to use')
     parser.add_argument('--batch-size', type=int, default=50, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
-    parser.add_argument('--encoder-lr', type=float, default=1e-3, help="learning rate of the GeoGNN encoder")
-    parser.add_argument('--head-lr', type=float, default=1e-3, help="learning rate of the downstream-model's head")
+    parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
     parser.add_argument('--device', type=str, default=None, help="device to run on")
     args = parser.parse_args()
 
@@ -113,8 +110,7 @@ def _parse_script_args() -> Arguments:
         'embed_dim': args.embed_dim,
         'dropout_rate': args.dropout_rate,
         'gnn_layers': args.gnn_layers,
-        'encoder_lr': args.encoder_lr,
-        'head_lr': args.head_lr,
+        'lr': args.lr,
         'device': torch.device(args.device) if args.device else None,
 
         'batch_size': args.batch_size,

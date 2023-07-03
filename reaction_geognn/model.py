@@ -20,8 +20,7 @@ class HyperParams(Protocol):
     gnn_layers: int
     out_size: int
     dropout_rate: float
-    encoder_lr: float
-    head_lr: float
+    lr: float
 
 class ProtoModel(pl.LightningModule):
     def __init__(
@@ -30,13 +29,13 @@ class ProtoModel(pl.LightningModule):
         gnn_layers: int,
         out_size: int,
         dropout_rate: float,
-        encoder_lr: float = 1e-3,
-        head_lr: float = 1e-3,
+        lr: float = 1e-3,
     ) -> None:
         super().__init__()
         self.hparams: HyperParams
         self.save_hyperparameters()
 
+        self.lr = lr
         self.compound_encoder = GeoGNNModel(
             embed_dim = embed_dim,
             dropout_rate = dropout_rate,
@@ -51,8 +50,6 @@ class ProtoModel(pl.LightningModule):
             activation = nn.LeakyReLU(),
             dropout_rate = dropout_rate,
         )
-        # Needed as auto-optimization doesn't support multiple optimizers.
-        self.automatic_optimization = False
 
         # Loss/Metric functions.
         self.loss_fn = torchmetrics.MeanSquaredError() # MSE
@@ -126,27 +123,10 @@ class ProtoModel(pl.LightningModule):
     #                        Training-related methods
     # ==========================================================================
     def configure_optimizers(self):
-        compound_encoder_params = list(self.compound_encoder.parameters())
-        model_params = list(self.parameters())
-
-        # Head-model params, excluding those in `self.compound_encoder`.
-        # `head_params` is the difference in elements between `model_params` &
-        # `compound_encoder_params`.
-        is_in = lambda x, lst: any(element is x for element in lst)
-        head_params = [p for p in model_params if not is_in(p, compound_encoder_params)]
-
-        assert self.hparams.encoder_lr and self.hparams.head_lr
-        encoder_optim = Adam(compound_encoder_params, lr=self.hparams.encoder_lr)
-        head_optim = Adam(head_params, lr=self.hparams.head_lr)
-        return encoder_optim, head_optim
+        return Adam(self.parameters(), lr=self.lr)
 
 
     def training_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
-        # Zeroing optimizers' gradients.
-        encoder_optim, head_optim = cast(list[LightningOptimizer], self.optimizers())
-        encoder_optim.zero_grad() # type: ignore
-        head_optim.zero_grad() # type: ignore
-
         atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
         loss = self.loss_fn(pred, labels)
@@ -157,10 +137,6 @@ class ProtoModel(pl.LightningModule):
         rmse_loss = torch.sqrt(loss) * datamodule.scaler.fit_std.to(loss) # type: ignore
         self.log("train_loss", rmse_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-        # Manual backpropagation.
-        self.manual_backward(loss)
-        encoder_optim.step()
-        head_optim.step()
         return loss
 
     def validation_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
