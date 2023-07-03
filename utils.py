@@ -78,7 +78,7 @@ def get_least_utilized_and_allocated_gpu() -> torch.device:
         parsed_stats.append((gpu_id, utilization, memory))
 
         # Printing GPU stats for debugging.
-        print(f'GPU-{gpu_id}: Util = {utilization:>3.0f}%, MemAlloc = {(memory / 1024):>4.1f}')
+        print(f'GPU-{gpu_id}: Util = {utilization:>3.0f}%, MemAlloc = {(memory / 1024):>4.1f} GiB')
 
     # Sort GPUs by utilization first, then memory allocation.
     sorted_gpus = sorted(parsed_stats, key=lambda x: (x[1], x[2]))

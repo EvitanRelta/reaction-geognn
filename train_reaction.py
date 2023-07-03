@@ -3,13 +3,12 @@ from pprint import pprint
 from typing import Literal, TypedDict
 
 import torch
-from geognn import GeoGNNModel
-from geognn.GeoGNN import GeoGNNModel
 from lightning import Trainer
 from reaction_geognn.data_module import Wb97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import abs_path, get_least_utilized_and_allocated_gpu
 
+GRAPH_CACHE_PATH = abs_path('./cached_graphs/cached_wb97.bin')
 
 def main():
     args = _parse_script_args()
@@ -17,7 +16,7 @@ def main():
     wb97_data_module = Wb97DataModule(
         fold_num = args['fold_num'],
         batch_size = args['batch_size'],
-        cache_path = abs_path('./cached_graphs/cached_wb97.bin') if args['cache_graphs'] \
+        cache_path = GRAPH_CACHE_PATH if args['cache_graphs'] \
             else None,
     )
 
