@@ -3,7 +3,7 @@ from pprint import pprint
 from typing import Literal, TypedDict
 
 import torch
-from lightning import Trainer
+from lightning.pytorch import Trainer, seed_everything
 from reaction_geognn.data_module import Wb97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import abs_path, get_least_utilized_and_allocated_gpu
@@ -12,6 +12,9 @@ GRAPH_CACHE_PATH = abs_path('./cached_graphs/cached_wb97.bin')
 
 def main():
     args = _parse_script_args()
+
+    # To ensure deterministic
+    seed_everything(0, workers=True)
 
     wb97_data_module = Wb97DataModule(
         fold_num = args['fold_num'],
@@ -42,6 +45,7 @@ def main():
         head_lr = args['head_lr'],
     )
     trainer = Trainer(
+        deterministic = True,
         # disable validation when overfitting.
         limit_val_batches = 0 if args['overfit_one_batch'] else None,
 
