@@ -14,6 +14,7 @@ class LossPlotData(TypedDict):
 def plot_losses(
     losses_dicts: dict[str, LossPlotData],
     num_epoches: int | None = None,
+    single_plot: bool = False,
 ) -> None:
     """Plot multiple training/test/validation losses.
 
@@ -23,7 +24,41 @@ def plot_losses(
         num_epoches (int | None, optional): Fix the number of epoches on the \
             plots' X-axis, else it'll plot however many epoches are given. \
             Defaults to None.
+        single_plot (bool, optional): Whether to plot everything in 1 plot. \
+            Defaults to False.
     """
+    if single_plot:
+        fig, ax = plt.subplots(figsize=(7, 5))
+        sns.set()
+
+        for title, losses_dict in losses_dicts.items():
+            train_loss, test_loss, val_loss = \
+                losses_dict['train_loss'], losses_dict["test_loss"], losses_dict["val_loss"]
+
+            if num_epoches:
+                if train_loss:
+                    sns.lineplot(x=range(1, num_epoches+1), y=train_loss[:num_epoches], label=f'{title}_train', ax=ax)
+                if test_loss:
+                    sns.lineplot(x=range(1, num_epoches+1), y=test_loss[:num_epoches], label=f'{title}_test', ax=ax)
+                if val_loss:
+                    sns.lineplot(x=range(1, num_epoches+1), y=val_loss[:num_epoches], label=f'{title}_val', ax=ax)
+            else:
+                if train_loss:
+                    sns.lineplot(x=range(1, len(train_loss)+1), y=train_loss, label=f'{title}_train', ax=ax)
+                if test_loss:
+                    sns.lineplot(x=range(1, len(test_loss)+1), y=test_loss, label=f'{title}_test', ax=ax)
+                if val_loss:
+                    sns.lineplot(x=range(1, len(val_loss)+1), y=val_loss, label=f'{title}_val', ax=ax)
+
+        ax.set_title("Combined Losses")
+        ax.set_xlabel("Epochs")
+        ax.set_ylabel("Loss")
+        ax.legend()
+        plt.tight_layout()
+        plt.show()
+        return
+
+
     num_graphs = len(losses_dicts)
     cols = 1 if num_graphs == 1 \
         else 2 if num_graphs <= 4 \
