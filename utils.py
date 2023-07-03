@@ -11,11 +11,18 @@ class LossPlotData(TypedDict):
     test_loss: list[float] | None
     val_loss: list[float] | None
 
-def plot_losses(losses_dicts: dict[str, LossPlotData]) -> None:
+def plot_losses(
+    losses_dicts: dict[str, LossPlotData],
+    num_epoches: int | None = None,
+) -> None:
     """Plot multiple training/test/validation losses.
 
     Args:
-        losses_dicts (dict[str, LossPlotData]): Dict where the keys are the plot title, value is the losses.
+        losses_dicts (dict[str, LossPlotData]): Dict where the keys are the \
+            plot title, value is the losses.
+        num_epoches (int | None, optional): Fix the number of epoches on the \
+            plots' X-axis, else it'll plot however many epoches are given. \
+            Defaults to None.
     """
     num_graphs = len(losses_dicts)
     cols = 1 if num_graphs == 1 \
@@ -31,12 +38,21 @@ def plot_losses(losses_dicts: dict[str, LossPlotData]) -> None:
 
         ax = axs[i]
         sns.set()
-        if train_loss:
-            sns.lineplot(x=range(1, len(train_loss)+1), y=train_loss, label="train", ax=ax)
-        if test_loss:
-            sns.lineplot(x=range(1, len(test_loss)+1), y=test_loss, label="test", ax=ax)
-        if val_loss:
-            sns.lineplot(x=range(1, len(val_loss)+1), y=val_loss, label="val", ax=ax)
+
+        if num_epoches:
+            if train_loss:
+                sns.lineplot(x=range(1, num_epoches+1), y=train_loss[:num_epoches], label="train", ax=ax)
+            if test_loss:
+                sns.lineplot(x=range(1, num_epoches+1), y=test_loss[:num_epoches], label="test", ax=ax)
+            if val_loss:
+                sns.lineplot(x=range(1, num_epoches+1), y=val_loss[:num_epoches], label="val", ax=ax)
+        else:
+            if train_loss:
+                sns.lineplot(x=range(1, len(train_loss)+1), y=train_loss, label="train", ax=ax)
+            if test_loss:
+                sns.lineplot(x=range(1, len(test_loss)+1), y=test_loss, label="test", ax=ax)
+            if val_loss:
+                sns.lineplot(x=range(1, len(val_loss)+1), y=val_loss, label="val", ax=ax)
         ax.set_title(title)
         ax.set_xlabel("Epochs")
         ax.set_ylabel("Loss")
