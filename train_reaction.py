@@ -42,6 +42,7 @@ def main():
         dropout_rate = args['dropout_rate'],
         out_size = 1,
         lr = args['lr'],
+        _batch_size = args['batch_size'],
     )
     trainer = Trainer(
         deterministic = True,

@@ -21,6 +21,7 @@ class HyperParams(Protocol):
     out_size: int
     dropout_rate: float
     lr: float
+    _batch_size: int | None
 
 class ProtoModel(pl.LightningModule):
     def __init__(
@@ -30,6 +31,7 @@ class ProtoModel(pl.LightningModule):
         out_size: int,
         dropout_rate: float,
         lr: float = 1e-3,
+        _batch_size: int | None = None,
     ) -> None:
         """
         Args:
@@ -38,6 +40,9 @@ class ProtoModel(pl.LightningModule):
             out_size (int): Output size (ie. number of predictions).
             dropout_rate (float): Rate for dropout layers.
             lr (float, optional): Learning rate. Defaults to 1e-3.
+            _batch_size (int | None, optional): Batch size used during training. \
+                Not used in the model, but just to log the batch-size in the \
+                `hparams.yaml`. Defaults to None.
         """
         super().__init__()
         self.hparams: HyperParams
