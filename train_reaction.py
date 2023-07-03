@@ -14,6 +14,20 @@ from utils import abs_path, get_least_utilized_and_allocated_gpu
 def main():
     args = _parse_script_args()
 
+    wb97_data_module = Wb97DataModule(
+        fold_num = args['fold_num'],
+        batch_size = args['batch_size'],
+        cache_path = abs_path('./cached_graphs/cached_wb97.bin') if args['cache_graphs'] \
+            else None,
+    )
+
+    if args['precompute_only']:
+        if args['cache_graphs']:
+            print('"precompute-only" and "no-cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
+            return
+        wb97_data_module.setup('fit')
+        return
+
     # Use GPU.
     assert torch.cuda.is_available(), "No visible GPU."
     assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
@@ -37,18 +51,13 @@ def main():
         overfit_batches = 1 if args['overfit_one_batch'] else 0,
         max_epochs = args['epochs'],
     )
-    wb97_data_module = Wb97DataModule(
-        fold_num = args['fold_num'],
-        batch_size = args['batch_size'],
-        cache_path = abs_path('./cached_graphs/cached_wb97.bin') if args['cache_graphs'] \
-            else None,
-    )
     trainer.fit(model, datamodule=wb97_data_module)
 
 
 
 class Arguments(TypedDict):
     # For debugging.
+    precompute_only: bool
     load_save_checkpoints: bool
     cache_graphs: bool
     overfit_one_batch: bool
@@ -67,6 +76,7 @@ class Arguments(TypedDict):
 
 def _parse_script_args() -> Arguments:
     parser = argparse.ArgumentParser(description='Training Script')
+    parser.add_argument('--precompute-only', default=False, action='store_true', help='precompute graph cache file only')
     parser.add_argument('--no-load-save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
     parser.add_argument('--no-cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
     parser.add_argument('--overfit-one-batch', default=False, action='store_true', help='train on 1 batch and disable validation to attempt to overfit')
@@ -83,6 +93,7 @@ def _parse_script_args() -> Arguments:
     args = parser.parse_args()
 
     output: Arguments = {
+        'precompute_only': args.precompute_only,
         'load_save_checkpoints': not args.no_load_save,
         'cache_graphs': not args.no_cache,
         'overfit_one_batch': args.overfit_one_batch,
@@ -100,6 +111,9 @@ def _parse_script_args() -> Arguments:
     print('Arguments:')
     pprint(output)
     print('\n')
+    if output['precompute_only']:
+        print('Warning: Only precomputation of graph cache will be done.')
+        return output
     if not output['load_save_checkpoints']:
         print('Warning: No loading/saving of checkpoints will be done.')
     if not output['cache_graphs']:
