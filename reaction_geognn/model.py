@@ -152,14 +152,18 @@ class ProtoModel(pl.LightningModule):
     def training_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
-        loss = self.loss_fn(pred, labels)
-        assert isinstance(loss, Tensor)
+        mse = self.loss_fn(pred, labels)
+        assert isinstance(mse, Tensor)
+
+        # Unstandardize loss for logging.
+        std = self.scaler.fit_std.to(mse) # type: ignore
+        assert isinstance(std, Tensor)
+        unstandardized_mse = mse * (std ** 2)
 
         # Log loss to the progress bar and logger
-        rmse_loss = torch.sqrt(loss) * self.scaler.fit_std.to(loss) # type: ignore
-        self.log("train_loss", rmse_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        self.log("train_unstandardized_mse_loss", unstandardized_mse, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-        return loss
+        return mse
 
     def predict_step(self, batch: BATCH_TUPLE | tuple[DGLGraph, DGLGraph], batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, *_ = batch
