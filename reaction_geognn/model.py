@@ -31,6 +31,14 @@ class ProtoModel(pl.LightningModule):
         dropout_rate: float,
         lr: float = 1e-3,
     ) -> None:
+        """
+        Args:
+            embed_dim (int): Embedding dimension.
+            gnn_layers (int): Number of GNN message-passing layers.
+            out_size (int): Output size (ie. number of predictions).
+            dropout_rate (float): Rate for dropout layers.
+            lr (float, optional): Learning rate. Defaults to 1e-3.
+        """
         super().__init__()
         self.hparams: HyperParams
         self.save_hyperparameters()
