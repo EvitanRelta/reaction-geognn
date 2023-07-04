@@ -7,7 +7,6 @@ import torchmetrics
 from dgl import DGLGraph
 from geognn import GeoGNNModel
 from geognn.layers import DropoutMLP
-from lightning.pytorch.core.optimizer import LightningOptimizer
 from torch import Tensor, nn
 from torch.optim import Adam
 
