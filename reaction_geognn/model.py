@@ -161,6 +161,12 @@ class ProtoModel(pl.LightningModule):
 
         return loss
 
+    def predict_step(self, batch: BATCH_TUPLE | tuple[DGLGraph, DGLGraph], batch_idx: int) -> Tensor:
+        atom_bond_batch_graph, bond_angle_batch_graph, *_ = batch
+        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+        pred = self.scaler.inverse_transform(pred)
+        return pred
+
     def validation_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
         loss = self._metric_step(batch, batch_idx)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
