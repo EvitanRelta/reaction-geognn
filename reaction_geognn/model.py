@@ -1,4 +1,4 @@
-from typing import Protocol, cast
+from typing import Any, Protocol
 
 import dgl
 import lightning.pytorch as pl
@@ -10,7 +10,7 @@ from geognn.layers import DropoutMLP
 from torch import Tensor, nn
 from torch.optim import Adam
 
-from .data_module import BATCH_TUPLE, Wb97DataModule
+from .data_module import BATCH_TUPLE, StandardizeScaler
 
 
 class HyperParams(Protocol):
@@ -62,6 +62,7 @@ class ProtoModel(pl.LightningModule):
             activation = nn.LeakyReLU(),
             dropout_rate = dropout_rate,
         )
+        self.scaler: StandardizeScaler = StandardizeScaler()
 
         # Loss/Metric functions.
         self.loss_fn = torchmetrics.MeanSquaredError() # MSE
@@ -137,6 +138,16 @@ class ProtoModel(pl.LightningModule):
     def configure_optimizers(self):
         return Adam(self.parameters(), lr=self.lr)
 
+    def on_fit_start(self) -> None:
+        if hasattr(self.trainer, 'datamodule') and hasattr(self.trainer.datamodule, 'scaler'): # type: ignore
+            self.scaler = self.trainer.datamodule.scaler # type: ignore
+            assert isinstance(self.scaler, StandardizeScaler)
+
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        checkpoint['scaler'] = self.scaler
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        self.scaler = checkpoint['scaler']
 
     def training_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
@@ -145,8 +156,7 @@ class ProtoModel(pl.LightningModule):
         assert isinstance(loss, Tensor)
 
         # Log loss to the progress bar and logger
-        datamodule = cast(Wb97DataModule, self.trainer.datamodule) # type: ignore
-        rmse_loss = torch.sqrt(loss) * datamodule.scaler.fit_std.to(loss) # type: ignore
+        rmse_loss = torch.sqrt(loss) * self.scaler.fit_std.to(loss) # type: ignore
         self.log("train_loss", rmse_loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
         return loss
@@ -167,9 +177,8 @@ class ProtoModel(pl.LightningModule):
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
 
         # Unstandardize values before computing loss.
-        datamodule = cast(Wb97DataModule, self.trainer.datamodule) # type: ignore
-        pred = datamodule.scaler.inverse_transform(pred)
-        labels = datamodule.scaler.inverse_transform(labels)
+        pred = self.scaler.inverse_transform(pred)
+        labels = self.scaler.inverse_transform(labels)
 
         loss = self.metric(pred, labels)
         assert isinstance(loss, Tensor)
