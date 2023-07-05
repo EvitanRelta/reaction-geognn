@@ -43,22 +43,24 @@ def main():
         out_size = 1,
         lr = args['lr'],
         _batch_size = args['batch_size'],
+        _dataset_size = args['batch_size'] * args['overfit_batches'] if args['overfit_batches'] \
+            else None,
     )
     trainer = Trainer(
         deterministic = True,
         # disable validation when overfitting.
-        limit_val_batches = 0 if args['overfit_one_batch'] else None,
+        limit_val_batches = 0 if args['overfit_batches'] else None,
 
         enable_checkpointing = args['load_save_checkpoints'],
         accelerator = device.type,
         devices = [device.index],
-        overfit_batches = 1 if args['overfit_one_batch'] else 0,
+        overfit_batches = args['overfit_batches'],
         max_epochs = args['epochs'],
     )
 
     # disable validation doesn't seem to work with overfit_batches.
     # this should force it to work.
-    if args['overfit_one_batch']:
+    if args['overfit_batches']:
         trainer.limit_val_batches = 0
 
     trainer.fit(model, datamodule=wb97_data_module)
@@ -70,7 +72,7 @@ class Arguments(TypedDict):
     precompute_only: bool
     load_save_checkpoints: bool
     cache_graphs: bool
-    overfit_one_batch: bool
+    overfit_batches: int
 
     # Model's hyper params.
     embed_dim: int
@@ -89,7 +91,7 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--precompute-only', default=False, action='store_true', help='precompute graph cache file only')
     parser.add_argument('--no-load-save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
     parser.add_argument('--no-cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
-    parser.add_argument('--overfit-one-batch', default=False, action='store_true', help='train on 1 batch and disable validation to attempt to overfit')
+    parser.add_argument('--overfit-batches', type=int, default=0, help='train on set number of batches and disable validation to attempt to overfit')
 
     parser.add_argument('--embed-dim', type=int, default=128, help='embedding dimension')
     parser.add_argument('--dropout-rate', type=float, default=0.1, help='dropout rate')
@@ -106,7 +108,7 @@ def _parse_script_args() -> Arguments:
         'precompute_only': args.precompute_only,
         'load_save_checkpoints': not args.no_load_save,
         'cache_graphs': not args.no_cache,
-        'overfit_one_batch': args.overfit_one_batch,
+        'overfit_batches': args.overfit_batches,
 
         'embed_dim': args.embed_dim,
         'dropout_rate': args.dropout_rate,
