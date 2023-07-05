@@ -73,6 +73,11 @@ class ProtoModel(pl.LightningModule):
         self.loss_fn = torchmetrics.MeanSquaredError() # MSE
         self.metric = torchmetrics.MeanSquaredError(squared=False) # RMSE
 
+        # For storing pred/label values.
+        self._train_step_values: list[tuple[Tensor, Tensor]] = [] # (pred, label) for each batch/step.
+        self._test_step_values: list[tuple[Tensor, Tensor]] = [] # (pred, label) for each batch/step.
+        self._val_step_values: list[tuple[Tensor, Tensor]] = [] # (pred, label) for each batch/step.
+
     def forward(self, atom_bond_graph: DGLGraph, bond_angle_graph: DGLGraph) -> Tensor:
         """
         Args:
@@ -154,21 +159,17 @@ class ProtoModel(pl.LightningModule):
     def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         self.scaler = checkpoint['scaler']
 
+
     def training_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
-        mse = self.loss_fn(pred, labels)
-        assert isinstance(mse, Tensor)
+        self._train_step_values.append((pred, labels))
+        loss = self.loss_fn(pred, labels)
 
-        # Unstandardize loss for logging.
-        std = self.scaler.fit_std.to(mse) # type: ignore
-        assert isinstance(std, Tensor)
-        unstandardized_mse = mse * (std ** 2)
+        # Log raw unstandardized MSE loss to the progress bar and logger.
+        self.log("train_raw_std_mse_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-        # Log loss to the progress bar and logger
-        self.log("train_unstandardized_mse_loss", unstandardized_mse, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-
-        return mse
+        return loss
 
     def predict_step(self, batch: BATCH_TUPLE | tuple[DGLGraph, DGLGraph], batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, *_ = batch
@@ -177,24 +178,56 @@ class ProtoModel(pl.LightningModule):
         return pred
 
     def validation_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
-        loss = self._metric_step(batch, batch_idx)
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        return loss
-
-    def test_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
-        loss = self._metric_step(batch, batch_idx)
-        self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        return loss
-
-    def _metric_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
-        """Shared step function for both validation/test steps."""
         atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+        self._val_step_values.append((pred, labels))
 
         # Unstandardize values before computing loss.
         pred = self.scaler.inverse_transform(pred)
         labels = self.scaler.inverse_transform(labels)
 
         loss = self.metric(pred, labels)
-        assert isinstance(loss, Tensor)
         return loss
+
+    def test_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
+        atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
+        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+        self._test_step_values.append((pred, labels))
+
+        # Unstandardize values before computing loss.
+        pred = self.scaler.inverse_transform(pred)
+        labels = self.scaler.inverse_transform(labels)
+
+        loss = self.metric(pred, labels)
+        return loss
+
+
+    def on_train_epoch_end(self) -> None:
+        loss = self._compute_full_dataset_unstd_metric(self._train_step_values)
+        self.log("train_loss", loss, prog_bar=True, logger=True)
+        self._train_step_values = []
+
+    def on_validation_epoch_end(self) -> None:
+        loss = self._compute_full_dataset_unstd_metric(self._val_step_values)
+        self.log("val_loss", loss, prog_bar=True, logger=True)
+        self._val_step_values = []
+
+    def on_test_epoch_end(self) -> None:
+        loss = self._compute_full_dataset_unstd_metric(self._test_step_values)
+        self.log("test_loss", loss, prog_bar=True, logger=True)
+        self._test_step_values = []
+
+    def _compute_full_dataset_unstd_metric(self, step_values: list[tuple[Tensor, Tensor]]) -> Tensor:
+        # Unzip the predictions and labels.
+        pred_list, labels_list = zip(*step_values)
+
+        # Concatenate prediction/labels tensors.
+        all_pred = torch.cat(pred_list, dim=0)
+        all_labels = torch.cat(labels_list, dim=0)
+
+        # Unstandardize values.
+        all_unstd_pred = self.scaler.inverse_transform(all_pred)
+        all_unstd_labels = self.scaler.inverse_transform(all_labels)
+
+        full_dataset_unstd_loss = self.metric(all_unstd_pred, all_unstd_labels)
+        return full_dataset_unstd_loss
