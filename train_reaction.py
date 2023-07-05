@@ -1,4 +1,4 @@
-import argparse
+import argparse, os
 from pprint import pprint
 from typing import Literal, TypedDict
 
@@ -9,6 +9,7 @@ from reaction_geognn.model import ProtoModel
 from utils import abs_path, get_least_utilized_and_allocated_gpu
 
 GRAPH_CACHE_PATH = abs_path('./cached_graphs/cached_wb97.bin')
+LIGHTNING_LOGS_DIR = abs_path('./lightning_logs')
 
 def main():
     args = _parse_script_args()
@@ -63,8 +64,14 @@ def main():
     if args['overfit_batches']:
         trainer.limit_val_batches = 0
 
-    trainer.fit(model, datamodule=wb97_data_module)
-
+    checkpoint_path: str | None = None
+    if args["resume_version"]:
+        checkpoint_dir = os.path.join(LIGHTNING_LOGS_DIR, f'version_{args["resume_version"]}/checkpoints')
+        checkpoint_file_names = os.listdir(checkpoint_dir)
+        assert len(checkpoint_file_names) == 1, \
+            f'Expected 1 checkpoint file in "{checkpoint_dir}", but got {len(checkpoint_file_names)}.'
+        checkpoint_path = os.path.join(checkpoint_dir, checkpoint_file_names[0])
+    trainer.fit(model, datamodule=wb97_data_module, ckpt_path=checkpoint_path)
 
 
 class Arguments(TypedDict):
@@ -80,6 +87,7 @@ class Arguments(TypedDict):
     gnn_layers: int
     lr: float
     device: torch.device | None
+    resume_version: int | None
 
     # Trainer/Data module's params.
     batch_size: int
@@ -102,6 +110,7 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
     parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
     parser.add_argument('--device', type=str, default=None, help="device to run on")
+    parser.add_argument('--resume-version', type=int, default=None, help="resume training from a lightning-log version")
     args = parser.parse_args()
 
     output: Arguments = {
@@ -115,6 +124,7 @@ def _parse_script_args() -> Arguments:
         'gnn_layers': args.gnn_layers,
         'lr': args.lr,
         'device': torch.device(args.device) if args.device else None,
+        'resume_version': args.resume_version,
 
         'batch_size': args.batch_size,
         'epochs': args.epochs,
