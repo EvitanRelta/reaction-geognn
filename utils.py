@@ -35,20 +35,28 @@ def plot_losses(
             train_loss, test_loss, val_loss = \
                 losses_dict['train_loss'], losses_dict["test_loss"], losses_dict["val_loss"]
 
+            only_one_loss: bool = sum(((train_loss != None), (test_loss != None), (val_loss != None))) == 1
+
             if num_epoches:
                 if train_loss:
-                    sns.lineplot(x=range(1, num_epoches+1), y=train_loss[:num_epoches], label=f'{title}_train', ax=ax)
+                    new_title = title if only_one_loss else title + '(train)'
+                    sns.lineplot(x=range(1, num_epoches+1), y=train_loss[:num_epoches], label=f'{new_title}', ax=ax)
                 if test_loss:
-                    sns.lineplot(x=range(1, num_epoches+1), y=test_loss[:num_epoches], label=f'{title}_test', ax=ax)
+                    new_title = title if only_one_loss else title + '(test)'
+                    sns.lineplot(x=range(1, num_epoches+1), y=test_loss[:num_epoches], label=f'{new_title}', ax=ax)
                 if val_loss:
-                    sns.lineplot(x=range(1, num_epoches+1), y=val_loss[:num_epoches], label=f'{title}_val', ax=ax)
+                    new_title = title if only_one_loss else title + '(val)'
+                    sns.lineplot(x=range(1, num_epoches+1), y=val_loss[:num_epoches], label=f'{new_title}', ax=ax)
             else:
                 if train_loss:
-                    sns.lineplot(x=range(1, len(train_loss)+1), y=train_loss, label=f'{title}_train', ax=ax)
+                    new_title = title if only_one_loss else title + '(train)'
+                    sns.lineplot(x=range(1, len(train_loss)+1), y=train_loss, label=f'{new_title}', ax=ax)
                 if test_loss:
-                    sns.lineplot(x=range(1, len(test_loss)+1), y=test_loss, label=f'{title}_test', ax=ax)
+                    new_title = title if only_one_loss else title + '(test)'
+                    sns.lineplot(x=range(1, len(test_loss)+1), y=test_loss, label=f'{new_title}', ax=ax)
                 if val_loss:
-                    sns.lineplot(x=range(1, len(val_loss)+1), y=val_loss, label=f'{title}_val', ax=ax)
+                    new_title = title if only_one_loss else title + '(val)'
+                    sns.lineplot(x=range(1, len(val_loss)+1), y=val_loss, label=f'{new_title}', ax=ax)
 
         ax.set_title("Combined Losses")
         ax.set_xlabel("Epochs")
