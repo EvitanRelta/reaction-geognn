@@ -7,7 +7,23 @@ import seaborn as sns
 import torch
 import yaml
 
-LIGHTNING_LOG_DIR = "lightning_logs"
+
+def _is_in_notebook() -> bool:
+    try:
+        from IPython.core.getipython import get_ipython
+        return bool(get_ipython())
+    except ImportError:
+        return False
+
+def abs_path(relative_path: str) -> str:
+    if _is_in_notebook():
+        from IPython.core.getipython import get_ipython
+        current_dir = get_ipython().starting_dir # type: ignore
+    else:
+        current_dir = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(current_dir, relative_path)
+
+LIGHTNING_LOG_DIR = abs_path("lightning_logs")
 
 HPARAM: TypeAlias = dict
 METRIC_DF: TypeAlias = pd.DataFrame
@@ -138,19 +154,3 @@ def get_least_utilized_and_allocated_gpu() -> torch.device:
     least_used_gpu_id = sorted_gpus[0][0]
     print(f'Using GPU-{least_used_gpu_id}...\n')
     return torch.device(f'cuda:{least_used_gpu_id}')
-
-
-def _is_in_notebook() -> bool:
-    try:
-        from IPython.core.getipython import get_ipython
-        return bool(get_ipython())
-    except ImportError:
-        return False
-
-def abs_path(relative_path: str) -> str:
-    if _is_in_notebook():
-        from IPython.core.getipython import get_ipython
-        current_dir = get_ipython().starting_dir # type: ignore
-    else:
-        current_dir = os.path.dirname(os.path.realpath(__file__))
-    return os.path.join(current_dir, relative_path)
