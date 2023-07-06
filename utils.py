@@ -1,4 +1,4 @@
-import math, os, subprocess
+import math, os, shutil, subprocess
 from typing import TypeAlias
 
 import matplotlib.pyplot as plt
@@ -52,6 +52,54 @@ def load_version_log(version_num: int) -> tuple[HPARAM, METRIC_DF]:
 
     metrics_df = pd.read_csv(metrics_path)
     return hparams, metrics_df
+
+
+def concat_version(version_nums: list[int], delete_old_versions: bool = False) -> None:
+    """Concatenate multiple version directories, where the 1st provided version
+    is the 1st PyTorch Lightning training version, the 2nd is the training
+    resumed from the 1st version, 3rd is resumed from the 2nd, and so on.
+
+    The concatenated files are then saved in the last version's directory,
+    and the other versions are deleted.
+
+    Args:
+        version_nums (list[int]): List of versions to concatenate, starting from \
+            the first training version, followed by the versions resumed from the \
+            first, etc.
+        delete_old_versions (bool, optional): Whether to delete the old versions' \
+            directories, else suffix the dirs/metric-file with `_old`. \
+            Defaults to False.
+    """
+    assert len(version_nums) > 0, "no version numbers given."
+    save_to_dir = os.path.join(LIGHTNING_LOG_DIR, f'version_{version_nums[-1]}')
+
+    hparams, all_metrics_df = load_version_log(version_nums[0])
+    for i, (curr_hparams, metrics_df) in enumerate(map(load_version_log, version_nums[1:])):
+        assert len(curr_hparams) == len(hparams), "hparams doesn't match."
+        for key in hparams.keys():
+            assert curr_hparams[key] == hparams[key], "hparams doesn't match."
+
+        assert len(metrics_df.keys()) == len(all_metrics_df.keys()), 'metrics have different columns.'
+        assert metrics_df["epoch"].min() == all_metrics_df["epoch"].max() + 1, "epoch doesn't match"
+
+        new_all_metrics_df = pd.concat([all_metrics_df, metrics_df], axis=0, ignore_index=True)
+        assert len(new_all_metrics_df) == len(all_metrics_df) + len(metrics_df), 'error concatenating metrics dataframes.'
+        all_metrics_df = new_all_metrics_df
+
+    # Saving and deleting/renaming part
+    metrics_path = os.path.join(save_to_dir, "metrics.csv")
+    if delete_old_versions:
+        all_metrics_df.to_csv(metrics_path, index=False)
+    else:
+        os.rename(metrics_path, os.path.join(save_to_dir, "metrics_old.csv"))
+        all_metrics_df.to_csv(metrics_path, index=False)
+
+    for version_num in version_nums[:-1]:
+        old_version_dir = os.path.join(LIGHTNING_LOG_DIR, f'version_{version_num}')
+        if delete_old_versions:
+            shutil.rmtree(old_version_dir)
+        else:
+            os.rename(old_version_dir, old_version_dir + "_old")
 
 
 def plot_losses(
