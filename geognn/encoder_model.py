@@ -99,8 +99,6 @@ class GeoGNNLayer(nn.Module):
         self.embed_dim = embed_dim
         self.dropout_rate = dropout_rate
 
-        self.bond_embedding = FeaturesEmbedding(LABEL_ENCODED_BOND_FEATURES, embed_dim)
-        self.bond_rbf = FeaturesRBF(FLOAT_BOND_FEATURES, embed_dim)
         self.bond_angle_rbf = FeaturesRBF(FLOAT_BOND_ANGLE_FEATURES, embed_dim)
         self.atom_bond_gnn_block = InnerGNN(
             in_feat_size = embed_dim,
@@ -118,8 +116,6 @@ class GeoGNNLayer(nn.Module):
         )
 
     def reset_parameters(self) -> None:
-        self.bond_embedding.reset_parameters()
-        self.bond_rbf.reset_parameters()
         self.bond_angle_rbf.reset_parameters()
         self.atom_bond_gnn_block.reset_parameters()
         self.bond_angle_gnn_block.reset_parameters()
@@ -148,15 +144,12 @@ class GeoGNNLayer(nn.Module):
         """
         node_out = self.atom_bond_gnn_block.forward(atom_bond_graph, node_feats, edge_feats)
 
-        bond_embed = self.bond_embedding.forward(atom_bond_graph.edata) \
-            + self.bond_rbf.forward(atom_bond_graph.edata)
-
         # Since `atom_bond_graph` is bidirected, there's 2 copies of each edge (ie. the bonds),
         # where the forward and backward edges were interleaved during the preprocessing.
         # (ie. [edge_1, edge_opp_1, edge_2, edge_opp_2, ...])
         # This removes one of the bond edge copies, so as to match the number of
         # bond nodes in `bond_angle_graph`.
-        bond_embed = bond_embed[::2]
+        bond_embed = edge_feats[::2]
 
         bond_angle_embed = self.bond_angle_rbf.forward(bond_angle_graph.edata)
         edge_out = self.bond_angle_gnn_block.forward(bond_angle_graph, bond_embed, bond_angle_embed)
