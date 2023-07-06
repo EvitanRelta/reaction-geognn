@@ -46,6 +46,7 @@ def main():
         _batch_size = args['batch_size'],
         _dataset_size = args['batch_size'] * args['overfit_batches'] if args['overfit_batches'] \
             else None,
+        _notes = args['notes'],
     )
     trainer = Trainer(
         deterministic = True,
@@ -88,6 +89,7 @@ class Arguments(TypedDict):
     lr: float
     device: torch.device | None
     resume_version: int | None
+    notes: str | None
 
     # Trainer/Data module's params.
     batch_size: int
@@ -111,6 +113,7 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
     parser.add_argument('--device', type=str, default=None, help="device to run on")
     parser.add_argument('--resume-version', type=int, default=None, help="resume training from a lightning-log version")
+    parser.add_argument('--notes', type=str, default=None, help="notes to add to model's `hparams.yaml` file")
     args = parser.parse_args()
 
     output: Arguments = {
@@ -125,6 +128,7 @@ def _parse_script_args() -> Arguments:
         'lr': args.lr,
         'device': torch.device(args.device) if args.device else None,
         'resume_version': args.resume_version,
+        'notes': args.notes,
 
         'batch_size': args.batch_size,
         'epochs': args.epochs,

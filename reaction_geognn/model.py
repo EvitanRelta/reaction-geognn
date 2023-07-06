@@ -33,6 +33,7 @@ class ProtoModel(pl.LightningModule):
         lr: float = 1e-3,
         _batch_size: int | None = None,
         _dataset_size: int | None = None,
+        _notes: str | None = None,
     ) -> None:
         """
         Args:
@@ -45,6 +46,9 @@ class ProtoModel(pl.LightningModule):
                 Not used in the model, but just to log in the `hparams.yaml`. \
                 Defaults to None.
             _dataset_size (int | None, optional): Size of dataset used during training. \
+                Not used in the model, but just to log in the `hparams.yaml`. \
+                Defaults to None.
+            _notes (str | None, optional): Developer notes for the model. \
                 Not used in the model, but just to log in the `hparams.yaml`. \
                 Defaults to None.
         """
