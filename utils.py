@@ -1,25 +1,19 @@
 import math, os, subprocess
-from typing import TypedDict
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
 
 
-class LossPlotData(TypedDict):
-    train_loss: list[float] | None
-    test_loss: list[float] | None
-    val_loss: list[float] | None
-
 def plot_losses(
-    losses_dicts: dict[str, LossPlotData],
+    losses_dicts: dict[str, list[float]],
     num_epoches: int | None = None,
     single_plot: bool = False,
 ) -> None:
     """Plot multiple training/test/validation losses.
 
     Args:
-        losses_dicts (dict[str, LossPlotData]): Dict where the keys are the \
+        losses_dicts (dict[str, list[float]]): Dict where the keys are the \
             plot title, value is the losses.
         num_epoches (int | None, optional): Fix the number of epoches on the \
             plots' X-axis, else it'll plot however many epoches are given. \
@@ -31,32 +25,11 @@ def plot_losses(
         fig, ax = plt.subplots(figsize=(7, 5))
         sns.set()
 
-        for title, losses_dict in losses_dicts.items():
-            train_loss, test_loss, val_loss = \
-                losses_dict['train_loss'], losses_dict["test_loss"], losses_dict["val_loss"]
-
-            only_one_loss: bool = sum(((train_loss != None), (test_loss != None), (val_loss != None))) == 1
-
+        for title, losses in losses_dicts.items():
             if num_epoches:
-                if train_loss:
-                    new_title = title if only_one_loss else title + '(train)'
-                    sns.lineplot(x=range(1, num_epoches+1), y=train_loss[:num_epoches], label=f'{new_title}', ax=ax)
-                if test_loss:
-                    new_title = title if only_one_loss else title + '(test)'
-                    sns.lineplot(x=range(1, num_epoches+1), y=test_loss[:num_epoches], label=f'{new_title}', ax=ax)
-                if val_loss:
-                    new_title = title if only_one_loss else title + '(val)'
-                    sns.lineplot(x=range(1, num_epoches+1), y=val_loss[:num_epoches], label=f'{new_title}', ax=ax)
+                sns.lineplot(x=range(1, num_epoches+1), y=losses[:num_epoches], label=f'{title}', ax=ax)
             else:
-                if train_loss:
-                    new_title = title if only_one_loss else title + '(train)'
-                    sns.lineplot(x=range(1, len(train_loss)+1), y=train_loss, label=f'{new_title}', ax=ax)
-                if test_loss:
-                    new_title = title if only_one_loss else title + '(test)'
-                    sns.lineplot(x=range(1, len(test_loss)+1), y=test_loss, label=f'{new_title}', ax=ax)
-                if val_loss:
-                    new_title = title if only_one_loss else title + '(val)'
-                    sns.lineplot(x=range(1, len(val_loss)+1), y=val_loss, label=f'{new_title}', ax=ax)
+                sns.lineplot(x=range(1, len(losses)+1), y=losses, label=f'{title}', ax=ax)
 
         ax.set_title("Combined Losses")
         ax.set_xlabel("Epochs")
@@ -75,27 +48,14 @@ def plot_losses(
     fig, axs = plt.subplots(rows, cols, figsize=(5 * cols, 3.5 * rows))
     axs = axs.flatten()
 
-    for i, (title, losses_dict) in enumerate(losses_dicts.items()):
-        train_loss, test_loss, val_loss = \
-            losses_dict['train_loss'], losses_dict["test_loss"], losses_dict["val_loss"]
-
+    for i, (title, losses) in enumerate(losses_dicts.items()):
         ax = axs[i]
         sns.set()
 
         if num_epoches:
-            if train_loss:
-                sns.lineplot(x=range(1, num_epoches+1), y=train_loss[:num_epoches], label="train", ax=ax)
-            if test_loss:
-                sns.lineplot(x=range(1, num_epoches+1), y=test_loss[:num_epoches], label="test", ax=ax)
-            if val_loss:
-                sns.lineplot(x=range(1, num_epoches+1), y=val_loss[:num_epoches], label="val", ax=ax)
+            sns.lineplot(x=range(1, num_epoches+1), y=losses[:num_epoches], label=f'{title}', ax=ax)
         else:
-            if train_loss:
-                sns.lineplot(x=range(1, len(train_loss)+1), y=train_loss, label="train", ax=ax)
-            if test_loss:
-                sns.lineplot(x=range(1, len(test_loss)+1), y=test_loss, label="test", ax=ax)
-            if val_loss:
-                sns.lineplot(x=range(1, len(val_loss)+1), y=val_loss, label="val", ax=ax)
+            sns.lineplot(x=range(1, len(losses)+1), y=losses, label=f'{title}', ax=ax)
         ax.set_title(title)
         ax.set_xlabel("Epochs")
         ax.set_ylabel("Loss")
