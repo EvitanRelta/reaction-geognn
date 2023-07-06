@@ -1,8 +1,41 @@
 import math, os, subprocess
+from typing import TypeAlias
 
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 import torch
+import yaml
+
+LIGHTNING_LOG_DIR = "lightning_logs"
+
+HPARAM: TypeAlias = dict
+METRIC_DF: TypeAlias = pd.DataFrame
+def load_version_log(version_num: int) -> tuple[HPARAM, METRIC_DF]:
+    """Loads the `hparams.yaml` and `metrics.csv` files from a version dir in
+    the lightning-logs.
+
+    Args:
+        version_num (int): Version number.
+
+    Returns:
+        tuple[HPARAM, METRIC_DF]: Tuple containing the verison's hparam `dict` \
+            and metrics `DataFrame`.
+    """
+    version_dir = f'version_{version_num}'
+    version_path = os.path.join(LIGHTNING_LOG_DIR, version_dir)
+    assert os.path.isdir(version_path), f'"{version_path}" dir not found.'
+
+    hparams_path = os.path.join(version_path, "hparams.yaml")
+    metrics_path = os.path.join(version_path, "metrics.csv")
+    assert os.path.isfile(hparams_path), f'"{hparams_path}" file not found.'
+    assert os.path.isfile(metrics_path), f'"{metrics_path}" file not found.'
+
+    with open(hparams_path, "r") as hparams_file:
+        hparams = yaml.safe_load(hparams_file)
+
+    metrics_df = pd.read_csv(metrics_path)
+    return hparams, metrics_df
 
 
 def plot_losses(
