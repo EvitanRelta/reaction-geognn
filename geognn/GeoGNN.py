@@ -2,6 +2,8 @@
 This is an implementation of GeoGNN using PyTorch/PyTorch Geometric.
 """
 
+from typing import Literal, overload
+
 import torch
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import AvgPooling
@@ -254,21 +256,29 @@ class GeoGNNModel(nn.Module):
             assert isinstance(gnn_layer, GeoGNNLayer)
             gnn_layer.reset_parameters()
 
+    @overload
+    def forward(self, atom_bond_graph: DGLGraph, bond_angle_graph: DGLGraph, pool_graph: Literal[True] = True) -> tuple[Tensor, Tensor, Tensor]: ...
+    @overload
+    def forward(self, atom_bond_graph: DGLGraph, bond_angle_graph: DGLGraph, pool_graph: Literal[False]) -> tuple[Tensor, Tensor]: ...
     def forward(
         self,
         atom_bond_graph: DGLGraph,
         bond_angle_graph: DGLGraph,
-    ) -> tuple[Tensor, Tensor, Tensor]:
+        pool_graph: bool = True,
+    ) -> tuple[Tensor, Tensor, Tensor] | tuple[Tensor, Tensor]:
         """
         Args:
             atom_bond_graph (DGLGraph): Graph of a molecule, with atoms as \
                 nodes, bonds as edges.
             bond_angle_graph (DGLGraph): Graph of a molecule, with bonds as \
                 nodes, bond-angles as edges.
+            pool_graph (bool): Whether to pool and return the graph representation. \
+                Defaults to True.
 
         Returns:
-            tuple[Tensor, Tensor, Tensor]: The node, edge and graph \
-                representations in the form - `(node_repr, edge_repr, graph_repr)`
+            tuple[Tensor, Tensor, Tensor] | tuple[Tensor, Tensor]: The node, \
+                edge (and optionally graph) representations in the form \
+                - `(node_repr, edge_repr, graph_repr)`
         """
         node_embeddings = self.init_atom_embedding.forward(atom_bond_graph.ndata)
         edge_embeddings = self.init_bond_embedding.forward(atom_bond_graph.edata) \
@@ -279,6 +289,9 @@ class GeoGNNModel(nn.Module):
         for gnn_layer in self.gnn_layer_list:
             assert isinstance(gnn_layer, GeoGNNLayer)
             node_out, edge_out = gnn_layer.forward(atom_bond_graph, bond_angle_graph, node_out, edge_out)
+
+        if not pool_graph:
+            return node_out, edge_out
 
         graph_repr = self.graph_pool.forward(atom_bond_graph, node_out)
         return node_out, edge_out, graph_repr

@@ -93,8 +93,8 @@ class ProtoModel(pl.LightningModule):
         Returns:
             Tensor: Predicted values with size `(self.out_size, )`.
         """
-        batched_node_repr, batched_edge_repr, batched_graph_repr \
-            = self.compound_encoder.forward(atom_bond_graph, bond_angle_graph)
+        batched_node_repr, batched_edge_repr \
+            = self.compound_encoder.forward(atom_bond_graph, bond_angle_graph, pool_graph=False)
 
 
         pred_list: list[Tensor] = []
