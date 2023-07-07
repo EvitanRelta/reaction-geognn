@@ -54,7 +54,11 @@ def load_version_log(version_num: int) -> tuple[HPARAM, METRIC_DF]:
     return hparams, metrics_df
 
 
-def concat_version(version_nums: list[int], delete_old_versions: bool = False) -> None:
+def concat_version(
+    version_nums: list[int],
+    delete_old_versions: bool = False,
+    suppress_hparam_check: bool = False,
+) -> None:
     """Concatenate multiple version directories, where the 1st provided version
     is the 1st PyTorch Lightning training version, the 2nd is the training
     resumed from the 1st version, 3rd is resumed from the 2nd, and so on.
@@ -69,15 +73,18 @@ def concat_version(version_nums: list[int], delete_old_versions: bool = False) -
         delete_old_versions (bool, optional): Whether to delete the old versions' \
             directories, else suffix the dirs/metric-file with `_old`. \
             Defaults to False.
+        suppress_hparam_check (bool, optional): Whether to suppress checking for \
+            matching `hparams.yaml` values. Defaults to False.
     """
     assert len(version_nums) > 0, "no version numbers given."
     save_to_dir = os.path.join(LIGHTNING_LOG_DIR, f'version_{version_nums[-1]}')
 
     hparams, all_metrics_df = load_version_log(version_nums[0])
     for i, (curr_hparams, metrics_df) in enumerate(map(load_version_log, version_nums[1:])):
-        assert len(curr_hparams) == len(hparams), "hparams doesn't match."
-        for key in hparams.keys():
-            assert curr_hparams[key] == hparams[key], "hparams doesn't match."
+        if not suppress_hparam_check:
+            assert len(curr_hparams) == len(hparams), "hparams doesn't match."
+            for key in hparams.keys():
+                assert curr_hparams[key] == hparams[key], "hparams doesn't match."
 
         assert len(metrics_df.keys()) == len(all_metrics_df.keys()), 'metrics have different columns.'
         assert metrics_df["epoch"].min() == all_metrics_df["epoch"].max() + 1, "epoch doesn't match"
