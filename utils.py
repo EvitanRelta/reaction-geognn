@@ -168,15 +168,15 @@ def plot_losses(
 
 def get_least_utilized_and_allocated_gpu() -> torch.device:
     """
-    Returns the `torch.device` of the GPU with the lowest utilization and memory
-    allocation.
+    Returns the `torch.device` of the GPU with the lowest weighed badness value
+    calculated from utilization % and allocated memory %.
 
     Returns:
         torch.device: The `torch.device` of the least utilized and memory allocated GPU.
     """
     result = subprocess.check_output([
         'nvidia-smi',
-        '--query-gpu=index,utilization.gpu,memory.used',
+        '--query-gpu=index,utilization.gpu,memory.used,memory.total',
         '--format=csv,nounits,noheader'
     ], encoding='utf-8')
 
@@ -185,19 +185,23 @@ def get_least_utilized_and_allocated_gpu() -> torch.device:
     assert len(gpu_stats) > 0, "No visible GPU."
     assert len(gpu_stats) > 1, "Only 1 GPU (expected to run on a machine with multiple GPUs)."
 
-    parsed_stats: list[tuple[int, int, int]] = []
+    parsed_stats: list[tuple[int, float]] = []
     for gpu_stat in gpu_stats:
         stats = gpu_stat.split(', ')
         gpu_id = int(stats[0])
-        utilization = int(stats[1])
-        memory = int(stats[2])
-        parsed_stats.append((gpu_id, utilization, memory))
+        utilization = int(stats[1]) / 100
+        memory_used = int(stats[2])
+        memory_total = int(stats[3])
+        memory_ratio = memory_used / memory_total
+
+        badness_value = 0.5 * utilization + 0.5 * memory_ratio
+        parsed_stats.append((gpu_id, badness_value))
 
         # Printing GPU stats for debugging.
-        print(f'GPU-{gpu_id}: Util = {utilization:>3.0f}%, MemAlloc = {(memory / 1024):>4.1f} GiB')
+        print(f'GPU-{gpu_id}: Util = {utilization * 100:>3.0f}%, MemAlloc = {memory_ratio * 100:>4.1f}%, Badness = {badness_value:>4.2f}')
 
-    # Sort GPUs by utilization first, then memory allocation.
-    sorted_gpus = sorted(parsed_stats, key=lambda x: (x[1], x[2]))
+    # Sort GPUs by badness value
+    sorted_gpus = sorted(parsed_stats, key=lambda x: x[1])
 
     least_used_gpu_id = sorted_gpus[0][0]
     print(f'Using GPU-{least_used_gpu_id}...\n')
