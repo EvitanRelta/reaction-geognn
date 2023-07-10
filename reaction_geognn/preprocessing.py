@@ -8,7 +8,7 @@ from geognn import Preprocessing
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from .graph_utils import merge_graphs
+from .graph_utils import concat_graphs
 
 
 def reaction_smart_to_graph(
@@ -56,8 +56,8 @@ def reaction_smart_to_graph(
         = torch.zeros(num_of_atoms, dtype=torch.bool, device=device)
 
     return (
-        merge_graphs([reactant_atom_bond_graph, product_atom_bond_graph]),
-        merge_graphs([reactant_bond_angle_graph, product_bond_angle_graph]),
+        concat_graphs([reactant_atom_bond_graph, product_atom_bond_graph]),
+        concat_graphs([reactant_bond_angle_graph, product_bond_angle_graph]),
     )
 
 

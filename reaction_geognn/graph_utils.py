@@ -57,10 +57,10 @@ def split_reactant_product_nodes(node_repr: Tensor, atom_bond_graph: DGLGraph) -
     return reactant_node_repr, product_node_repr
 
 
-def merge_graphs(graph_list: list[DGLGraph]) -> DGLGraph:
+def concat_graphs(graph_list: list[DGLGraph]) -> DGLGraph:
     """
-    Merge multiple graphs into a single graph. Similar to `dgl.batch` but it
-    it doesn't "batch" the graphs.
+    Merge multiple graphs into a single graph by concatenating their nodes,
+    edges and features. Similar to `dgl.batch` but it doesn't "batch" the graphs.
     """
     device = graph_list[0].device
 
