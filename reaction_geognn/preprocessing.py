@@ -2,14 +2,13 @@
 Data-preprocesing related stuff.
 """
 
-from typing import Mapping, cast
-
-import dgl, torch
+import torch
 from dgl import DGLGraph
 from geognn import Preprocessing
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from torch import Tensor
+
+from .graph_utils import merge_graphs
 
 
 def reaction_smart_to_graph(
@@ -57,8 +56,8 @@ def reaction_smart_to_graph(
         = torch.zeros(num_of_atoms, dtype=torch.bool, device=device)
 
     return (
-        _merge_graphs([reactant_atom_bond_graph, product_atom_bond_graph]),
-        _merge_graphs([reactant_bond_angle_graph, product_bond_angle_graph]),
+        merge_graphs([reactant_atom_bond_graph, product_atom_bond_graph]),
+        merge_graphs([reactant_bond_angle_graph, product_bond_angle_graph]),
     )
 
 
@@ -91,58 +90,3 @@ def _validate_smiles(reactant_smiles: str, product_smiles: str) -> None:
         'Products have duplicate atom mapping numbers.'
     assert max(reactant_atom_map) == max(product_atom_map) == reactant_mol.GetNumAtoms(), \
         "Atom mappings numbers don't match number of atoms."
-
-
-def _merge_graphs(graph_list: list[DGLGraph]) -> DGLGraph:
-    """
-    Merge multiple graphs into a single graph. Similar to `dgl.batch` but it
-    it doesn't "batch" the graphs.
-    """
-    device = graph_list[0].device
-
-    # Initialize empty lists for the new nodes and edges
-    new_edges_src: list[int] = []
-    new_edges_dst: list[int] = []
-    new_node_features: dict[str, list[Tensor]] = {}
-    new_edge_features: dict[str, list[Tensor]] = {}
-
-    # Track how many nodes we've added so far
-    num_nodes_so_far: int = 0
-
-    for g in graph_list:
-        # Adjust the edge list by the number of nodes we've added
-        edges = g.edges()
-        edges = cast(tuple[Tensor, Tensor], edges)
-        edges = (edges[0] + num_nodes_so_far, edges[1] + num_nodes_so_far)
-
-        # Add the edges to our new edge list
-        new_edges_src.extend(edges[0].tolist())
-        new_edges_dst.extend(edges[1].tolist())
-
-        # Add the node features to our new node feature dict
-        for feature_name in cast(Mapping[str, Tensor], g.ndata):
-            if feature_name not in new_node_features:
-                new_node_features[feature_name] = []
-            new_node_features[feature_name].extend(g.ndata[feature_name])
-
-        # Add the edge features to our new edge feature dict
-        for feature_name in cast(Mapping[str, Tensor],g.edata):
-            if feature_name not in new_edge_features:
-                new_edge_features[feature_name] = []
-            new_edge_features[feature_name].extend(g.edata[feature_name])
-
-        # Update the total number of nodes we've seen
-        num_nodes_so_far += cast(int, g.number_of_nodes())
-
-    # Create the new graph
-    new_g = dgl.graph((new_edges_src, new_edges_dst), num_nodes=num_nodes_so_far, device=device)
-
-    # Add the node features to the new graph
-    for feature_name, features in new_node_features.items():
-        new_g.ndata[feature_name] = torch.tensor(features, device=device)
-
-    # Add the edge features to the new graph
-    for feature_name, features in new_edge_features.items():
-        new_g.edata[feature_name] = torch.tensor(features, device=device)
-
-    return new_g

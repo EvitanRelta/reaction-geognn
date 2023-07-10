@@ -1,6 +1,5 @@
 from typing import Any, Protocol
 
-import dgl
 import lightning.pytorch as pl
 import torch
 import torchmetrics
@@ -11,6 +10,7 @@ from torch import Tensor, nn
 from torch.optim import Adam
 
 from .data_module import BATCH_TUPLE, StandardizeScaler
+from .graph_utils import split_batched_data, split_reactant_product_nodes
 
 
 class HyperParams(Protocol):
@@ -98,9 +98,9 @@ class ProtoModel(pl.LightningModule):
 
 
         pred_list: list[Tensor] = []
-        for node_repr, graph in ProtoModel._split_batched_data(batched_node_repr, atom_bond_graph):
+        for node_repr, graph in split_batched_data(batched_node_repr, atom_bond_graph):
             reactant_node_repr, product_node_repr \
-                = ProtoModel._split_reactant_product_nodes(node_repr, graph)
+                = split_reactant_product_nodes(node_repr, graph)
 
             diff_node_repr = product_node_repr - reactant_node_repr
 
@@ -112,38 +112,6 @@ class ProtoModel(pl.LightningModule):
             pred_list.append(pred)
 
         return torch.stack(pred_list)
-
-    @staticmethod
-    def _split_batched_data(
-        batched_node_repr: Tensor,
-        batched_atom_bond_graph: DGLGraph,
-    ) -> list[tuple[Tensor, DGLGraph]]:
-        output: list[tuple[Tensor, DGLGraph]] = []
-        start_index = 0
-        for graph in dgl.unbatch(batched_atom_bond_graph):
-            num_nodes = graph.number_of_nodes()
-            node_repr = batched_node_repr[start_index : start_index + num_nodes]
-            start_index += num_nodes
-            output.append((node_repr, graph))
-        return output
-
-    @staticmethod
-    def _split_reactant_product_nodes(
-        node_repr: Tensor,
-        atom_bond_graph: DGLGraph,
-    ) -> tuple[Tensor, Tensor]:
-        assert '_is_reactant' in atom_bond_graph.ndata, \
-            'Atom-bond graphs needs to have .ndata["_is_reactant"] of dtype=bool.'
-        assert len(node_repr) % 2 == 0, 'Odd number of nodes in node_repr.'
-
-        mask = atom_bond_graph.ndata['_is_reactant']
-        assert isinstance(mask, Tensor) and mask.dtype == torch.bool
-        reactant_node_repr = node_repr[mask]
-        product_node_repr = node_repr[~mask]
-
-        assert len(reactant_node_repr) == len(node_repr) // 2
-        assert len(product_node_repr) == len(node_repr) // 2
-        return reactant_node_repr, product_node_repr
 
 
     # ==========================================================================
