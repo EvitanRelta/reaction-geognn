@@ -10,7 +10,7 @@ from torch import Tensor, nn
 from torch.optim import Adam
 
 from .data_module import BATCH_TUPLE, StandardizeScaler
-from .graph_utils import split_batched_data, split_reactant_product_nodes
+from .graph_utils import split_batched_data, split_reactant_product_node_feat
 
 
 class HyperParams(Protocol):
@@ -100,7 +100,7 @@ class ProtoModel(pl.LightningModule):
         pred_list: list[Tensor] = []
         for node_repr, graph in split_batched_data(batched_node_repr, atom_bond_graph):
             reactant_node_repr, product_node_repr \
-                = split_reactant_product_nodes(node_repr, graph)
+                = split_reactant_product_node_feat(node_repr, graph)
 
             diff_node_repr = product_node_repr - reactant_node_repr
 

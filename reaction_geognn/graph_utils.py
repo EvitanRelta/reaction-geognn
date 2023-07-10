@@ -31,7 +31,7 @@ def split_batched_data(batched_node_repr: Tensor, batched_atom_bond_graph: DGLGr
     return output
 
 
-def split_reactant_product_nodes(node_repr: Tensor, atom_bond_graph: DGLGraph) -> tuple[Tensor, Tensor]:
+def split_reactant_product_node_feat(node_repr: Tensor, atom_bond_graph: DGLGraph) -> tuple[Tensor, Tensor]:
     """Split reactant's node-feature/representation from product's.
 
     Args:
