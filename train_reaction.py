@@ -6,10 +6,10 @@ import torch
 from lightning.pytorch import Trainer, seed_everything
 from reaction_geognn.data_module import Wb97DataModule
 from reaction_geognn.model import ProtoModel
-from utils import abs_path, get_least_utilized_and_allocated_gpu
+from utils import LIGHTNING_LOGS_DIR, abs_path, \
+    get_least_utilized_and_allocated_gpu
 
 GRAPH_CACHE_PATH = abs_path('./cached_graphs/cached_wb97.bin')
-LIGHTNING_LOGS_DIR = abs_path('./lightning_logs')
 
 def main():
     args = _parse_script_args()

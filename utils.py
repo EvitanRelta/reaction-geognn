@@ -23,7 +23,7 @@ def abs_path(relative_path: str) -> str:
         current_dir = os.path.dirname(os.path.realpath(__file__))
     return os.path.join(current_dir, relative_path)
 
-LIGHTNING_LOG_DIR = abs_path("lightning_logs")
+LIGHTNING_LOGS_DIR = abs_path("lightning_logs")
 
 HPARAM: TypeAlias = dict
 METRIC_DF: TypeAlias = pd.DataFrame
@@ -39,7 +39,7 @@ def load_version_log(version_num: int) -> tuple[HPARAM, METRIC_DF]:
             and metrics `DataFrame`.
     """
     version_dir = f'version_{version_num}'
-    version_path = os.path.join(LIGHTNING_LOG_DIR, version_dir)
+    version_path = os.path.join(LIGHTNING_LOGS_DIR, version_dir)
     assert os.path.isdir(version_path), f'"{version_path}" dir not found.'
 
     hparams_path = os.path.join(version_path, "hparams.yaml")
@@ -77,7 +77,7 @@ def concat_version(
             matching `hparams.yaml` values. Defaults to False.
     """
     assert len(version_nums) > 0, "no version numbers given."
-    save_to_dir = os.path.join(LIGHTNING_LOG_DIR, f'version_{version_nums[-1]}')
+    save_to_dir = os.path.join(LIGHTNING_LOGS_DIR, f'version_{version_nums[-1]}')
 
     hparams, all_metrics_df = load_version_log(version_nums[0])
     for i, (curr_hparams, metrics_df) in enumerate(map(load_version_log, version_nums[1:])):
@@ -102,7 +102,7 @@ def concat_version(
         all_metrics_df.to_csv(metrics_path, index=False)
 
     for version_num in version_nums[:-1]:
-        old_version_dir = os.path.join(LIGHTNING_LOG_DIR, f'version_{version_num}')
+        old_version_dir = os.path.join(LIGHTNING_LOGS_DIR, f'version_{version_num}')
         if delete_old_versions:
             shutil.rmtree(old_version_dir)
         else:
