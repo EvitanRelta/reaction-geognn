@@ -25,7 +25,7 @@ def main():
     )
 
     if args['precompute_only']:
-        if args['cache_graphs']:
+        if not args['cache_graphs']:
             print('"precompute-only" and "no-cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
             return
         wb97_data_module.setup('fit')
