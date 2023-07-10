@@ -52,8 +52,13 @@ def reaction_smart_to_graph(
     num_of_atoms = reactant_atom_bond_graph.num_nodes()
     reactant_atom_bond_graph.ndata['_is_reactant'] \
         = torch.ones(num_of_atoms, dtype=torch.bool, device=device)
+    reactant_atom_bond_graph.edata['_is_reactant'] \
+        = torch.ones(reactant_atom_bond_graph.num_edges(), dtype=torch.bool, device=device)
+
     product_atom_bond_graph.ndata['_is_reactant'] \
         = torch.zeros(num_of_atoms, dtype=torch.bool, device=device)
+    product_atom_bond_graph.edata['_is_reactant'] \
+        = torch.zeros(product_atom_bond_graph.num_edges(), dtype=torch.bool, device=device)
 
     return (
         concat_graphs([reactant_atom_bond_graph, product_atom_bond_graph]),
