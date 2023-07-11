@@ -10,7 +10,7 @@ from .. import Preprocessing
 from .shared_definitions import GeoGNNDataElement
 
 
-class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
+class GeoGNNDataLoader_(DataLoader[GeoGNNDataElement]):
     """
     Data loader for GeoGNN's datasets.
     """
@@ -86,7 +86,7 @@ class GeoGNNDataLoader(DataLoader[GeoGNNDataElement]):
         return (
             dgl.batch(atom_bond_graphs),
             dgl.batch(bond_angle_graphs),
-            GeoGNNDataLoader._standardize_data(data, self.fit_mean, self.fit_std),
+            GeoGNNDataLoader_._standardize_data(data, self.fit_mean, self.fit_std),
         )
 
     @staticmethod

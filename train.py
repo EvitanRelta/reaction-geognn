@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from dgl import DGLGraph
 from geognn import DownstreamModel, GeoGNNModel, Preprocessing
-from geognn.datasets import ESOLDataset, GeoGNNDataLoader, GeoGNNDataset, \
+from geognn.datasets import ESOLDataset, GeoGNNDataLoader_, GeoGNNDataset, \
     ScaffoldSplitter
 from torch import Tensor, nn
 from torch.optim import Adam
@@ -112,9 +112,9 @@ TrainCriterion: TypeAlias = nn.L1Loss
 Metric: TypeAlias = RMSELoss
 EncoderOptimizer: TypeAlias = Adam
 HeadOptimizer: TypeAlias = Adam
-TrainDataLoader: TypeAlias = GeoGNNDataLoader
-ValidDataLoader: TypeAlias = GeoGNNDataLoader
-TestDataLoader: TypeAlias = GeoGNNDataLoader
+TrainDataLoader: TypeAlias = GeoGNNDataLoader_
+ValidDataLoader: TypeAlias = GeoGNNDataLoader_
+TestDataLoader: TypeAlias = GeoGNNDataLoader_
 
 
 class GeoGNNCheckpoint(TypedDict):
@@ -293,8 +293,8 @@ def _init_objects(
 
     # Defined data-loader, where the data is standardize with the
     # training mean and standard deviation.
-    train_mean, train_std = GeoGNNDataLoader.get_stats(train_dataset)
-    train_data_loader = GeoGNNDataLoader(
+    train_mean, train_std = GeoGNNDataLoader_.get_stats(train_dataset)
+    train_data_loader = GeoGNNDataLoader_(
         train_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
@@ -305,7 +305,7 @@ def _init_objects(
         worker_init_fn=_dataloader_worker,
         generator=_get_dataloader_generator(),
     )
-    valid_data_loader = GeoGNNDataLoader(
+    valid_data_loader = GeoGNNDataLoader_(
         valid_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
@@ -316,7 +316,7 @@ def _init_objects(
         worker_init_fn=_dataloader_worker,
         generator=_get_dataloader_generator(),
     )
-    test_data_loader = GeoGNNDataLoader(
+    test_data_loader = GeoGNNDataLoader_(
         test_dataset,
         fit_mean = train_mean,
         fit_std = train_std,
