@@ -1,4 +1,4 @@
-from geognn.datasets.shared_definitions import GeoGNNDataset
+from geognn.datasets.shared_definitions import GeoGNNDataset, load_smiles_csv
 from utils import abs_path
 
 
@@ -20,8 +20,9 @@ class Wb97SplitDataset(GeoGNNDataset):
         Args:
             csv_path (str): Path to the wb97xd3 split dataset's `.csv` file.
         """
-        super().__init__(
-            smiles_column_name = 'AAM',
-            data_columns_to_use = ['ea'],
+        data_list = load_smiles_csv(
             csv_path = abs_path(csv_path, __file__), # Set path relative to this file.
+            smiles_column_name = 'AAM',
+            data_columns_to_load = ['ea'],
         )
+        super().__init__(data_list)

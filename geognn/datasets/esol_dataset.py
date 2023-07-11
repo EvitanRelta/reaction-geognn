@@ -12,7 +12,7 @@ https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_d
 
 from utils import abs_path
 
-from .shared_definitions import GeoGNNDataset
+from .shared_definitions import GeoGNNDataset, load_smiles_csv
 
 
 class ESOLDataset(GeoGNNDataset):
@@ -36,8 +36,9 @@ class ESOLDataset(GeoGNNDataset):
             csv_path (str, optional): Path to the dataset's `.csv` file. \
                 Defaults to './chemrl_downstream_datasets/esol/raw/delaney-processed.csv'.
         """
-        super().__init__(
+        data_list = load_smiles_csv(
             smiles_column_name = 'smiles',
-            data_columns_to_use = ['measured log solubility in mols per litre'],
+            data_columns_to_load = ['measured log solubility in mols per litre'],
             csv_path = abs_path(csv_path, __file__), # Set path relative to this file.
         )
+        super().__init__(data_list)
