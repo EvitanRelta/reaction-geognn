@@ -3,14 +3,13 @@ from typing import Callable, Iterator
 import dgl, torch
 from dgl import DGLGraph
 from torch import Tensor
-from torch.utils.data import DataLoader, Dataset
-from torch.utils.data.dataloader import _BaseDataLoaderIter
+from torch.utils.data import Dataset
 
 from .. import Preprocessing
-from .shared_definitions import GeoGNNDataElement
+from .shared_definitions import GeoGNNDataElement, GeoGNNDataLoader
 
 
-class GeoGNNDataLoader_(DataLoader[GeoGNNDataElement]):
+class GeoGNNDataLoader_(GeoGNNDataLoader):
     """
     Data loader for GeoGNN's datasets.
     """

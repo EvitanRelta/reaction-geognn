@@ -1,12 +1,13 @@
 from abc import ABC
-from collections.abc import Sequence, Sized
+from collections.abc import Iterator, Sequence, Sized
 from dataclasses import dataclass
-from typing import TypedDict, cast
+from typing import TypeAlias, TypedDict, cast
 
 import pandas as pd
 import torch
+from dgl import DGLGraph
 from torch import Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 
 class GeoGNNDataElement(TypedDict):
@@ -82,3 +83,25 @@ def load_smiles_csv(
             'data': filtered_data[i]
         })
     return data_list
+
+
+GeoGNNBatch: TypeAlias = tuple[DGLGraph, DGLGraph, Tensor]
+"""Batched input in the form `(atom_bond_batch_graph, bond_angle_batch_graph, labels)`
+of type `tuple[DGLGraph, DGLGraph, Tensor]`.
+"""
+
+class GeoGNNDataLoader(ABC, DataLoader[GeoGNNDataElement]):
+    """
+    Abstract base class for a data-loader used by GeoGNN.
+
+    Outputs batches of type `GeoGNNBatch`, which is in the form
+    `(atom_bond_batch_graph, bond_angle_batch_graph, labels)` of type
+    `tuple[DGLGraph, DGLGraph, Tensor]`.
+
+    Expects a dataset of type `Dataset[GeoGNNDataElement]`, where the data
+    elements are dictionaries of type `GeoGNNDataElement`, each containing
+    the keys `"smiles"` (the element's SMILES string) and `"data"` (tensor of
+    the element's data/labels).
+    """
+    def __iter__(self) -> Iterator[GeoGNNBatch]:
+        return super().__iter__()
