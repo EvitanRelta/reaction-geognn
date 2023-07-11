@@ -1,36 +1,76 @@
+"""Base PyTorch-Lightning data-module."""
+
 import os, pickle
+from abc import ABC, abstractmethod
 from typing import Literal
 
 import dgl
 import lightning.pytorch as pl
 import torch
 from dgl import DGLGraph
-from geognn.datasets import GeoGNNDataElement
+from geognn.datasets import GeoGNNBatch, GeoGNNDataElement, GeoGNNDataLoader, \
+    GeoGNNDataset
 from torch import Tensor
 from torch.utils.data import DataLoader
 from tqdm.autonotebook import tqdm
 
-from .datasets import get_wb97_fold_dataset
-from .preprocessing import reaction_smart_to_graph
+from .scaler import StandardizeScaler
 
-BATCH_TUPLE = tuple[DGLGraph, DGLGraph, Tensor]
-"""Batched input in the form `(atom_bond_batch_graph, bond_angle_batch_graph, labels)`"""
 
-class Wb97DataModule(pl.LightningDataModule):
-    def __init__(
-        self,
-        fold_num: Literal[0, 1, 2, 3, 4],
-        batch_size: int | None,
-        cache_path: str | None = None
-    ):
+class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
+    """Abstract base class for PyTorch-Lightning data-modules for GeoGNN
+    datasets/dataloaders.
+
+    Implements:
+    - Caching of atom-bond and bond-angle graphs.
+    - Standardization of dataset labels using `StandardizeScaler` via `self.scaler`.
+    - Converting SMILES strings to graphs via the abstract class-method
+    `self.compute_graphs`, and collating them into batches of type `GeoGNNBatch`.
+
+    Requires the below 2 abstract methods to be implemented:
+
+    ```python
+    @abstractmethod
+    def get_dataset_splits(self) -> tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]: ...
+
+    @abstractmethod
+    @classmethod
+    def compute_graphs(cls, smiles: str) -> tuple[DGLGraph, DGLGraph]: ...
+    ```
+    """
+
+    @abstractmethod
+    def get_dataset_splits(self) -> tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]:
+        """Get train, test and validation dataset splits.
+
+        Returns:
+            tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]: Train, test and \
+                validation dataset splits in the form `(train, test, val)`.
+        """
+
+    @classmethod
+    @abstractmethod
+    def compute_graphs(cls, smiles: str) -> tuple[DGLGraph, DGLGraph]:
+        """Compute GeoGNN's atom-bond graph and bond-angle graph from a
+        molecule's/reaction's SMILES/SMART string.
+
+        Args:
+            smiles (str): Molecule's/Reaction's SMILES/SMART string.
+
+        Returns:
+            tuple[DGLGraph, DGLGraph]: Atom-bond and bond-angle graphs in the \
+                form `(atom_bond_graph, bond_angle_graph)`.
+        """
+
+    def __init__(self, batch_size: int, shuffle: bool = False, cache_path: str | None = None) -> None:
         super().__init__()
-        self.fold_num: Literal[0, 1, 2, 3, 4] = fold_num
         self.batch_size = batch_size
+        self.shuffle = shuffle
         self.cache_path = cache_path
         self._cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {}
 
         self.train_dataset, self.test_dataset, self.val_dataset \
-            = get_wb97_fold_dataset(self.fold_num)
+            = self.get_dataset_splits()
 
         train_labels = torch.stack([el['data'] for el in self.train_dataset])
         self.scaler = StandardizeScaler()
@@ -87,35 +127,38 @@ class Wb97DataModule(pl.LightningDataModule):
         print(f'Precomputing graphs for {len(full_smiles_set)} SMILES strings:')
         for smiles in tqdm(full_smiles_set):
             self._cached_graphs[smiles] = \
-                reaction_smart_to_graph(smiles, device=torch.device('cpu'))
+                self.compute_graphs(smiles)
         print('\n')
 
 
     # ==========================================================================
     #                        Dataloader-related methods
     # ==========================================================================
-    def train_dataloader(self) -> DataLoader:
+    def train_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
             dataset = self.train_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
-        )
+            shuffle = self.shuffle,
+        ) # type: ignore
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
             dataset = self.val_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
-        )
+            shuffle = self.shuffle,
+        ) # type: ignore
 
-    def test_dataloader(self) -> DataLoader:
+    def test_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
             dataset = self.test_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
-        )
+            shuffle = self.shuffle,
+        ) # type: ignore
 
-    def _collate_fn(self, batch: list[GeoGNNDataElement]) -> BATCH_TUPLE:
+    def _collate_fn(self, batch: list[GeoGNNDataElement]) -> GeoGNNBatch:
         """Collate-function used in the train/val/test dataloaders.
 
         Collates/Transforms a batch of `GeoGNNDataElement` obtained from the
@@ -140,5 +183,5 @@ class Wb97DataModule(pl.LightningDataModule):
         """Gets cached graphs from SMILES, or compute them if they're not already cached."""
         if smiles not in self._cached_graphs:
             self._cached_graphs[smiles] \
-                = reaction_smart_to_graph(smiles, torch.device('cpu'))
+                = self.compute_graphs(smiles)
         return self._cached_graphs[smiles]
