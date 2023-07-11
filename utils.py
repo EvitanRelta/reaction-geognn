@@ -8,22 +8,11 @@ import torch
 import yaml
 
 
-def _is_in_notebook() -> bool:
-    try:
-        from IPython.core.getipython import get_ipython
-        return bool(get_ipython())
-    except ImportError:
-        return False
-
-def abs_path(relative_path: str) -> str:
-    if _is_in_notebook():
-        from IPython.core.getipython import get_ipython
-        current_dir = get_ipython().starting_dir # type: ignore
-    else:
-        current_dir = os.path.dirname(os.path.realpath(__file__))
+def abs_path(relative_path: str, caller_file_path: str) -> str:
+    current_dir = os.path.dirname(os.path.realpath(caller_file_path))
     return os.path.join(current_dir, relative_path)
 
-LIGHTNING_LOGS_DIR = abs_path("lightning_logs")
+LIGHTNING_LOGS_DIR = abs_path("lightning_logs", __file__)
 
 HPARAM: TypeAlias = dict
 METRIC_DF: TypeAlias = pd.DataFrame
