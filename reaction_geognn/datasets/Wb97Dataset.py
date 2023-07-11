@@ -1,4 +1,3 @@
-import os
 from typing import Sized, cast
 
 import pandas as pd
@@ -6,6 +5,7 @@ import torch
 from geognn.datasets.shared_definitions import GeoGNNDataElement
 from torch.utils.data import Dataset
 from typing_extensions import override
+from utils import abs_path
 
 
 class Wb97Dataset(Dataset[GeoGNNDataElement], Sized):
@@ -37,10 +37,7 @@ class Wb97Dataset(Dataset[GeoGNNDataElement], Sized):
                 Defaults to './wb97xd3/wb97xd3.csv'.
         """
         data_columns_to_use = ['ea', 'dh']
-
-        current_dir = os.path.dirname(os.path.realpath(__file__))
-        abs_csv_path = os.path.join(current_dir, csv_path)
-        raw_df = pd.read_csv(abs_csv_path, sep=',')
+        raw_df = pd.read_csv(abs_path(csv_path, __file__), sep=',')
 
         reactant_smart_list = raw_df['rsmi'].values
         product_smart_list = raw_df['psmi'].values

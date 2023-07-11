@@ -1,5 +1,6 @@
-import os
 from typing import Literal, overload
+
+from utils import abs_path
 
 from .Wb97SplitDataset import Wb97SplitDataset
 
@@ -23,13 +24,13 @@ def get_wb97_fold_dataset(
 ):
     split_dir = './wb97xd3/splits'
 
-    train_path = _abs_path(f'{split_dir}/fold_{fold_num}/aam_train.csv')
-    test_path = _abs_path(f'{split_dir}/fold_{fold_num}/aam_test.csv')
-    val_path = _abs_path(f'{split_dir}/fold_{fold_num}/aam_val.csv')
+    train_path = abs_path(f'{split_dir}/fold_{fold_num}/aam_train.csv', __file__)
+    test_path = abs_path(f'{split_dir}/fold_{fold_num}/aam_test.csv', __file__)
+    val_path = abs_path(f'{split_dir}/fold_{fold_num}/aam_val.csv', __file__)
 
-    pretrain_train_path = _abs_path(f'{split_dir}/fold_{fold_num}/aam_pretrain_train.csv')
-    pretrain_test_path = _abs_path(f'{split_dir}/fold_{fold_num}/aam_pretrain_test.csv')
-    pretrain_val_path = _abs_path(f'{split_dir}/fold_{fold_num}/aam_pretrain_val.csv')
+    pretrain_train_path = abs_path(f'{split_dir}/fold_{fold_num}/aam_pretrain_train.csv', __file__)
+    pretrain_test_path = abs_path(f'{split_dir}/fold_{fold_num}/aam_pretrain_test.csv', __file__)
+    pretrain_val_path = abs_path(f'{split_dir}/fold_{fold_num}/aam_pretrain_val.csv', __file__)
 
     datasets = (
         Wb97SplitDataset(train_path),
@@ -48,8 +49,3 @@ def get_wb97_fold_dataset(
             Wb97SplitDataset(pretrain_val_path),
         ),
     )
-
-
-def _abs_path(relative_path: str) -> str:
-    current_dir = os.path.dirname(os.path.realpath(__file__))
-    return os.path.join(current_dir, relative_path)

@@ -1,11 +1,5 @@
-import os
-from typing import Sized, cast
-
-import pandas as pd
-import torch
-from geognn.datasets.shared_definitions import GeoGNNDataElement, GeoGNNDataset
-from torch.utils.data import Dataset
-from typing_extensions import override
+from geognn.datasets.shared_definitions import GeoGNNDataset
+from utils import abs_path
 
 
 class Wb97SplitDataset(GeoGNNDataset):
@@ -26,9 +20,8 @@ class Wb97SplitDataset(GeoGNNDataset):
         Args:
             csv_path (str): Path to the wb97xd3 split dataset's `.csv` file.
         """
-        current_dir = os.path.dirname(os.path.realpath(__file__))
         super().__init__(
             smiles_column_name = 'AAM',
             data_columns_to_use = ['ea'],
-            csv_path = os.path.join(current_dir, csv_path), # Set path relative to this file.
+            csv_path = abs_path(csv_path, __file__), # Set path relative to this file.
         )
