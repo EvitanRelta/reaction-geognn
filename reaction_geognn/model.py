@@ -5,11 +5,12 @@ import torch
 import torchmetrics
 from dgl import DGLGraph
 from geognn import GeoGNNModel
+from geognn.datasets import GeoGNNBatch
 from geognn.layers import DropoutMLP
+from lightning_utils import StandardizeScaler
 from torch import Tensor, nn
 from torch.optim import Adam
 
-from .data_module import BATCH_TUPLE, StandardizeScaler
 from .graph_utils import split_batched_data, split_reactant_product_node_feat
 
 
@@ -132,7 +133,7 @@ class ProtoModel(pl.LightningModule):
         self.scaler = checkpoint['scaler']
 
 
-    def training_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
+    def training_step(self, batch: GeoGNNBatch, batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
         self._train_step_values.append((pred, labels))
@@ -143,13 +144,13 @@ class ProtoModel(pl.LightningModule):
 
         return loss
 
-    def predict_step(self, batch: BATCH_TUPLE | tuple[DGLGraph, DGLGraph], batch_idx: int) -> Tensor:
+    def predict_step(self, batch: GeoGNNBatch | tuple[DGLGraph, DGLGraph], batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, *_ = batch
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
         pred = self.scaler.inverse_transform(pred)
         return pred
 
-    def validation_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
+    def validation_step(self, batch: GeoGNNBatch, batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
         self._val_step_values.append((pred, labels))
@@ -161,7 +162,7 @@ class ProtoModel(pl.LightningModule):
         loss = self.metric(pred, labels)
         return loss
 
-    def test_step(self, batch: BATCH_TUPLE, batch_idx: int) -> Tensor:
+    def test_step(self, batch: GeoGNNBatch, batch_idx: int) -> Tensor:
         atom_bond_batch_graph, bond_angle_batch_graph, labels = batch
         pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
         self._test_step_values.append((pred, labels))
