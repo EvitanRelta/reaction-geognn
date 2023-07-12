@@ -8,13 +8,13 @@ GPU=1
 NUM_BATCHES=$((DATASET_SIZE / BATCH_SIZE))
 
 $DGL_PYTHON_PATH train_reaction.py \
-    --dropout-rate 0 \
+    --dropout_rate 0 \
     --epochs 1000 \
     --lr 1e-4 \
     \
-    --gnn-layers 3 \
-    --embed-dim 256 \
+    --gnn_layers 3 \
+    --embed_dim 256 \
     \
-    --batch-size $BATCH_SIZE \
-    --overfit-batches $NUM_BATCHES \
+    --batch_size $BATCH_SIZE \
+    --overfit_batches $NUM_BATCHES \
     --device "cuda:$GPU" \

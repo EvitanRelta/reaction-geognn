@@ -27,7 +27,7 @@ def main():
 
     if args['precompute_only']:
         if not args['cache_graphs']:
-            print('"precompute-only" and "no-cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
+            print('"precompute_only" and "no_cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
             return
         wb97_data_module.setup('fit')
         return
@@ -106,21 +106,21 @@ class Arguments(TypedDict):
 
 def _parse_script_args() -> Arguments:
     parser = argparse.ArgumentParser(description='Training Script')
-    parser.add_argument('--precompute-only', default=False, action='store_true', help='precompute graph cache file only')
-    parser.add_argument('--no-load-save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
-    parser.add_argument('--no-cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
-    parser.add_argument('--overfit-batches', type=int, default=0, help='train on set number of batches and disable validation to attempt to overfit')
+    parser.add_argument('--precompute_only', default=False, action='store_true', help='precompute graph cache file only')
+    parser.add_argument('--no_load_save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
+    parser.add_argument('--no_cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
+    parser.add_argument('--overfit_batches', type=int, default=0, help='train on set number of batches and disable validation to attempt to overfit')
 
-    parser.add_argument('--embed-dim', type=int, default=128, help='embedding dimension')
-    parser.add_argument('--dropout-rate', type=float, default=0.1, help='dropout rate')
-    parser.add_argument('--gnn-layers', type=int, default=8, help='num of GNN layers')
+    parser.add_argument('--embed_dim', type=int, default=128, help='embedding dimension')
+    parser.add_argument('--dropout_rate', type=float, default=0.1, help='dropout rate')
+    parser.add_argument('--gnn_layers', type=int, default=8, help='num of GNN layers')
 
-    parser.add_argument('--fold-num', type=int, default=0, help='wb97xd3 fold_num-dataset to use')
-    parser.add_argument('--batch-size', type=int, default=50, help='batch size')
+    parser.add_argument('--fold_num', type=int, default=0, help='wb97xd3 fold_num-dataset to use')
+    parser.add_argument('--batch_size', type=int, default=50, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
     parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
     parser.add_argument('--device', type=str, default=None, help="device to run on")
-    parser.add_argument('--resume-version', type=int, default=None, help="resume training from a lightning-log version")
+    parser.add_argument('--resume_version', type=int, default=None, help="resume training from a lightning-log version")
     parser.add_argument('--notes', type=str, default=None, help="notes to add to model's `hparams.yaml` file")
     args = parser.parse_args()
 
