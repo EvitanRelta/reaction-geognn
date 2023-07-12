@@ -30,6 +30,8 @@ def main():
         if not args['cache_graphs']:
             print('"precompute_only" and "no_cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
             return
+        if os.path.isfile(GRAPH_CACHE_PATH):
+            raise RuntimeError(f'"--precompute_only" flag is used, but the cache file at "{GRAPH_CACHE_PATH}" already exists.')
         qm9_data_module.setup('fit')
         return
 
