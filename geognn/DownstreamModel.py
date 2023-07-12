@@ -12,7 +12,7 @@ from .layers import DropoutMLP
 class DownstreamModel(GeoGNNLightningModule):
     """
     Model that uses the graph-representation output from
-    `self.compound_encoder: GeoGNNModel` to make `out_size` number of predictions.
+    `self.encoder: GeoGNNModel` to make `out_size` number of predictions.
 
     This is a PyTorch + DGL equivalent of GeoGNN's `DownstreamModel`:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/src/model.py#L27-L61
@@ -20,7 +20,7 @@ class DownstreamModel(GeoGNNLightningModule):
 
     def __init__(
         self,
-        compound_encoder: GeoGNNModel,
+        encoder: GeoGNNModel,
         task_type: Literal['classification', 'regression'],
         out_size: int,
         num_of_mlp_layers: int,
@@ -45,7 +45,7 @@ class DownstreamModel(GeoGNNLightningModule):
         `num_of_layers = 3`.
 
         Args:
-            compound_encoder (GeoGNNModel): GeoGNN encoder for the molecule graphs.
+            encoder (GeoGNNModel): GeoGNN encoder for the molecule graphs.
             task_type (Literal['classification', 'regression']): Whether to \
                 perform a classification or regression.
             out_size (int): Size of output tensor.
@@ -62,11 +62,11 @@ class DownstreamModel(GeoGNNLightningModule):
         self.task_type = task_type
         self.out_size = out_size
 
-        self.compound_encoder = compound_encoder
-        self.norm = nn.LayerNorm(compound_encoder.embed_dim)
+        self.encoder = encoder
+        self.norm = nn.LayerNorm(encoder.embed_dim)
         self.mlp = DropoutMLP(
             num_of_layers = num_of_mlp_layers,
-            in_size = compound_encoder.embed_dim,
+            in_size = encoder.embed_dim,
             hidden_size = mlp_hidden_size,
             out_size = out_size,
             activation = activation,
@@ -88,7 +88,7 @@ class DownstreamModel(GeoGNNLightningModule):
             Tensor: Predicted values with size `(self.out_size, )`.
         """
         node_repr, edge_repr, graph_repr \
-            = self.compound_encoder.forward(batched_atom_bond_graph, batched_bond_angle_graph)
+            = self.encoder.forward(batched_atom_bond_graph, batched_bond_angle_graph)
         graph_repr = self.norm.forward(graph_repr)
         pred = self.mlp.forward(graph_repr)
 

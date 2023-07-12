@@ -45,16 +45,16 @@ class ProtoModel(GeoGNNLightningModule):
         self.hparams: HyperParams
         self.save_hyperparameters()
 
-        self.compound_encoder = GeoGNNModel(
+        self.encoder = GeoGNNModel(
             embed_dim = embed_dim,
             dropout_rate = dropout_rate,
             num_of_layers = gnn_layers,
         )
-        self.norm = nn.LayerNorm(self.compound_encoder.embed_dim)
+        self.norm = nn.LayerNorm(self.encoder.embed_dim)
         self.mlp = DropoutMLP(
             num_of_layers = 2,
-            in_size = self.compound_encoder.embed_dim,
-            hidden_size = self.compound_encoder.embed_dim * 4,
+            in_size = self.encoder.embed_dim,
+            hidden_size = self.encoder.embed_dim * 4,
             out_size = out_size,
             activation = nn.LeakyReLU(),
             dropout_rate = dropout_rate,
@@ -73,7 +73,7 @@ class ProtoModel(GeoGNNLightningModule):
             Tensor: Predicted values with size `(self.out_size, )`.
         """
         batched_node_repr, batched_edge_repr \
-            = self.compound_encoder.forward(batched_atom_bond_graph, batched_bond_angle_graph, pool_graph=False)
+            = self.encoder.forward(batched_atom_bond_graph, batched_bond_angle_graph, pool_graph=False)
 
         pred_list: list[Tensor] = []
         for atom_bond_graph, node_repr in split_batched_data(
