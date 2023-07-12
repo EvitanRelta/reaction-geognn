@@ -2,16 +2,16 @@
 
 import os, pickle
 from abc import ABC, abstractmethod
+from itertools import chain
 from typing import Literal
 
 import dgl
 import lightning.pytorch as pl
 import torch
 from dgl import DGLGraph
-from geognn.datasets import GeoGNNBatch, GeoGNNDataElement, GeoGNNDataLoader, \
-    GeoGNNDataset
+from geognn.datasets import GeoGNNBatch, GeoGNNDataElement, GeoGNNDataLoader
 from torch import Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm.autonotebook import tqdm
 
 from .scaler import StandardizeScaler
@@ -40,12 +40,13 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
     """
 
     @abstractmethod
-    def get_dataset_splits(self) -> tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]:
+    def get_dataset_splits(self) -> \
+        tuple[Dataset[GeoGNNDataElement], Dataset[GeoGNNDataElement], Dataset[GeoGNNDataElement]]:
         """Get train, test and validation dataset splits.
 
         Returns:
-            tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]: Train, test and \
-                validation dataset splits in the form `(train, test, val)`.
+            tuple[Dataset[GeoGNNDataElement], Dataset[GeoGNNDataElement], Dataset[GeoGNNDataElement]]: \
+                Train, test and validation dataset splits in the form `(train, test, val)`.
         """
 
     @classmethod
@@ -100,9 +101,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
         # Check if the SMILES in the loaded dict matches that in the full dataset.
         assert set(self._cached_graphs.keys()) == {
             data['smiles'] for data in \
-                self.train_dataset.data_list \
-                + self.test_dataset.data_list \
-                + self.val_dataset.data_list
+                chain(iter(self.train_dataset), iter(self.test_dataset), iter(self.val_dataset))
         }, f'SMILES in "{self.cache_path}" cache file doesn\'t match those in the dataset.'
 
     def _save_cached_graphs(self) -> None:
@@ -120,9 +119,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
     def _precompute_all_graphs(self) -> None:
         full_smiles_set: set[str] = {
             data['smiles'] for data in \
-                self.train_dataset.data_list \
-                + self.test_dataset.data_list \
-                + self.val_dataset.data_list
+                chain(iter(self.train_dataset), iter(self.test_dataset), iter(self.val_dataset))
         }
         print(f'Precomputing graphs for {len(full_smiles_set)} SMILES strings:')
         for smiles in tqdm(full_smiles_set):
