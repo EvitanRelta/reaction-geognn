@@ -1,16 +1,16 @@
 import argparse, os
 from pprint import pprint
-from typing import Literal, TypedDict
+from typing import TypedDict
 
 import torch
+from geognn import DownstreamModel, GeoGNNModel
+from geognn.data_modules import QM9DataModule
 from lightning.pytorch import Trainer, seed_everything
 from lightning_utils import LoggedHyperParams
-from reaction_geognn.data_module import Wb97DataModule
-from reaction_geognn.model import ProtoModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
-GRAPH_CACHE_PATH = abs_path('./cached_graphs/cached_wb97.bin', __file__)
+GRAPH_CACHE_PATH = abs_path('./cached_graphs/cached_qm9.bin', __file__)
 
 def main():
     args = _parse_script_args()
@@ -18,18 +18,19 @@ def main():
     # To ensure deterministic
     seed_everything(0, workers=True)
 
-    wb97_data_module = Wb97DataModule(
-        fold_num = args['fold_num'],
+    qm9_data_module = QM9DataModule(
+        task_column_name = ['gap', 'h298'],
         batch_size = args['batch_size'],
-        cache_path = GRAPH_CACHE_PATH if args['cache_graphs'] \
-            else None,
+        shuffle = False,
+        cache_path = GRAPH_CACHE_PATH \
+            if args['cache_graphs'] else None,
     )
 
     if args['precompute_only']:
         if not args['cache_graphs']:
             print('"precompute-only" and "no-cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
             return
-        wb97_data_module.setup('fit')
+        qm9_data_module.setup('fit')
         return
 
     # Use GPU.
@@ -48,11 +49,18 @@ def main():
     if args['notes'] is not None:
         logged_hparams['notes'] = args['notes']
 
-    model = ProtoModel(
+    encoder = GeoGNNModel(
         embed_dim = args['embed_dim'],
-        gnn_layers = args['gnn_layers'],
         dropout_rate = args['dropout_rate'],
-        out_size = 1,
+        num_of_layers = args['gnn_layers'],
+    )
+    model = DownstreamModel(
+        encoder = encoder,
+        task_type = 'regression',
+        out_size = 2,  # Predicting QM9's HOMO-LUMO gap and enthalpy at 298K.
+        num_of_mlp_layers = 3,
+        mlp_hidden_size = 4 * args['embed_dim'],
+        dropout_rate = args['dropout_rate'],
         lr = args['lr'],
         _logged_hparams = logged_hparams,
     )
@@ -80,7 +88,7 @@ def main():
         assert len(checkpoint_file_names) == 1, \
             f'Expected 1 checkpoint file in "{checkpoint_dir}", but got {len(checkpoint_file_names)}.'
         checkpoint_path = os.path.join(checkpoint_dir, checkpoint_file_names[0])
-    trainer.fit(model, datamodule=wb97_data_module, ckpt_path=checkpoint_path)
+    trainer.fit(model, datamodule=qm9_data_module, ckpt_path=checkpoint_path)
 
 
 class Arguments(TypedDict):
@@ -102,7 +110,6 @@ class Arguments(TypedDict):
     # Trainer/Data module's params.
     batch_size: int
     epochs: int
-    fold_num: Literal[0, 1, 2, 3, 4]
 
 def _parse_script_args() -> Arguments:
     parser = argparse.ArgumentParser(description='Training Script')
@@ -115,7 +122,6 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--dropout-rate', type=float, default=0.1, help='dropout rate')
     parser.add_argument('--gnn-layers', type=int, default=8, help='num of GNN layers')
 
-    parser.add_argument('--fold-num', type=int, default=0, help='wb97xd3 fold_num-dataset to use')
     parser.add_argument('--batch-size', type=int, default=50, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
     parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
@@ -140,7 +146,6 @@ def _parse_script_args() -> Arguments:
 
         'batch_size': args.batch_size,
         'epochs': args.epochs,
-        'fold_num': args.fold_num,
     }
     print('Arguments:')
     pprint(output)
