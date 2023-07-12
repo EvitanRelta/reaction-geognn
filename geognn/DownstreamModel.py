@@ -59,6 +59,14 @@ class DownstreamModel(GeoGNNLightningModule):
                 `hparams.yaml` file.. Defaults to {}.
         """
         super().__init__(lr, _logged_hparams)
+        self.save_hyperparameters()
+        self.save_hyperparameters({
+            '_geognn_encoder_hparams': {
+                'embed_dim': encoder.embed_dim,
+                'dropout_rate': encoder.dropout_rate,
+                'num_of_layers': encoder.num_of_layers,
+            }
+        })
         self.task_type = task_type
         self.out_size = out_size
 
