@@ -12,9 +12,10 @@ https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_d
 
 from typing import Literal, TypeAlias
 
+from geognn_base_classes import GeoGNNDataset
 from utils import abs_path
 
-from .shared_definitions import GeoGNNDataset, load_smiles_csv
+from .shared_definitions import load_smiles_csv
 
 QM9_TASK_COL_NAMES: TypeAlias = Literal[
     'A', 'B', 'C', 'mu', 'alpha', 'homo', 'lumo', 'gap', 'r2', 'zpve', 'u0', \

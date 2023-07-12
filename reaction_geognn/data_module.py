@@ -2,7 +2,7 @@ from typing import Literal
 
 import torch
 from dgl import DGLGraph
-from geognn.datasets import GeoGNNDataset
+from geognn_base_classes import GeoGNNDataset
 from lightning_utils import GeoGNNCacheDataModule
 from typing_extensions import override
 

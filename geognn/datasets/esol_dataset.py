@@ -10,9 +10,10 @@ This is a PyTorch equivalent of GeoGNN's `esol_dataset.py`:
 https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/datasets/esol_dataset.py
 """
 
+from geognn_base_classes import GeoGNNDataset
 from utils import abs_path
 
-from .shared_definitions import GeoGNNDataset, load_smiles_csv
+from .shared_definitions import load_smiles_csv
 
 
 class ESOLDataset(GeoGNNDataset):

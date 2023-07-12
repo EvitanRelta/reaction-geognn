@@ -9,7 +9,8 @@ import dgl
 import lightning.pytorch as pl
 import torch
 from dgl import DGLGraph
-from geognn.datasets import GeoGNNBatch, GeoGNNDataElement, GeoGNNDataLoader
+from geognn_base_classes import GeoGNNBatch, GeoGNNDataElement, \
+    GeoGNNDataLoader
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from tqdm.autonotebook import tqdm

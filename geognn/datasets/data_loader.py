@@ -2,11 +2,11 @@ from typing import Callable, Iterator
 
 import dgl, torch
 from dgl import DGLGraph
+from geognn_base_classes import GeoGNNDataElement, GeoGNNDataLoader
 from torch import Tensor
 from torch.utils.data import Dataset
 
 from .. import Preprocessing
-from .shared_definitions import GeoGNNDataElement, GeoGNNDataLoader
 
 
 class GeoGNNDataLoader_(GeoGNNDataLoader):

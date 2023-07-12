@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 import torch
 import torchmetrics
 from dgl import DGLGraph
-from geognn.datasets import GeoGNNBatch
+from geognn_base_classes import GeoGNNBatch
 from torch import Tensor
 from torch.optim import Adam
 from typing_extensions import NotRequired

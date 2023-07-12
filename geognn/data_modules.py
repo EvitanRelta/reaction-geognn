@@ -2,12 +2,12 @@ from abc import ABC
 
 import torch
 from dgl import DGLGraph
+from geognn_base_classes import GeoGNNDataElement
 from lightning_utils import GeoGNNCacheDataModule
 from torch.utils.data import Dataset
 from typing_extensions import override
 
-from .datasets import QM9_TASK_COL_NAMES, GeoGNNDataElement, QM9Dataset, \
-    ScaffoldSplitter
+from .datasets import QM9_TASK_COL_NAMES, QM9Dataset, ScaffoldSplitter
 from .Preprocessing import Preprocessing
 
 
