@@ -4,6 +4,7 @@ from typing import Literal, TypedDict
 
 import torch
 from lightning.pytorch import Trainer, seed_everything
+from lightning_utils import LoggedHyperParams
 from reaction_geognn.data_module import Wb97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
@@ -37,16 +38,23 @@ def main():
     device = args['device'] if args['device'] \
         else get_least_utilized_and_allocated_gpu()
 
+    # Hyper-params that's not used in the model, but is logged in the
+    # lightning-log's `hparams.yaml` file.
+    logged_hparams: LoggedHyperParams = {}
+    if args['batch_size'] is not None:
+        logged_hparams['batch_size'] = args['batch_size']
+    if args['overfit_batches'] is not None:
+        logged_hparams['dataset_size'] = args['batch_size'] * args['overfit_batches']
+    if args['notes'] is not None:
+        logged_hparams['notes'] = args['notes']
+
     model = ProtoModel(
         embed_dim = args['embed_dim'],
         gnn_layers = args['gnn_layers'],
         dropout_rate = args['dropout_rate'],
         out_size = 1,
         lr = args['lr'],
-        _batch_size = args['batch_size'],
-        _dataset_size = args['batch_size'] * args['overfit_batches'] if args['overfit_batches'] \
-            else None,
-        _notes = args['notes'],
+        _logged_hparams = logged_hparams,
     )
     trainer = Trainer(
         deterministic = True,
