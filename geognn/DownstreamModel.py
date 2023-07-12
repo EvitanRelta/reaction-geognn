@@ -1,13 +1,15 @@
 from typing import Literal
 
 from dgl import DGLGraph
+from lightning_utils import GeoGNNLightningModule, LoggedHyperParams
 from torch import Tensor, nn
+from typing_extensions import override
 
 from .GeoGNN import GeoGNNModel
 from .layers import DropoutMLP
 
 
-class DownstreamModel(nn.Module):
+class DownstreamModel(GeoGNNLightningModule):
     """
     Model that uses the graph-representation output from
     `self.compound_encoder: GeoGNNModel` to make `out_size` number of predictions.
@@ -25,6 +27,8 @@ class DownstreamModel(nn.Module):
         mlp_hidden_size: int = 128,
         activation: nn.Module = nn.LeakyReLU(),
         dropout_rate: float = 0.2,
+        lr: float = 1e-4,
+        _logged_hparams: LoggedHyperParams = {},
     ):
         """
         Default values for `hidden_size`, `activation` and `dropout_rate` are
@@ -49,8 +53,12 @@ class DownstreamModel(nn.Module):
             mlp_hidden_size (int, optional): Hidden size of dropout MLP. Defaults to 128.
             activation (nn.Module, optional): Activation layer to use. Defaults to `nn.LeakyReLU()`.
             dropout_rate (float, optional): Dropout rate of the dropout MLP. Defaults to 0.2.
+            lr (float, optional): Learning rate. Defaults to 1e-4.
+            _logged_hparams (LoggedHyperParams, optional): Hyperparameters that's \
+                not used by the model, but is logged in the lightning-log's \
+                `hparams.yaml` file.. Defaults to {}.
         """
-        super().__init__()
+        super().__init__(lr, _logged_hparams)
         self.task_type = task_type
         self.out_size = out_size
 
@@ -67,19 +75,20 @@ class DownstreamModel(nn.Module):
         if self.task_type == 'classification':
             self.out_act = nn.Sigmoid()
 
-    def forward(self, atom_bond_graph: DGLGraph, bond_angle_graph: DGLGraph) -> Tensor:
+    @override
+    def forward(self, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph) -> Tensor:
         """
         Args:
-            atom_bond_graph (DGLGraph): Graph of a molecule, with atoms as \
-                nodes, bonds as edges.
-            bond_angle_graph (DGLGraph): Graph of a molecule, with bonds as \
-                nodes, bond-angles as edges.
+            batched_atom_bond_graph (DGLGraph): Graph (or batched graph) of \
+                molecules with atoms as nodes, bonds as edges.
+            batched_bond_angle_graph (DGLGraph): Graph (or batched graph) of \
+                molecules with bonds as nodes, bond-angles as edges.
 
         Returns:
             Tensor: Predicted values with size `(self.out_size, )`.
         """
         node_repr, edge_repr, graph_repr \
-            = self.compound_encoder.forward(atom_bond_graph, bond_angle_graph)
+            = self.compound_encoder.forward(batched_atom_bond_graph, batched_bond_angle_graph)
         graph_repr = self.norm.forward(graph_repr)
         pred = self.mlp.forward(graph_repr)
 
