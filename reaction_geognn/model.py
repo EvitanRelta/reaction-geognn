@@ -83,25 +83,27 @@ class ProtoModel(pl.LightningModule):
         self._test_step_values: list[tuple[Tensor, Tensor]] = [] # (pred, label) for each batch/step.
         self._val_step_values: list[tuple[Tensor, Tensor]] = [] # (pred, label) for each batch/step.
 
-    def forward(self, atom_bond_graph: DGLGraph, bond_angle_graph: DGLGraph) -> Tensor:
+    def forward(self, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph) -> Tensor:
         """
         Args:
-            atom_bond_graph (DGLGraph): Graph of a molecule, with atoms as \
-                nodes, bonds as edges.
-            bond_angle_graph (DGLGraph): Graph of a molecule, with bonds as \
-                nodes, bond-angles as edges.
+            batched_atom_bond_graph (DGLGraph): Graph (or batched graph) of \
+                molecules with atoms as nodes, bonds as edges.
+            batched_bond_angle_graph (DGLGraph): Graph (or batched graph) of \
+                molecules with bonds as nodes, bond-angles as edges.
 
         Returns:
             Tensor: Predicted values with size `(self.out_size, )`.
         """
         batched_node_repr, batched_edge_repr \
-            = self.compound_encoder.forward(atom_bond_graph, bond_angle_graph, pool_graph=False)
-
+            = self.compound_encoder.forward(batched_atom_bond_graph, batched_bond_angle_graph, pool_graph=False)
 
         pred_list: list[Tensor] = []
-        for node_repr, graph in split_batched_data(batched_node_repr, atom_bond_graph):
+        for atom_bond_graph, node_repr in split_batched_data(
+            batched_atom_bond_graph = batched_atom_bond_graph,
+            batched_node_repr = batched_node_repr,
+        ):
             reactant_node_repr, product_node_repr \
-                = split_reactant_product_node_feat(node_repr, graph)
+                = split_reactant_product_node_feat(node_repr, atom_bond_graph)
 
             diff_node_repr = product_node_repr - reactant_node_repr
 
