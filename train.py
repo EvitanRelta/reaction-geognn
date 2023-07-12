@@ -10,7 +10,7 @@ from lightning_utils import LoggedHyperParams
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
-GRAPH_CACHE_PATH = abs_path('./cached_graphs/cached_qm9.bin', __file__)
+GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_qm9.bin', __file__)
 
 def main():
     args = _parse_script_args()
@@ -28,8 +28,7 @@ def main():
 
     if args['precompute_only']:
         if not args['cache_graphs']:
-            print('"precompute_only" and "no_cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
-            return
+            raise RuntimeError('"--precompute_only" and "--no_cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
         if os.path.isfile(GRAPH_CACHE_PATH):
             raise RuntimeError(f'"--precompute_only" flag is used, but the cache file at "{GRAPH_CACHE_PATH}" already exists.')
         qm9_data_module.setup('fit')
