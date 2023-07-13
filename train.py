@@ -69,13 +69,14 @@ def main():
         _logged_hparams = logged_hparams,
     )
 
-    # Saves last and top-10 checkpoints based on "val_loss" metric.
+    # Saves last and top-10 checkpoints based on the epoch's standardized
+    # validation RMSE.
     chkpt_callback = ModelCheckpoint(
         save_top_k = 10,
         save_last = True,
-        monitor = "val_loss",
+        monitor = "std_val_loss",
         mode = "min",
-        filename = "qm9-{epoch:02d}-{val_loss:.2f}",
+        filename = "qm9-{epoch:02d}-{std_val_loss:.2f}",
     )
     trainer = Trainer(
         callbacks = [chkpt_callback],
