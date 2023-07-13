@@ -6,6 +6,7 @@ import torch
 from geognn import DownstreamModel, GeoGNNModel
 from geognn.data_modules import QM9DataModule
 from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning_utils import LoggedHyperParams
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
@@ -65,7 +66,17 @@ def main():
         lr = args['lr'],
         _logged_hparams = logged_hparams,
     )
+
+    # Saves last and top-10 checkpoints based on "val_loss" metric.
+    chkpt_callback = ModelCheckpoint(
+        save_top_k = 10,
+        save_last = True,
+        monitor = "val_loss",
+        mode = "min",
+        filename = "qm9-{epoch:02d}-{val_loss:.2f}",
+    )
     trainer = Trainer(
+        callbacks = [chkpt_callback],
         deterministic = True,
         # disable validation when overfitting.
         limit_val_batches = 0 if args['overfit_batches'] else None,
