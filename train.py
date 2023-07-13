@@ -113,7 +113,7 @@ class Arguments(TypedDict):
     epochs: int
 
 def _parse_script_args() -> Arguments:
-    parser = argparse.ArgumentParser(description='Training Script')
+    parser = argparse.ArgumentParser(description='Training Script', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--precompute_only', default=False, action='store_true', help='precompute graph cache file only')
     parser.add_argument('--no_load_save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
     parser.add_argument('--no_cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
