@@ -119,13 +119,13 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--no_cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
     parser.add_argument('--overfit_batches', type=int, default=0, help='train on set number of batches and disable validation to attempt to overfit')
 
-    parser.add_argument('--embed_dim', type=int, default=128, help='embedding dimension')
+    parser.add_argument('--embed_dim', type=int, default=256, help='embedding dimension')
     parser.add_argument('--dropout_rate', type=float, default=0.1, help='dropout rate')
-    parser.add_argument('--gnn_layers', type=int, default=8, help='num of GNN layers')
+    parser.add_argument('--gnn_layers', type=int, default=3, help='num of GNN layers')
 
-    parser.add_argument('--batch_size', type=int, default=50, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=16, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
-    parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
+    parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
     parser.add_argument('--device', type=str, default=None, help="device to run on")
     parser.add_argument('--resume_version', type=int, default=None, help="resume training from a lightning-log version")
     parser.add_argument('--notes', type=str, default=None, help="notes to add to model's `hparams.yaml` file")
