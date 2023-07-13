@@ -11,13 +11,14 @@ from lightning_utils import LoggedHyperParams
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
+SEED = 0
 GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_qm9.bin', __file__)
 
 def main():
     args = _parse_script_args()
 
     # To ensure deterministic
-    seed_everything(0, workers=True)
+    seed_everything(SEED, workers=True)
 
     qm9_data_module = QM9DataModule(
         task_column_name = ['gap', 'h298'],
@@ -25,6 +26,7 @@ def main():
         shuffle = args['shuffle'],
         cache_path = GRAPH_CACHE_PATH \
             if args['cache_graphs'] else None,
+        random_split_seed = SEED,
     )
 
     if args['precompute_only']:

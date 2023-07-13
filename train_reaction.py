@@ -10,13 +10,14 @@ from reaction_geognn.model import ProtoModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
+SEED = 0
 GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_wb97.bin', __file__)
 
 def main():
     args = _parse_script_args()
 
     # To ensure deterministic
-    seed_everything(0, workers=True)
+    seed_everything(SEED, workers=True)
 
     wb97_data_module = Wb97DataModule(
         fold_num = args['fold_num'],
