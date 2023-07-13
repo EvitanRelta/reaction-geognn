@@ -65,6 +65,14 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
         """
 
     def __init__(self, batch_size: int, shuffle: bool = False, cache_path: str | None = None) -> None:
+        """
+        Args:
+            batch_size (int): Batch size for the dataloaders.
+            shuffle (bool): Whether to shuffle training dataset. Defaults to False.
+            cache_path (str | None, optional): Path to existing graph-cache file, \
+                or on where to generate a new cache file should the it not exist. \
+                Defaults to None.
+        """
         super().__init__()
         self.batch_size = batch_size
         self.shuffle = shuffle
@@ -145,7 +153,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
             dataset = self.val_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
-            shuffle = self.shuffle,
+            shuffle = False,
         ) # type: ignore
 
     def test_dataloader(self) -> GeoGNNDataLoader:
@@ -153,7 +161,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
             dataset = self.test_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
-            shuffle = self.shuffle,
+            shuffle = False,
         ) # type: ignore
 
     def _collate_fn(self, batch: list[GeoGNNDataElement]) -> GeoGNNBatch:
