@@ -80,9 +80,13 @@ def main():
     if args["resume_version"]:
         checkpoint_dir = os.path.join(LIGHTNING_LOGS_DIR, f'version_{args["resume_version"]}/checkpoints')
         checkpoint_file_names = os.listdir(checkpoint_dir)
-        assert len(checkpoint_file_names) == 1, \
-            f'Expected 1 checkpoint file in "{checkpoint_dir}", but got {len(checkpoint_file_names)}.'
-        checkpoint_path = os.path.join(checkpoint_dir, checkpoint_file_names[0])
+        if len(checkpoint_file_names) == 1:
+            checkpoint_path = os.path.join(checkpoint_dir, checkpoint_file_names[0])
+        else:
+            checkpoint_path = os.path.join(checkpoint_dir, 'last.ckpt')
+            assert os.path.isfile(checkpoint_path), \
+                f'Expected either 1 checkpoint file in "{checkpoint_dir}", ' \
+                + f'or a last-checkpoint at "{checkpoint_path}", but neither is true.'
     trainer.fit(model, datamodule=wb97_data_module, ckpt_path=checkpoint_path)
 
 
