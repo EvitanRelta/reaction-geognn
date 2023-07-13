@@ -342,10 +342,10 @@ class Preprocessing:
 
         # Initialize graph with 1 node per bond.
         graph = dgl.graph(([], []), num_nodes=num_of_bonds)
+        graph.edata['bond_angle'] = torch.tensor([])
 
         # For the edge case where there's no bonds.
         if num_of_bonds == 0:
-            graph.edata['bond_angle'] = torch.tensor([])
             graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
             return graph
 
