@@ -75,7 +75,7 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
                 `hparams.yaml` file.. Defaults to {}.
         """
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters('_logged_hparams')
 
         self.lr = lr
         self.scaler: StandardizeScaler = StandardizeScaler()
