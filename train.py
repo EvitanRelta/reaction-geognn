@@ -21,7 +21,7 @@ def main():
     qm9_data_module = QM9DataModule(
         task_column_name = ['gap', 'h298'],
         batch_size = args['batch_size'],
-        shuffle = False,
+        shuffle = args['shuffle'],
         cache_path = GRAPH_CACHE_PATH \
             if args['cache_graphs'] else None,
     )
@@ -107,6 +107,7 @@ class Arguments(TypedDict):
     lr: float
 
     # Trainer/Data module's params.
+    shuffle: bool
     batch_size: int
     epochs: int
     device: torch.device | None
@@ -125,6 +126,7 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--gnn_layers', type=int, default=3, help='num of GNN layers')
     parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
 
+    parser.add_argument('--shuffle', default=False, action='store_true', help='enable shuffling on training dataset')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
     parser.add_argument('--device', type=str, default=None, help="device to run on")
@@ -143,6 +145,7 @@ def _parse_script_args() -> Arguments:
         'gnn_layers': args.gnn_layers,
         'lr': args.lr,
 
+        'shuffle': args.shuffle,
         'batch_size': args.batch_size,
         'epochs': args.epochs,
         'device': torch.device(args.device) if args.device else None,

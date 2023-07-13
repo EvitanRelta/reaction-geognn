@@ -21,6 +21,7 @@ def main():
     wb97_data_module = Wb97DataModule(
         fold_num = args['fold_num'],
         batch_size = args['batch_size'],
+        shuffle = args['shuffle'],
         cache_path = GRAPH_CACHE_PATH if args['cache_graphs'] \
             else None,
     )
@@ -100,6 +101,7 @@ class Arguments(TypedDict):
 
     # Trainer/Data module's params.
     fold_num: Literal[0, 1, 2, 3, 4]
+    shuffle: bool
     batch_size: int
     epochs: int
     device: torch.device | None
@@ -119,6 +121,7 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
 
     parser.add_argument('--fold_num', type=int, default=0, help='wb97xd3 fold_num-dataset to use')
+    parser.add_argument('--shuffle', default=False, action='store_true', help='enable shuffling on training dataset')
     parser.add_argument('--batch_size', type=int, default=50, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
     parser.add_argument('--device', type=str, default=None, help="device to run on")
@@ -138,6 +141,7 @@ def _parse_script_args() -> Arguments:
         'lr': args.lr,
 
         'fold_num': args.fold_num,
+        'shuffle': args.shuffle,
         'batch_size': args.batch_size,
         'epochs': args.epochs,
         'device': torch.device(args.device) if args.device else None,
