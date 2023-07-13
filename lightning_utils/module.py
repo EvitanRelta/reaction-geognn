@@ -156,14 +156,29 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
         self._train_step_values = []
 
     def on_validation_epoch_end(self) -> None:
+        std_loss = self._compute_full_dataset_std_metric(self._val_step_values)
+        self.log("std_val_loss", std_loss, prog_bar=True, logger=True)
         loss = self._compute_full_dataset_unstd_metric(self._val_step_values)
         self.log("val_loss", loss, prog_bar=True, logger=True)
         self._val_step_values = []
 
     def on_test_epoch_end(self) -> None:
+        std_loss = self._compute_full_dataset_std_metric(self._test_step_values)
+        self.log("std_test_loss", std_loss, prog_bar=True, logger=True)
         loss = self._compute_full_dataset_unstd_metric(self._test_step_values)
         self.log("test_loss", loss, prog_bar=True, logger=True)
         self._test_step_values = []
+
+    def _compute_full_dataset_std_metric(self, step_values: list[tuple[Tensor, Tensor]]) -> Tensor:
+        # Unzip the predictions and labels.
+        pred_list, labels_list = zip(*step_values)
+
+        # Concatenate prediction/labels tensors.
+        all_pred = torch.cat(pred_list, dim=0)
+        all_labels = torch.cat(labels_list, dim=0)
+
+        full_dataset_std_loss = self.metric(all_pred, all_labels)
+        return full_dataset_std_loss
 
     def _compute_full_dataset_unstd_metric(self, step_values: list[tuple[Tensor, Tensor]]) -> Tensor:
         # Unzip the predictions and labels.
