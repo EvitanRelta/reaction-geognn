@@ -70,7 +70,7 @@ def main():
         # disable validation when overfitting.
         limit_val_batches = 0 if args['overfit_batches'] else None,
 
-        enable_checkpointing = args['load_save_checkpoints'],
+        enable_checkpointing = args['enable_checkpointing'],
         accelerator = device.type,
         devices = [device.index],
         overfit_batches = args['overfit_batches'],
@@ -95,58 +95,58 @@ def main():
 class Arguments(TypedDict):
     # For debugging.
     precompute_only: bool
-    load_save_checkpoints: bool
+    enable_checkpointing: bool
     cache_graphs: bool
     overfit_batches: int
+    notes: str | None
 
     # Model's hyper params.
     embed_dim: int
     dropout_rate: float
     gnn_layers: int
     lr: float
-    device: torch.device | None
-    resume_version: int | None
-    notes: str | None
 
     # Trainer/Data module's params.
     batch_size: int
     epochs: int
+    device: torch.device | None
+    resume_version: int | None
 
 def _parse_script_args() -> Arguments:
     parser = argparse.ArgumentParser(description='Training Script', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--precompute_only', default=False, action='store_true', help='precompute graph cache file only')
-    parser.add_argument('--no_load_save', default=False, action='store_true', help='prevents loading/saving of checkpoints')
+    parser.add_argument('--no_save', default=False, action='store_true', help='prevents saving of checkpoints')
     parser.add_argument('--no_cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
     parser.add_argument('--overfit_batches', type=int, default=0, help='train on set number of batches and disable validation to attempt to overfit')
+    parser.add_argument('--notes', type=str, default=None, help="notes to add to model's `hparams.yaml` file")
 
     parser.add_argument('--embed_dim', type=int, default=256, help='embedding dimension')
     parser.add_argument('--dropout_rate', type=float, default=0.1, help='dropout rate')
     parser.add_argument('--gnn_layers', type=int, default=3, help='num of GNN layers')
+    parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
 
     parser.add_argument('--batch_size', type=int, default=16, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
-    parser.add_argument('--lr', type=float, default=1e-4, help="learning rate")
     parser.add_argument('--device', type=str, default=None, help="device to run on")
     parser.add_argument('--resume_version', type=int, default=None, help="resume training from a lightning-log version")
-    parser.add_argument('--notes', type=str, default=None, help="notes to add to model's `hparams.yaml` file")
     args = parser.parse_args()
 
     output: Arguments = {
         'precompute_only': args.precompute_only,
-        'load_save_checkpoints': not args.no_load_save,
+        'enable_checkpointing': not args.no_save,
         'cache_graphs': not args.no_cache,
         'overfit_batches': args.overfit_batches,
+        'notes': args.notes,
 
         'embed_dim': args.embed_dim,
         'dropout_rate': args.dropout_rate,
         'gnn_layers': args.gnn_layers,
         'lr': args.lr,
-        'device': torch.device(args.device) if args.device else None,
-        'resume_version': args.resume_version,
-        'notes': args.notes,
 
         'batch_size': args.batch_size,
         'epochs': args.epochs,
+        'device': torch.device(args.device) if args.device else None,
+        'resume_version': args.resume_version,
     }
     print('Arguments:')
     pprint(output)
@@ -154,7 +154,7 @@ def _parse_script_args() -> Arguments:
     if output['precompute_only']:
         print('Warning: Only precomputation of graph cache will be done.')
         return output
-    if not output['load_save_checkpoints']:
+    if not output['enable_checkpointing']:
         print('Warning: No loading/saving of checkpoints will be done.')
     if not output['cache_graphs']:
         print('Warning: No loading/saving/precomputing of graph cache file will be done.')
