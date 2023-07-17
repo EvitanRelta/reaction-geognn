@@ -15,6 +15,7 @@ GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_wb97.bin', __file__)
 
 def main():
     args = _parse_script_args()
+    _validate_args(args)
 
     # To ensure deterministic
     seed_everything(SEED, workers=True)
@@ -28,18 +29,13 @@ def main():
     )
 
     if args['precompute_only']:
-        if not args['cache_graphs']:
-            raise RuntimeError('"--precompute_only" and "--no_cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
-        if os.path.isfile(GRAPH_CACHE_PATH):
-            raise RuntimeError(f'"--precompute_only" flag is used, but the cache file at "{GRAPH_CACHE_PATH}" already exists.')
         wb97_data_module.setup('fit')
         return
 
     # Use GPU.
     assert torch.cuda.is_available(), "No visible GPU."
     assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
-    device = args['device'] if args['device'] \
-        else get_least_utilized_and_allocated_gpu()
+    device = args['device'] or get_least_utilized_and_allocated_gpu()
 
     # Hyper-params that's not used in the model, but is logged in the
     # lightning-log's `hparams.yaml` file.
@@ -76,17 +72,7 @@ def main():
     if args['overfit_batches']:
         trainer.limit_val_batches = 0
 
-    checkpoint_path: str | None = None
-    if args["resume_version"]:
-        checkpoint_dir = os.path.join(LIGHTNING_LOGS_DIR, f'version_{args["resume_version"]}/checkpoints')
-        checkpoint_file_names = os.listdir(checkpoint_dir)
-        if len(checkpoint_file_names) == 1:
-            checkpoint_path = os.path.join(checkpoint_dir, checkpoint_file_names[0])
-        else:
-            checkpoint_path = os.path.join(checkpoint_dir, 'last.ckpt')
-            assert os.path.isfile(checkpoint_path), \
-                f'Expected either 1 checkpoint file in "{checkpoint_dir}", ' \
-                + f'or a last-checkpoint at "{checkpoint_path}", but neither is true.'
+    checkpoint_path = _get_checkpoint_path(args['resume_version'])
     trainer.fit(model, datamodule=wb97_data_module, ckpt_path=checkpoint_path)
 
 
@@ -154,16 +140,38 @@ def _parse_script_args() -> Arguments:
     }
     print('Arguments:')
     pprint(output)
+    return output
+
+def _validate_args(args: Arguments) -> None:
     print('\n')
-    if output['precompute_only']:
+    if args['precompute_only']:
+        if not args['cache_graphs']:
+            raise RuntimeError('"--precompute_only" and "--no_cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
+        if os.path.isfile(GRAPH_CACHE_PATH):
+            raise RuntimeError(f'"--precompute_only" flag is used, but the cache file at "{GRAPH_CACHE_PATH}" already exists.')
         print('Warning: Only precomputation of graph cache will be done.')
-        return output
-    if not output['enable_checkpointing']:
+        return
+
+    if not args['enable_checkpointing']:
         print('Warning: No loading/saving of checkpoints will be done.')
-    if not output['cache_graphs']:
+    if not args['cache_graphs']:
         print('Warning: No loading/saving/precomputing of graph cache file will be done.')
     print('\n')
-    return output
+
+def _get_checkpoint_path(version_num: int | None) -> str | None:
+    if version_num is None:
+        return None
+
+    checkpoint_dir = os.path.join(LIGHTNING_LOGS_DIR, f'version_{version_num}/checkpoints')
+    checkpoint_file_names = os.listdir(checkpoint_dir)
+    if len(checkpoint_file_names) == 1:
+        return os.path.join(checkpoint_dir, checkpoint_file_names[0])
+
+    checkpoint_path = os.path.join(checkpoint_dir, 'last.ckpt')
+    assert os.path.isfile(checkpoint_path), \
+        f'Expected either 1 checkpoint file in "{checkpoint_dir}", ' \
+        + f'or a last-checkpoint at "{checkpoint_path}", but neither is true.'
+    return checkpoint_path
 
 
 
