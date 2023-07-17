@@ -280,18 +280,17 @@ class GeoGNNModel(nn.Module):
                 edge (and optionally graph) representations in the form \
                 - `(node_repr, edge_repr, graph_repr)`
         """
-        node_embeddings = self.init_atom_embedding.forward(atom_bond_graph.ndata)
-        edge_embeddings = self.init_bond_embedding.forward(atom_bond_graph.edata) \
+        node_repr = self.init_atom_embedding.forward(atom_bond_graph.ndata)
+        edge_repr = self.init_bond_embedding.forward(atom_bond_graph.edata) \
             + self.init_bond_rbf.forward(atom_bond_graph.edata)
 
-        node_out = node_embeddings
-        edge_out = edge_embeddings
         for gnn_layer in self.gnn_layer_list:
             assert isinstance(gnn_layer, GeoGNNLayer)
-            node_out, edge_out = gnn_layer.forward(atom_bond_graph, bond_angle_graph, node_out, edge_out)
+            node_repr, edge_repr = \
+                gnn_layer.forward(atom_bond_graph, bond_angle_graph, node_repr, edge_repr)
 
         if not pool_graph:
-            return node_out, edge_out
+            return node_repr, edge_repr
 
-        graph_repr = self.graph_pool.forward(atom_bond_graph, node_out)
-        return node_out, edge_out, graph_repr
+        graph_repr = self.graph_pool.forward(atom_bond_graph, node_repr)
+        return node_repr, edge_repr, graph_repr
