@@ -3,8 +3,8 @@ from pprint import pprint
 from typing import Literal, TypedDict
 
 import torch
+from base_classes import LoggedHyperParams
 from lightning.pytorch import Trainer, seed_everything
-from lightning_utils import LoggedHyperParams
 from reaction_geognn.data_module import Wb97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \

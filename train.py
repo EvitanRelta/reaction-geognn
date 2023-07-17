@@ -3,11 +3,11 @@ from pprint import pprint
 from typing import TypedDict
 
 import torch
+from base_classes import LoggedHyperParams
 from geognn import DownstreamModel, GeoGNNModel
 from geognn.data_modules import QM9DataModule
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning_utils import LoggedHyperParams
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 

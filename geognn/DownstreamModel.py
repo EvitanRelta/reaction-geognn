@@ -1,7 +1,7 @@
 from typing import Literal
 
+from base_classes import GeoGNNLightningModule, LoggedHyperParams
 from dgl import DGLGraph
-from lightning_utils import GeoGNNLightningModule, LoggedHyperParams
 from torch import Tensor, nn
 from typing_extensions import override
 

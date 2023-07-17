@@ -1,10 +1,10 @@
 from typing import Protocol
 
 import torch
+from base_classes import GeoGNNLightningModule, LoggedHyperParams
 from dgl import DGLGraph
 from geognn import GeoGNNModel
 from geognn.layers import DropoutMLP
-from lightning_utils import GeoGNNLightningModule, LoggedHyperParams
 from torch import Tensor, nn
 from typing_extensions import override
 
