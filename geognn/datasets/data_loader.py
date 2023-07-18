@@ -1,8 +1,8 @@
 from typing import Callable, Iterator
 
 import dgl, torch
+from base_classes import GeoGNNDataElement, GeoGNNDataLoader
 from dgl import DGLGraph
-from geognn_base_classes import GeoGNNDataElement, GeoGNNDataLoader
 from torch import Tensor
 from torch.utils.data import Dataset
 

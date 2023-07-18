@@ -4,8 +4,8 @@ from typing import Any, TypedDict
 import lightning.pytorch as pl
 import torch
 import torchmetrics
+from base_classes import GeoGNNBatch
 from dgl import DGLGraph
-from geognn_base_classes import GeoGNNBatch
 from torch import Tensor
 from torch.optim import Adam
 from typing_extensions import NotRequired

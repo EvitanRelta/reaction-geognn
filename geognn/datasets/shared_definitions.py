@@ -3,7 +3,7 @@ from typing import cast
 
 import pandas as pd
 import torch
-from geognn_base_classes import GeoGNNDataElement
+from base_classes import GeoGNNDataElement
 
 
 def load_smiles_csv(

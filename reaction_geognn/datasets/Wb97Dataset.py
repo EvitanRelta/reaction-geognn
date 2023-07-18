@@ -2,7 +2,7 @@ from typing import Sized, cast
 
 import pandas as pd
 import torch
-from geognn_base_classes import GeoGNNDataElement
+from base_classes import GeoGNNDataElement
 from torch.utils.data import Dataset
 from typing_extensions import override
 from utils import abs_path

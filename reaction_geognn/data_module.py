@@ -1,9 +1,8 @@
 from typing import Literal
 
 import torch
-from base_classes import GeoGNNCacheDataModule
+from base_classes import GeoGNNCacheDataModule, GeoGNNDataset
 from dgl import DGLGraph
-from geognn_base_classes import GeoGNNDataset
 from typing_extensions import override
 
 from .datasets import get_wb97_fold_dataset

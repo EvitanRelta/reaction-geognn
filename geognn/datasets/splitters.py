@@ -1,6 +1,6 @@
 
 import numpy as np
-from geognn_base_classes import GeoGNNDataElement
+from base_classes import GeoGNNDataElement
 from rdkit.Chem.Scaffolds import MurckoScaffold
 from torch.utils.data import Dataset, Subset
 

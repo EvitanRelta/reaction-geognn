@@ -1,5 +1,5 @@
+from base_classes import GeoGNNDataset
 from geognn.datasets.shared_definitions import load_smiles_csv
-from geognn_base_classes import GeoGNNDataset
 from utils import abs_path
 
 
