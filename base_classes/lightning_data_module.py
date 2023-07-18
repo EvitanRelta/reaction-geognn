@@ -3,7 +3,7 @@
 import os, pickle
 from abc import ABC, abstractmethod
 from itertools import chain
-from typing import Literal
+from typing import Callable, Literal
 
 import dgl
 import lightning.pytorch as pl
@@ -16,6 +16,7 @@ from tqdm.autonotebook import tqdm
 from .dataloader import GeoGNNBatch, GeoGNNDataLoader
 from .dataset import GeoGNNDataElement
 from .scaler import StandardizeScaler
+from .transform_dataset import TransformDataset
 
 
 class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
@@ -79,15 +80,19 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
         self.cache_path = cache_path
         self._cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {}
 
-        self.train_dataset, self.test_dataset, self.val_dataset \
+        self.raw_train_dataset, self.raw_test_dataset, self.raw_val_dataset \
             = self.get_dataset_splits()
 
-        train_labels = torch.stack([el['data'] for el in self.train_dataset])
+        train_labels = torch.stack([el['data'] for el in self.raw_train_dataset])
         self.scaler = StandardizeScaler()
         """Scaler used to transform the labels for train/val/test dataloaders."""
         self.scaler.fit(train_labels)
 
     def setup(self, stage: Literal['fit', 'validate', 'test', 'predict']) -> None:
+        self._setup_cache()
+        self._preprocess_datasets()
+
+    def _setup_cache(self) -> None:
         if not self.cache_path:
             return
 
@@ -98,6 +103,19 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
         self._precompute_all_graphs()
         self._save_cached_graphs()
 
+    def _preprocess_datasets(self) -> None:
+        preprocess_data: Callable[[GeoGNNDataElement], GeoGNNBatch] = lambda elem : (
+            *self._get_graphs(elem['smiles']),
+            self.scaler.transform(elem['data'])
+        )
+        self.train_dataset = TransformDataset(self.raw_train_dataset, preprocess_data)
+        self.test_dataset = TransformDataset(self.raw_test_dataset, preprocess_data)
+        self.val_dataset = TransformDataset(self.raw_val_dataset, preprocess_data)
+
+
+    # ==========================================================================
+    #                          Caching-related methods
+    # ==========================================================================
     def _load_cached_graphs(self) -> None:
         assert self.cache_path and os.path.exists(self.cache_path)
 
@@ -109,8 +127,11 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
 
         # Check if the SMILES in the loaded dict matches that in the full dataset.
         assert set(self._cached_graphs.keys()) == {
-            data['smiles'] for data in \
-                chain(iter(self.train_dataset), iter(self.test_dataset), iter(self.val_dataset))
+            data['smiles'] for data in chain(
+                iter(self.raw_train_dataset),
+                iter(self.raw_test_dataset),
+                iter(self.raw_val_dataset),
+            )
         }, f'SMILES in "{self.cache_path}" cache file doesn\'t match those in the dataset.'
 
     def _save_cached_graphs(self) -> None:
@@ -127,8 +148,11 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
 
     def _precompute_all_graphs(self) -> None:
         full_smiles_set: set[str] = {
-            data['smiles'] for data in \
-                chain(iter(self.train_dataset), iter(self.test_dataset), iter(self.val_dataset))
+            data['smiles'] for data in chain(
+                iter(self.raw_train_dataset),
+                iter(self.raw_test_dataset),
+                iter(self.raw_val_dataset),
+            )
         }
         print(f'Precomputing graphs for {len(full_smiles_set)} SMILES strings:')
         for smiles in tqdm(full_smiles_set):
@@ -164,25 +188,23 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
             shuffle = False,
         ) # type: ignore
 
-    def _collate_fn(self, batch: list[GeoGNNDataElement]) -> GeoGNNBatch:
+    @classmethod
+    def _collate_fn(cls, batch: list[GeoGNNBatch]) -> GeoGNNBatch:
         """Collate-function used in the train/val/test dataloaders.
 
-        Collates/Transforms a batch of `GeoGNNDataElement` obtained from the
-        dataset.
+        Collates a batch of `GeoGNNBatch` obtained from the dataset.
         """
         atom_bond_graphs: list[DGLGraph] = []
         bond_angle_graphs: list[DGLGraph] = []
-        data_list: list[Tensor] = []
-        for elem in batch:
-            smiles, data = elem['smiles'], elem['data']
-            atom_bond_graph, bond_angle_graph = self._get_graphs(smiles)
+        labels_list: list[Tensor] = []
+        for atom_bond_graph, bond_angle_graph, labels in batch:
             atom_bond_graphs.append(atom_bond_graph)
             bond_angle_graphs.append(bond_angle_graph)
-            data_list.append(data)
+            labels_list.append(labels)
         return (
             dgl.batch(atom_bond_graphs),
             dgl.batch(bond_angle_graphs),
-            self.scaler.transform(torch.stack(data_list)),
+            torch.stack(labels_list),
         )
 
     def _get_graphs(self, smiles: str) -> tuple[DGLGraph, DGLGraph]:
