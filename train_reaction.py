@@ -7,13 +7,13 @@ from base_classes import LoggedHyperParams
 from geognn import DownstreamModel, GeoGNNModel
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
-from reaction_geognn.data_module import Wb97DataModule
+from reaction_geognn.data_module import B97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
 SEED = 0
-GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_wb97_superimposed.bin', __file__)
+GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_b97_superimposed.bin', __file__)
 
 def main():
     args = _parse_script_args()
@@ -22,7 +22,7 @@ def main():
     # To ensure deterministic
     seed_everything(SEED, workers=True)
 
-    wb97_data_module = Wb97DataModule(
+    wb97_data_module = B97DataModule(
         fold_num = args['fold_num'],
         batch_size = args['batch_size'],
         shuffle = args['shuffle'],
