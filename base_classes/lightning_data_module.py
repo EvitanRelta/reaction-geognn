@@ -65,19 +65,39 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
                 form `(atom_bond_graph, bond_angle_graph)`.
         """
 
-    def __init__(self, batch_size: int, shuffle: bool = False, cache_path: str | None = None) -> None:
+    def __init__(
+        self,
+        batch_size: int,
+        shuffle: bool = False,
+        cache_path: str | None = None,
+        dataloader_num_workers: int = 0,
+    ) -> None:
         """
         Args:
             batch_size (int): Batch size for the dataloaders.
             shuffle (bool): Whether to shuffle training dataset. Defaults to False.
             cache_path (str | None, optional): Path to existing graph-cache file, \
                 or on where to generate a new cache file should the it not exist. \
+                If `None`, the graphs are computed when they're getted from the \
+                dataset (instead of all being precomputed in `self.setup`). \
                 Defaults to None.
+            dataloader_num_workers (int, optional): Value passed to `num_workers` \
+                in the train/test/val `DataLoaders`. `dataloader_num_workers > 0` \
+                cannot be used with `cache_path = None`. Defaults to 0.
         """
         super().__init__()
+        assert cache_path != None or dataloader_num_workers == 0, \
+            "`dataloader_num_workers > 0` cannot be used with `cache_path = None` as this will " \
+            + "cause CUDA to throw an error. This is because `cache_path = None` forces the graphs " \
+            + "to be computed and saved to a `dict` \"cache\" when they're first getted from the " \
+            + "dataset; however, I didn't design this this cache-dict to be sharable between multiple " \
+            + "workers/processes. On the other hand, when `cache_path != None`, all the dataset-elements " \
+            + "are transformed by the loaded/precomputed cache-dict during initialisation, thus there's " \
+            + "no sharing of a cache-dict."
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.cache_path = cache_path
+        self.dataloader_num_workers = dataloader_num_workers
         self._cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {}
 
         self.raw_train_dataset, self.raw_test_dataset, self.raw_val_dataset \
@@ -108,9 +128,10 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
             *self._get_graphs(elem['smiles']),
             self.scaler.transform(elem['data'])
         )
-        self.train_dataset = TransformDataset(self.raw_train_dataset, preprocess_data)
-        self.test_dataset = TransformDataset(self.raw_test_dataset, preprocess_data)
-        self.val_dataset = TransformDataset(self.raw_val_dataset, preprocess_data)
+        did_not_load_cache = self.cache_path == None
+        self.train_dataset = TransformDataset(self.raw_train_dataset, preprocess_data, transform_on_get=did_not_load_cache)
+        self.test_dataset = TransformDataset(self.raw_test_dataset, preprocess_data, transform_on_get=did_not_load_cache)
+        self.val_dataset = TransformDataset(self.raw_val_dataset, preprocess_data, transform_on_get=did_not_load_cache)
 
 
     # ==========================================================================
@@ -166,6 +187,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
     # ==========================================================================
     def train_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
+            num_workers = self.dataloader_num_workers,
             dataset = self.train_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
@@ -174,6 +196,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
 
     def val_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
+            num_workers = self.dataloader_num_workers,
             dataset = self.val_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
@@ -182,6 +205,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
 
     def test_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
+            num_workers = self.dataloader_num_workers,
             dataset = self.test_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
