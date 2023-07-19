@@ -5,6 +5,7 @@ from base_classes import GeoGNNCacheDataModule, GeoGNNDataset, GeoGNNGraphs
 from typing_extensions import override
 
 from .datasets import get_wb97_fold_dataset
+from .graph_utils import superimpose_reactant_products_graphs
 from .preprocessing import reaction_smart_to_graph
 
 
@@ -16,7 +17,12 @@ class Wb97DataModule(GeoGNNCacheDataModule):
     @override
     @classmethod
     def compute_graphs(cls, smiles: str) -> GeoGNNGraphs:
-        return reaction_smart_to_graph(smiles, torch.device('cpu'))
+        atom_bond_graph, bond_angle_graph = reaction_smart_to_graph(smiles, torch.device('cpu'))
+        return (
+            atom_bond_graph,
+            bond_angle_graph,
+            superimpose_reactant_products_graphs(atom_bond_graph),
+        )
 
     def __init__(
         self,

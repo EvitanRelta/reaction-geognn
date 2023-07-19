@@ -49,7 +49,7 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
     """
 
     @abstractmethod
-    def forward(self, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph) -> Tensor:
+    def forward(self, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph, superimposed_atom_graph: DGLGraph) -> Tensor:
         """
         Args:
             batched_atom_bond_graph (DGLGraph): Graph (or batched graph) of \
@@ -116,8 +116,8 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
 
 
     def training_step(self, batch: GeoGNNBatch, batch_idx: int) -> Tensor:
-        atom_bond_batch_graph, bond_angle_batch_graph, *_, labels = batch
-        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+        atom_bond_batch_graph, bond_angle_batch_graph, superimposed_atom_graph, *_, labels = batch
+        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph, superimposed_atom_graph)
         self._train_step_values.append((pred, labels))
         loss = self.loss_fn(pred, labels)
 
@@ -127,14 +127,14 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
         return loss
 
     def predict_step(self, batch: GeoGNNBatch | GeoGNNGraphs, batch_idx: int) -> Tensor:
-        atom_bond_batch_graph, bond_angle_batch_graph, *_ = batch
-        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+        atom_bond_batch_graph, bond_angle_batch_graph, superimposed_atom_graph, *_ = batch
+        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph, superimposed_atom_graph)
         pred = self.scaler.inverse_transform(pred)
         return pred
 
     def validation_step(self, batch: GeoGNNBatch, batch_idx: int) -> Tensor:
-        atom_bond_batch_graph, bond_angle_batch_graph, *_, labels = batch
-        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+        atom_bond_batch_graph, bond_angle_batch_graph, superimposed_atom_graph, *_, labels = batch
+        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph, superimposed_atom_graph)
         self._val_step_values.append((pred, labels))
 
         # Unstandardize values before computing loss.
@@ -145,8 +145,8 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
         return loss
 
     def test_step(self, batch: GeoGNNBatch, batch_idx: int) -> Tensor:
-        atom_bond_batch_graph, bond_angle_batch_graph, *_, labels = batch
-        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph)
+        atom_bond_batch_graph, bond_angle_batch_graph, superimposed_atom_graph, *_, labels = batch
+        pred = self.forward(atom_bond_batch_graph, bond_angle_batch_graph, superimposed_atom_graph)
         self._test_step_values.append((pred, labels))
 
         # Unstandardize values before computing loss.
