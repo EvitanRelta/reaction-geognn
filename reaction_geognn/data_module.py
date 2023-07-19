@@ -1,8 +1,7 @@
 from typing import Literal
 
 import torch
-from base_classes import GeoGNNCacheDataModule, GeoGNNDataset
-from dgl import DGLGraph
+from base_classes import GeoGNNCacheDataModule, GeoGNNDataset, GeoGNNGraphs
 from typing_extensions import override
 
 from .datasets import get_wb97_fold_dataset
@@ -16,7 +15,7 @@ class Wb97DataModule(GeoGNNCacheDataModule):
 
     @override
     @classmethod
-    def compute_graphs(cls, smiles: str) -> tuple[DGLGraph, DGLGraph]:
+    def compute_graphs(cls, smiles: str) -> GeoGNNGraphs:
         return reaction_smart_to_graph(smiles, torch.device('cpu'))
 
     def __init__(

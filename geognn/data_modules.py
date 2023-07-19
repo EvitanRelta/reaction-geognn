@@ -2,8 +2,7 @@ import math
 from abc import ABC
 
 import torch
-from base_classes import GeoGNNCacheDataModule, GeoGNNDataElement
-from dgl import DGLGraph
+from base_classes import GeoGNNCacheDataModule, GeoGNNDataElement, GeoGNNGraphs
 from torch.utils.data import Dataset, random_split
 from typing_extensions import override
 
@@ -14,7 +13,7 @@ from .Preprocessing import Preprocessing
 class _BaseDataModule(GeoGNNCacheDataModule, ABC):
     @override
     @classmethod
-    def compute_graphs(cls, smiles: str) -> tuple[DGLGraph, DGLGraph]:
+    def compute_graphs(cls, smiles: str) -> GeoGNNGraphs:
         return Preprocessing.smiles_to_graphs(smiles, torch.device('cpu'))
 
 

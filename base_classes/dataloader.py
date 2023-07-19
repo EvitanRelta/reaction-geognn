@@ -5,10 +5,12 @@ from typing import TypeAlias
 from dgl import DGLGraph
 from torch import Tensor
 from torch.utils.data import DataLoader
+from typing_extensions import Unpack
 
 from .dataset import GeoGNNDataElement
 
-GeoGNNBatch: TypeAlias = tuple[DGLGraph, DGLGraph, Tensor]
+GeoGNNGraphs: TypeAlias = tuple[DGLGraph, DGLGraph]
+GeoGNNBatch: TypeAlias = tuple[Unpack[GeoGNNGraphs], Tensor]
 """Batched input in the form `(atom_bond_batch_graph, bond_angle_batch_graph, labels)`
 of type `tuple[DGLGraph, DGLGraph, Tensor]`.
 """

@@ -3,7 +3,7 @@
 import os, pickle
 from abc import ABC, abstractmethod
 from itertools import chain
-from typing import Callable, Literal
+from typing import Callable, Literal, cast
 
 import dgl
 import lightning.pytorch as pl
@@ -13,7 +13,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from tqdm.autonotebook import tqdm
 
-from .dataloader import GeoGNNBatch, GeoGNNDataLoader
+from .dataloader import GeoGNNBatch, GeoGNNDataLoader, GeoGNNGraphs
 from .dataset import GeoGNNDataElement
 from .scaler import StandardizeScaler
 from .transform_dataset import TransformDataset
@@ -37,7 +37,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
 
     @abstractmethod
     @classmethod
-    def compute_graphs(cls, smiles: str) -> tuple[DGLGraph, DGLGraph]: ...
+    def compute_graphs(cls, smiles: str) -> GeoGNNGraphs: ...
     ```
     """
 
@@ -53,7 +53,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
 
     @classmethod
     @abstractmethod
-    def compute_graphs(cls, smiles: str) -> tuple[DGLGraph, DGLGraph]:
+    def compute_graphs(cls, smiles: str) -> GeoGNNGraphs:
         """Compute GeoGNN's atom-bond graph and bond-angle graph from a
         molecule's/reaction's SMILES/SMART string.
 
@@ -61,7 +61,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
             smiles (str): Molecule's/Reaction's SMILES/SMART string.
 
         Returns:
-            tuple[DGLGraph, DGLGraph]: Atom-bond and bond-angle graphs in the \
+            GeoGNNGraphs: Atom-bond and bond-angle graphs in the \
                 form `(atom_bond_graph, bond_angle_graph)`.
         """
 
@@ -98,7 +98,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
         self.shuffle = shuffle
         self.cache_path = cache_path
         self.dataloader_num_workers = dataloader_num_workers
-        self._cached_graphs: dict[str, tuple[DGLGraph, DGLGraph]] = {}
+        self._cached_graphs: dict[str, GeoGNNGraphs] = {}
 
         self.raw_train_dataset, self.raw_test_dataset, self.raw_val_dataset \
             = self.get_dataset_splits()
@@ -221,20 +221,16 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
 
         Collates a batch of `GeoGNNBatch` obtained from the dataset.
         """
-        atom_bond_graphs: list[DGLGraph] = []
-        bond_angle_graphs: list[DGLGraph] = []
-        labels_list: list[Tensor] = []
-        for atom_bond_graph, bond_angle_graph, labels in batch:
-            atom_bond_graphs.append(atom_bond_graph)
-            bond_angle_graphs.append(bond_angle_graph)
-            labels_list.append(labels)
+        *graph_lists, labels_list = zip(*batch)
+        graph_lists = cast(list[list[DGLGraph]], graph_lists)
+        labels_list = cast(list[Tensor], labels_list)
+
         return (
-            dgl.batch(atom_bond_graphs),
-            dgl.batch(bond_angle_graphs),
+            *[dgl.batch(lst) for lst in graph_lists],
             torch.stack(labels_list),
         )
 
-    def _get_graphs(self, smiles: str) -> tuple[DGLGraph, DGLGraph]:
+    def _get_graphs(self, smiles: str) -> GeoGNNGraphs:
         """Gets cached graphs from SMILES, or compute them if they're not already cached."""
         if smiles not in self._cached_graphs:
             self._cached_graphs[smiles] \
