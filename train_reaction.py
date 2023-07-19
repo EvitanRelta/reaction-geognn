@@ -12,7 +12,7 @@ from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
 SEED = 0
-GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_wb97.bin', __file__)
+GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_wb97_superimposed.bin', __file__)
 
 def main():
     args = _parse_script_args()

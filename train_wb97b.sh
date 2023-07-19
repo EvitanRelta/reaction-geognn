@@ -7,3 +7,4 @@ $DGL_PYTHON_PATH train_reaction.py \
     --epochs 1000 \
     \
     --device "cuda:$GPU" \
+    --notes "pool concat-reactant-diff, GNN-aggregate bonds b4 pooling" \
