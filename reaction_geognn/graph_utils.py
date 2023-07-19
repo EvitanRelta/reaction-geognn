@@ -1,29 +1,11 @@
 """Utility functions for manipulating DGLGraphs."""
 
-from typing import Mapping, cast, overload
+from typing import Mapping, cast
 
 import dgl, torch
 from dgl import DGLGraph
 from torch import Tensor
 
-
-@overload
-def split_batched_data(*, batched_atom_bond_graph: DGLGraph) -> list[DGLGraph]: ...
-@overload
-def split_batched_data(*, batched_atom_bond_graph: DGLGraph, batched_node_repr: Tensor) -> list[tuple[DGLGraph, Tensor]]: ...
-@overload
-def split_batched_data(*, batched_atom_bond_graph: DGLGraph, batched_edge_repr: Tensor) -> list[tuple[DGLGraph, Tensor]]: ...
-@overload
-def split_batched_data(*, batched_atom_bond_graph: DGLGraph, batched_node_repr: Tensor, batched_edge_repr: Tensor) -> list[tuple[DGLGraph, Tensor, Tensor]]: ...
-
-@overload
-def split_batched_data(*, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph) -> list[tuple[DGLGraph, DGLGraph]]: ...
-@overload
-def split_batched_data(*, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph, batched_node_repr: Tensor) -> list[tuple[DGLGraph, DGLGraph, Tensor]]: ...
-@overload
-def split_batched_data(*, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph, batched_edge_repr: Tensor) -> list[tuple[DGLGraph, DGLGraph, Tensor]]: ...
-@overload
-def split_batched_data(*, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph | None = None, batched_node_repr: Tensor, batched_edge_repr: Tensor) -> list[tuple[DGLGraph, DGLGraph, Tensor, Tensor]]: ...
 
 def split_batched_data(
     *,
@@ -31,9 +13,7 @@ def split_batched_data(
     batched_bond_angle_graph: DGLGraph | None = None,
     batched_node_repr: Tensor | None = None,
     batched_edge_repr: Tensor | None = None,
-) -> list[DGLGraph] | list[tuple[DGLGraph, Tensor]] | list[tuple[DGLGraph, Tensor, Tensor]] | \
-    list[tuple[DGLGraph, DGLGraph]] | list[tuple[DGLGraph, DGLGraph, Tensor]] | \
-    list[tuple[DGLGraph, DGLGraph, Tensor, Tensor]]:
+) -> list[tuple[DGLGraph | Tensor, ...]]:
 
     """Split batched graph(s) and/or node/edge-representation tensors into
     individual graphs and tensors.
@@ -49,9 +29,8 @@ def split_batched_data(
             size `(total_num_edges, feat_size)`.
 
     Returns:
-        list[DGLGraph] | list[tuple[DGLGraph | Tensor]]: Unbatched \
-            graphs/representation-tensors in the order: `atom_bond_graph`, \
-            `bond_angle_graph`, `node_repr`, `edge_repr`. """
+        list[tuple[DGLGraph | Tensor, ...]]: Unbatched graphs/representation-tensors \
+            in the order: `atom_bond_graph`, `bond_angle_graph`, `node_repr`, `edge_repr`. """
     output_lists: list[list[DGLGraph] | tuple[Tensor]] = []
     output_lists.append(dgl.unbatch(batched_atom_bond_graph))
 

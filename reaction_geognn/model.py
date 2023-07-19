@@ -80,6 +80,8 @@ class ProtoModel(GeoGNNLightningModule):
             batched_atom_bond_graph = batched_atom_bond_graph,
             batched_node_repr = batched_node_repr,
         ):
+            assert isinstance(atom_bond_graph, DGLGraph) \
+                and isinstance(node_repr, Tensor)
             reactant_node_repr, product_node_repr \
                 = split_reactant_product_node_feat(node_repr, atom_bond_graph)
 
