@@ -6,6 +6,7 @@ import torch
 from base_classes import LoggedHyperParams
 from geognn import DownstreamModel, GeoGNNModel
 from lightning.pytorch import Trainer, seed_everything
+from lightning.pytorch.callbacks import ModelCheckpoint
 from reaction_geognn.data_module import Wb97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
@@ -83,7 +84,17 @@ def main():
             _logged_hparams = logged_hparams,
         )
 
+    # Saves last and top-10 checkpoints based on the epoch's standardized
+    # validation RMSE.
+    chkpt_callback = ModelCheckpoint(
+        save_top_k = 10,
+        save_last = True,
+        monitor = "std_val_loss",
+        mode = "min",
+        filename = "qm9-{epoch:02d}-{std_val_loss}",
+    )
     trainer = Trainer(
+        callbacks = [chkpt_callback],
         deterministic = True,
         # disable validation when overfitting.
         limit_val_batches = 0 if args['overfit_batches'] else None,
