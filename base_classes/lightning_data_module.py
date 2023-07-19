@@ -188,6 +188,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
     def train_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
             num_workers = self.dataloader_num_workers,
+            pin_memory = True,
             dataset = self.train_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
@@ -197,6 +198,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
     def val_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
             num_workers = self.dataloader_num_workers,
+            pin_memory = True,
             dataset = self.val_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
@@ -206,6 +208,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
     def test_dataloader(self) -> GeoGNNDataLoader:
         return DataLoader(
             num_workers = self.dataloader_num_workers,
+            pin_memory = True,
             dataset = self.test_dataset,
             batch_size = self.batch_size,
             collate_fn = self._collate_fn,
