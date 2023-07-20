@@ -11,6 +11,11 @@ class StandardizeScaler:
         self._fit_std: Tensor | None = None
 
     @property
+    def has_fitted(self) -> bool:
+        return (self._fit_mean is not None) \
+            and (self._fit_std is not None)
+
+    @property
     def fit_mean(self) -> Tensor:
         if self._fit_mean == None:
             raise RuntimeError('Scaler has not not been fitted yet.')

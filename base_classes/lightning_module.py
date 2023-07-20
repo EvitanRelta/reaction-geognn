@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 import lightning.pytorch as pl
 import torch
@@ -96,10 +96,17 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
     def configure_optimizers(self):
         return Adam(self.parameters(), lr=self.lr)
 
-    def on_fit_start(self) -> None:
-        if hasattr(self.trainer, 'datamodule') and hasattr(self.trainer.datamodule, 'scaler'): # type: ignore
+    def setup(self, stage: Literal['fit', 'validate', 'test', 'predict']) -> None:
+        if stage == 'fit':
+            error_msg = "Attempted to extract scaler instance from " \
+                + "`self.trainer.datamodule.scaler`, but `{obj}` doesn't exist."
+            assert hasattr(self.trainer, 'datamodule'), error_msg.format(obj="self.trainer.datamodule")
+            assert hasattr(self.trainer.datamodule, 'scaler'), error_msg.format(obj="self.trainer.datamodule.scaler") # type: ignore
             self.scaler = self.trainer.datamodule.scaler # type: ignore
+
             assert isinstance(self.scaler, StandardizeScaler)
+            assert self.scaler.has_fitted, \
+                '`self.trainer.datamodule.scaler` has not been fitted to training dataset yet.'
 
     def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         checkpoint['scaler'] = self.scaler
