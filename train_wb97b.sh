@@ -7,4 +7,3 @@ $DGL_PYTHON_PATH train_reaction.py \
     --epochs 1000 \
     \
     --device "cuda:$GPU" \
-    --shuffle \
