@@ -4,7 +4,7 @@ from typing import Literal, TypedDict
 
 import torch
 from base_classes import LoggedHyperParams
-from geognn import GeoGNNModel
+from geognn import DownstreamModel, GeoGNNModel
 from lightning.pytorch import Trainer, seed_everything
 from reaction_geognn.data_module import Wb97DataModule
 from reaction_geognn.model import ProtoModel
@@ -48,18 +48,41 @@ def main():
     if args['notes'] is not None:
         logged_hparams['notes'] = args['notes']
 
-    encoder = GeoGNNModel(
-        embed_dim = args['embed_dim'],
-        dropout_rate = args['dropout_rate'],
-        num_of_layers = args['gnn_layers'],
-    )
-    model = ProtoModel(
-        encoder = encoder,
-        dropout_rate = args['dropout_rate'],
-        out_size = 1,
-        lr = args['lr'],
-        _logged_hparams = logged_hparams,
-    )
+    if args['pretrained_encoder_chkpt_path']:
+        encoder_downstream = DownstreamModel.load_from_checkpoint(args['pretrained_encoder_chkpt_path'])
+        encoder = encoder_downstream.encoder
+        assert encoder.embed_dim == args['embed_dim']
+        assert encoder.dropout_rate == args['dropout_rate']
+        assert encoder.num_of_layers == args['gnn_layers']
+    else:
+        encoder = GeoGNNModel(
+            embed_dim = args['embed_dim'],
+            dropout_rate = args['dropout_rate'],
+            num_of_layers = args['gnn_layers'],
+        )
+
+    if args['pretrained_chkpt_path']:
+        model = ProtoModel.load_from_checkpoint(
+            args['pretrained_chkpt_path'],
+            lr=args['lr'], # Allow lr to be changed.
+            _logged_hparams = logged_hparams,
+        )
+        assert model.encoder.embed_dim == args['embed_dim']
+        assert model.encoder.dropout_rate == args['dropout_rate']
+        assert model.encoder.num_of_layers == args['gnn_layers']
+
+        assert model.hparams.dropout_rate == args['dropout_rate']
+        assert model.hparams.lr == args['lr']
+        assert model.hparams.out_size == 1
+    else:
+        model = ProtoModel(
+            encoder = encoder,
+            dropout_rate = args['dropout_rate'],
+            out_size = 1,
+            lr = args['lr'],
+            _logged_hparams = logged_hparams,
+        )
+
     trainer = Trainer(
         deterministic = True,
         # disable validation when overfitting.
@@ -102,6 +125,8 @@ class Arguments(TypedDict):
     epochs: int
     device: torch.device | None
     resume_version: int | None
+    pretrained_chkpt_path: str | None
+    pretrained_encoder_chkpt_path: str | None
 
 def _parse_script_args() -> Arguments:
     parser = argparse.ArgumentParser(description='Training Script', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -122,6 +147,8 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
     parser.add_argument('--device', type=str, default=None, help='device to run on (eg. "cuda:1" for GPU-1, "cpu" for CPU). If not specified, auto-picks the least utilized GPU')
     parser.add_argument('--resume_version', type=int, default=None, help="resume training from a lightning-log version")
+    parser.add_argument('--pretrained_chkpt_path', type=str, default=None, help="checkpoint path of the pretrained downstream-model to load")
+    parser.add_argument('--pretrained_encoder_chkpt_path', type=str, default=None, help="checkpoint path of the pretrained encoder's downstream-model to load")
     args = parser.parse_args()
 
     output: Arguments = {
@@ -142,6 +169,10 @@ def _parse_script_args() -> Arguments:
         'epochs': args.epochs,
         'device': torch.device(args.device) if args.device else None,
         'resume_version': args.resume_version,
+        'pretrained_chkpt_path': abs_path(args.pretrained_chkpt_path, __file__) \
+            if args.pretrained_chkpt_path != None else None,
+        'pretrained_encoder_chkpt_path': abs_path(args.pretrained_encoder_chkpt_path, __file__) \
+            if args.pretrained_encoder_chkpt_path != None else None,
     }
     print('Arguments:')
     pprint(output)
@@ -156,6 +187,11 @@ def _validate_args(args: Arguments) -> None:
             raise RuntimeError(f'"--precompute_only" flag is used, but the cache file at "{GRAPH_CACHE_PATH}" already exists.')
         print('Warning: Only precomputation of graph cache will be done.')
         return
+
+    if (args['resume_version'] != None) \
+        + (args['pretrained_chkpt_path'] != None) \
+        + (args['pretrained_encoder_chkpt_path'] != None) > 1:
+        raise RuntimeError('"--resume_version", "--pretrained_chkpt_path" and/or "--pretrained_encoder_chkpt_path" cannot be used together. Else idk which checkpoint to load.')
 
     if not args['enable_checkpointing']:
         print('Warning: No loading/saving of checkpoints will be done.')
