@@ -106,10 +106,10 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--overfit_batches', type=int, default=0, help='train on set number of batches and disable validation to attempt to overfit')
     parser.add_argument('--notes', type=str, default=None, help="notes to add to model's `hparams.yaml` file")
 
-    parser.add_argument('--embed_dim', type=int, default=128, help='embedding dimension')
+    parser.add_argument('--embed_dim', type=int, default=256, help='embedding dimension')
     parser.add_argument('--dropout_rate', type=float, default=0.1, help='dropout rate')
-    parser.add_argument('--gnn_layers', type=int, default=8, help='num of GNN layers')
-    parser.add_argument('--lr', type=float, default=1e-3, help="learning rate")
+    parser.add_argument('--gnn_layers', type=int, default=3, help='num of GNN layers')
+    parser.add_argument('--lr', type=float, default=3e-4, help="learning rate")
 
     parser.add_argument('--fold_num', type=int, default=0, help='wb97xd3 fold_num-dataset to use')
     parser.add_argument('--shuffle', default=False, action='store_true', help='enable shuffling on training dataset')
