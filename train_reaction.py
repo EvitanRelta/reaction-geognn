@@ -4,6 +4,7 @@ from typing import Literal, TypedDict
 
 import torch
 from base_classes import LoggedHyperParams
+from geognn import GeoGNNModel
 from lightning.pytorch import Trainer, seed_everything
 from reaction_geognn.data_module import Wb97DataModule
 from reaction_geognn.model import ProtoModel
@@ -47,9 +48,13 @@ def main():
     if args['notes'] is not None:
         logged_hparams['notes'] = args['notes']
 
-    model = ProtoModel(
+    encoder = GeoGNNModel(
         embed_dim = args['embed_dim'],
-        gnn_layers = args['gnn_layers'],
+        dropout_rate = args['dropout_rate'],
+        num_of_layers = args['gnn_layers'],
+    )
+    model = ProtoModel(
+        encoder = encoder,
         dropout_rate = args['dropout_rate'],
         out_size = 1,
         lr = args['lr'],
