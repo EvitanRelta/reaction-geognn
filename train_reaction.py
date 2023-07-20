@@ -95,7 +95,7 @@ def main():
         filename = "{epoch:02d}-{std_val_loss:.2e}",
     )
     trainer = Trainer(
-        callbacks = [chkpt_callback],
+        callbacks = [chkpt_callback] if args['enable_checkpointing'] else None,
         deterministic = True,
         # disable validation when overfitting.
         limit_val_batches = 0 if args['overfit_batches'] else None,
