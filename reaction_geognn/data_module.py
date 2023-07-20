@@ -33,3 +33,10 @@ class Wb97DataModule(GeoGNNCacheDataModule):
     ):
         self.fold_num: Literal[0, 1, 2, 3, 4] = fold_num
         super().__init__(batch_size, shuffle, cache_path)
+
+
+class B97DataModule(Wb97DataModule):
+    @override
+    def get_dataset_splits(self) -> tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]:
+        wb97, b97 = get_wb97_fold_dataset(self.fold_num, include_pretrain=True)
+        return b97
