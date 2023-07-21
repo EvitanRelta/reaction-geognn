@@ -1,19 +1,24 @@
 import argparse, os
 from pprint import pprint
-from typing import Literal, TypedDict
+from typing import Literal, TypeAlias, TypedDict
 
 import torch
 from base_classes import LoggedHyperParams
 from geognn import DownstreamModel, GeoGNNModel
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
-from reaction_geognn.data_module import Wb97DataModule
+from reaction_geognn.data_module import B97DataModule, Wb97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
+DatasetNames: TypeAlias = Literal['wb97xd3', 'b97d3']
+
 SEED = 0
-GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_wb97_superimposed.bin', __file__)
+GRAPH_CACHE_PATHS: dict[DatasetNames, str] = {
+    'wb97xd3': abs_path('cached_graphs/cached_wb97_superimposed.bin', __file__),
+    'b97d3': abs_path('cached_graphs/cached_b97_superimposed.bin', __file__),
+}
 
 def main():
     args = _parse_script_args()
@@ -22,16 +27,28 @@ def main():
     # To ensure deterministic
     seed_everything(SEED, workers=True)
 
-    wb97_data_module = Wb97DataModule(
-        fold_num = args['fold_num'],
-        batch_size = args['batch_size'],
-        shuffle = args['shuffle'],
-        cache_path = GRAPH_CACHE_PATH if args['cache_graphs'] \
-            else None,
-    )
+    match args['dataset']:
+        case 'wb97xd3':
+            data_module = Wb97DataModule(
+                fold_num = args['fold_num'],
+                batch_size = args['batch_size'],
+                shuffle = args['shuffle'],
+                cache_path = GRAPH_CACHE_PATHS[args['dataset']] \
+                    if args['cache_graphs'] else None,
+            )
+        case 'b97d3':
+            data_module = B97DataModule(
+                fold_num = args['fold_num'],
+                batch_size = args['batch_size'],
+                shuffle = args['shuffle'],
+                cache_path = GRAPH_CACHE_PATHS[args['dataset']] \
+                    if args['cache_graphs'] else None,
+            )
+        case _:
+            raise RuntimeError(f'Expected value of "--dataset" flag to be "wb97xd3" or "b97d3", but got "{args["dataset"]}".')
 
     if args['precompute_only']:
-        wb97_data_module.setup('fit')
+        data_module.setup('fit')
         return
 
     # Use GPU.
@@ -123,7 +140,7 @@ def main():
         trainer.limit_val_batches = 0
 
     checkpoint_path = _get_checkpoint_path(args['resume_version'])
-    trainer.fit(model, datamodule=wb97_data_module, ckpt_path=checkpoint_path)
+    trainer.fit(model, datamodule=data_module, ckpt_path=checkpoint_path)
 
 
 class Arguments(TypedDict):
@@ -141,6 +158,7 @@ class Arguments(TypedDict):
     lr: float
 
     # Trainer/Data module's params.
+    dataset: DatasetNames
     fold_num: Literal[0, 1, 2, 3, 4]
     shuffle: bool
     batch_size: int
@@ -163,7 +181,8 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--gnn_layers', type=int, default=3, help='num of GNN layers')
     parser.add_argument('--lr', type=float, default=3e-4, help="learning rate")
 
-    parser.add_argument('--fold_num', type=int, default=0, help='wb97xd3 fold_num-dataset to use')
+    parser.add_argument('--dataset', type=str, default="wb97xd3", help='reaction dataset to use. Either "wb97xd3" or "b97d3"')
+    parser.add_argument('--fold_num', type=int, default=0, help='which fold-split in the wb97xd3/b97d3 dataset to use')
     parser.add_argument('--no_shuffle', default=False, action='store_true', help='disable shuffling on training dataset')
     parser.add_argument('--batch_size', type=int, default=50, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
@@ -185,6 +204,7 @@ def _parse_script_args() -> Arguments:
         'gnn_layers': args.gnn_layers,
         'lr': args.lr,
 
+        'dataset': args.dataset,
         'fold_num': args.fold_num,
         'shuffle': not args.no_shuffle,
         'batch_size': args.batch_size,
@@ -205,8 +225,8 @@ def _validate_args(args: Arguments) -> None:
     if args['precompute_only']:
         if not args['cache_graphs']:
             raise RuntimeError('"--precompute_only" and "--no_cache" shouldn\'t be used together. Else it\'ll not save the precomputed graphs, which is a waste of time.')
-        if os.path.isfile(GRAPH_CACHE_PATH):
-            raise RuntimeError(f'"--precompute_only" flag is used, but the cache file at "{GRAPH_CACHE_PATH}" already exists.')
+        if os.path.isfile(GRAPH_CACHE_PATHS[args['dataset']]):
+            raise RuntimeError(f'"--precompute_only" flag is used, but the cache file at "{GRAPH_CACHE_PATHS[args["dataset"]]}" already exists.')
         print('Warning: Only precomputation of graph cache will be done.')
         return
 
