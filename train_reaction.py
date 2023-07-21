@@ -114,8 +114,8 @@ def main():
     # Saves last and top-20 checkpoints based on the epoch's standardized
     # validation RMSE.
     chkpt_callback = ModelCheckpoint(
-        save_top_k = 20,
-        every_n_epochs = 5,
+        save_top_k = -1,
+        every_n_epochs = 2,
         save_last = True,
         monitor = "std_val_loss",
         mode = "min",
