@@ -1,10 +1,8 @@
 #!/bin/bash
 
 DGL_PYTHON_PATH="/home/tzongzhi/anaconda3/envs/dgl-geognn/bin/python"
-GPU=1
 
 $DGL_PYTHON_PATH train.py \
-    --epochs 1000 \
-    \
-    --device "cuda:$GPU" \
-    --notes "QM9" \
+    --notes "QM9 5e-5" \
+    --lr 5e-5 \
+    --epochs 100 \
