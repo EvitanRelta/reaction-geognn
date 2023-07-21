@@ -1,4 +1,4 @@
-import math, os, shutil, subprocess
+import math, os, shutil, subprocess, time
 from typing import TypeAlias
 
 import matplotlib.pyplot as plt
@@ -162,13 +162,61 @@ def plot_losses(
     plt.show()
 
 
-def get_least_utilized_and_allocated_gpu() -> torch.device:
+def get_least_utilized_and_allocated_gpu(monitor_duration: float = 3) -> torch.device:
     """
     Returns the `torch.device` of the GPU with the lowest weighed badness value
     calculated from utilization % and allocated memory %.
 
+    Args:
+        monitor_duration (float, optional): Seconds to monitor GPUs for \
+            (polling every 0.5s), after which the highest utilization values \
+            while monitoring are used. Defaults to 3.
+
     Returns:
         torch.device: The `torch.device` of the least utilized and memory allocated GPU.
+    """
+    POLLING_INTERVAL = 0.5
+
+    gpu_stats = _get_gpu_stats()
+    num_polls = int(monitor_duration / POLLING_INTERVAL)
+    if num_polls > 1:
+        print('Monitoring GPUs...')
+    for _ in range(num_polls - 1): # -1 cuz we've already polled once above.
+        time.sleep(POLLING_INTERVAL)
+        for gpu_id, (utilization, memory_ratio) in enumerate(_get_gpu_stats()):
+            gpu_stats[gpu_id] = (
+                max(gpu_stats[gpu_id][0], utilization),
+                max(gpu_stats[gpu_id][1], memory_ratio),
+            )
+    assert len(gpu_stats) > 0, "No visible GPU."
+    assert len(gpu_stats) > 1, "Only 1 GPU (expected to run on a machine with multiple GPUs)."
+
+    badnesses: list[tuple[int, float]] = []
+    for gpu_id, (utilization, memory_ratio) in enumerate(gpu_stats):
+        # `f` is mostly linear, then exponentially increases when close to 1.
+        # This is to rank almost full/fully-utilized GPUs worse.
+        # Visualization: https://www.desmos.com/calculator/bunpkkrg57
+        f = lambda x : 10 ** (5 * (x - 1)) + x
+
+        badness_value = 0.6 * f(utilization) + 0.4 * f(memory_ratio) # weigh utilization more, cuz my models don't use much memory.
+        badnesses.append((gpu_id, badness_value))
+
+        # Printing GPU stats for debugging.
+        print(f'GPU-{gpu_id}: Util = {utilization * 100:>3.0f} %, MemAlloc = {memory_ratio * 100:>3.0f} %, Badness = {badness_value:>4.2f}')
+
+    # Sort GPUs by badness value
+    sorted_gpus = sorted(badnesses, key=lambda x: x[1])
+
+    least_used_gpu_id = sorted_gpus[0][0]
+    print(f'Using GPU-{least_used_gpu_id}...\n')
+    return torch.device(f'cuda:{least_used_gpu_id}')
+
+def _get_gpu_stats() -> list[tuple[float, float]]:
+    """Get each GPU's current utilization and memory usage percentages.
+
+    Returns:
+        list[tuple[float, float]]: `(utilization, memory_usage)` for each GPU. \
+            The values are in the range [0, 1], `1` being 100% usage.
     """
     result = subprocess.check_output([
         'nvidia-smi',
@@ -178,27 +226,12 @@ def get_least_utilized_and_allocated_gpu() -> torch.device:
 
     # GPU stats are returned in separate lines
     gpu_stats = result.strip().split('\n')
-    assert len(gpu_stats) > 0, "No visible GPU."
-    assert len(gpu_stats) > 1, "Only 1 GPU (expected to run on a machine with multiple GPUs)."
-
-    parsed_stats: list[tuple[int, float]] = []
+    parsed_stats: list[tuple[float, float]] = []
     for gpu_stat in gpu_stats:
         stats = gpu_stat.split(', ')
-        gpu_id = int(stats[0])
         utilization = int(stats[1]) / 100
         memory_used = int(stats[2])
         memory_total = int(stats[3])
         memory_ratio = memory_used / memory_total
-
-        badness_value = 0.5 * utilization + 0.5 * memory_ratio
-        parsed_stats.append((gpu_id, badness_value))
-
-        # Printing GPU stats for debugging.
-        print(f'GPU-{gpu_id}: Util = {utilization * 100:>3.0f}%, MemAlloc = {memory_ratio * 100:>4.1f}%, Badness = {badness_value:>4.2f}')
-
-    # Sort GPUs by badness value
-    sorted_gpus = sorted(parsed_stats, key=lambda x: x[1])
-
-    least_used_gpu_id = sorted_gpus[0][0]
-    print(f'Using GPU-{least_used_gpu_id}...\n')
-    return torch.device(f'cuda:{least_used_gpu_id}')
+        parsed_stats.append((utilization, memory_ratio))
+    return parsed_stats
