@@ -132,9 +132,7 @@ def main():
     trainer = Trainer(
         callbacks = callbacks,
         deterministic = True,
-        # disable validation when overfitting.
-        limit_val_batches = 0 if args['overfit_batches'] else None,
-
+        limit_val_batches = 0 if args['no_validation'] else None,
         enable_checkpointing = args['enable_checkpointing'],
         accelerator = device.type,
         devices = [device.index],
@@ -144,7 +142,7 @@ def main():
 
     # disable validation doesn't seem to work with overfit_batches.
     # this should force it to work.
-    if args['overfit_batches']:
+    if args['overfit_batches'] and args['no_validation']:
         trainer.limit_val_batches = 0
 
     checkpoint_path = _get_checkpoint_path(args['resume_version'])
@@ -157,6 +155,7 @@ class Arguments(TypedDict):
     enable_checkpointing: bool
     cache_graphs: bool
     overfit_batches: int
+    no_validation: bool
     notes: str | None
 
     # Model's hyper params.
@@ -182,7 +181,8 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--precompute_only', default=False, action='store_true', help='precompute graph cache file only')
     parser.add_argument('--no_save', default=False, action='store_true', help='prevents saving of checkpoints')
     parser.add_argument('--no_cache', default=False, action='store_true', help='prevents loading/saving/precomputing of graph cache file')
-    parser.add_argument('--overfit_batches', type=int, default=0, help='train on set number of batches and disable validation to attempt to overfit')
+    parser.add_argument('--overfit_batches', type=int, default=0, help='train on set number of batches in an attempt to overfit')
+    parser.add_argument('--no_validation', default=False, action='store_true', help='disable validation')
     parser.add_argument('--notes', type=str, default=None, help="notes to add to model's `hparams.yaml` file")
 
     parser.add_argument('--embed_dim', type=int, default=256, help='embedding dimension')
@@ -207,6 +207,7 @@ def _parse_script_args() -> Arguments:
         'enable_checkpointing': not args.no_save,
         'cache_graphs': not args.no_cache,
         'overfit_batches': args.overfit_batches,
+        'no_validation': args.no_validation,
         'notes': args.notes,
 
         'embed_dim': args.embed_dim,
