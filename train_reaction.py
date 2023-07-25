@@ -6,7 +6,8 @@ import torch
 from base_classes import LoggedHyperParams
 from geognn import DownstreamModel, GeoGNNModel
 from lightning.pytorch import Trainer, seed_everything
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import Callback, EarlyStopping, \
+    ModelCheckpoint
 from reaction_geognn.data_module import B97DataModule, Wb97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
@@ -111,18 +112,25 @@ def main():
             _logged_hparams = logged_hparams,
         )
 
-    # Saves last and top-20 checkpoints based on the epoch's standardized
-    # validation RMSE.
-    chkpt_callback = ModelCheckpoint(
-        save_top_k = -1,
-        every_n_epochs = 2,
-        save_last = True,
-        monitor = "std_val_loss",
-        mode = "min",
-        filename = "{epoch:02d}-{std_val_loss:.2e}",
-    )
+    callbacks: list[Callback] = []
+
+    if args['enable_checkpointing']:
+        # Saves last and top-20 checkpoints based on the epoch's standardized
+        # validation RMSE.
+        callbacks.append(
+            ModelCheckpoint(
+                save_top_k = 1,
+                save_last = True,
+                monitor = "std_val_loss",
+                mode = "min",
+                filename = "{epoch:02d}-{std_val_loss:.2e}",
+            )
+        )
+    if args['early_stop']:
+        callbacks.append(EarlyStopping(monitor="std_val_loss"))
+
     trainer = Trainer(
-        callbacks = [chkpt_callback] if args['enable_checkpointing'] else None,
+        callbacks = callbacks,
         deterministic = True,
         # disable validation when overfitting.
         limit_val_batches = 0 if args['overfit_batches'] else None,
@@ -163,6 +171,7 @@ class Arguments(TypedDict):
     shuffle: bool
     batch_size: int
     epochs: int
+    early_stop: bool
     device: torch.device | None
     resume_version: int | None
     pretrained_chkpt_path: str | None
@@ -186,6 +195,7 @@ def _parse_script_args() -> Arguments:
     parser.add_argument('--no_shuffle', default=False, action='store_true', help='disable shuffling on training dataset')
     parser.add_argument('--batch_size', type=int, default=50, help='batch size')
     parser.add_argument('--epochs', type=int, default=100, help='num of epochs to run')
+    parser.add_argument('--early_stop', default=False, action='store_true', help="stop training early if validation loss doesn't decrease 3 times in a row")
     parser.add_argument('--device', type=str, default=None, help='device to run on (eg. "cuda:1" for GPU-1, "cpu" for CPU). If not specified, auto-picks the least utilized GPU')
     parser.add_argument('--resume_version', type=int, default=None, help="resume training from a lightning-log version")
     parser.add_argument('--pretrained_chkpt_path', type=str, default=None, help="checkpoint path of the pretrained downstream-model to load")
@@ -209,6 +219,7 @@ def _parse_script_args() -> Arguments:
         'shuffle': not args.no_shuffle,
         'batch_size': args.batch_size,
         'epochs': args.epochs,
+        'early_stop': args.early_stop,
         'device': torch.device(args.device) if args.device else None,
         'resume_version': args.resume_version,
         'pretrained_chkpt_path': abs_path(args.pretrained_chkpt_path, __file__) \
