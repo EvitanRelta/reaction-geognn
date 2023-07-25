@@ -1,5 +1,5 @@
 import math, os, shutil, subprocess, time
-from typing import TypeAlias
+from typing import Callable, TypeAlias
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -97,70 +97,105 @@ def concat_version(
         else:
             os.rename(old_version_dir, old_version_dir + "_old")
 
-
+Color = tuple[int, int, int] | str
 def plot_losses(
-    losses_dicts: dict[str, list[float]],
-    num_epoches: int | None = None,
-    single_plot: bool = False,
+    version_nums: list[int],
+    plot_title: str = "Losses",
+    x_y_labels: tuple[str, str] = ("Epochs", "Loss"),
+    titles: list[str] | str | Callable[[int, dict], str] = lambda v, hparams: f"(v{v}) {hparams['_logged_hparams']['notes']}",
+    epoch_range: tuple[int, int] = (0, 9999),
+    metric_col_names: list[str] = ["train_loss", "val_loss"],
+    metric_map: list[Callable[[list[float]], list[float]] | None] | None = None,
+    linestyles: list[str] = ["solid", "dashed", "dotted", "dashdot"],
+    colors: list[Color] = sns.color_palette("deep"), # type: ignore
+    figsize: tuple[int, int] = (10, 5),
+    x_lim: tuple[float | None, float | None] = (None, None),
+    y_lim: tuple[float | None, float | None] = (None, None),
+    points: list[tuple[float, float]] = [],
+    point_annotations: list[str] = [],
+    point_colors: list[Color] = sns.color_palette("deep"), # type: ignore
 ) -> None:
-    """Plot multiple training/test/validation losses.
+    """Plot multiple PyTorch-Lightning version-logs on the same graph, with the
+    option to plot
 
     Args:
-        losses_dicts (dict[str, list[float]]): Dict where the keys are the \
-            plot title, value is the losses.
-        num_epoches (int | None, optional): Fix the number of epoches on the \
-            plots' X-axis, else it'll plot however many epoches are given. \
+        version_nums (list[int]): PyTorch-Lightning version-log numbers.
+        plot_title (str, optional): Title of the plot. Defaults to "Losses".
+        x_y_labels (tuple[str, str], optional): Labels for X and Y-axes respectively. \
+            Defaults to ("Epochs", "Loss"),
+        titles (list[str] | str | Callable[[int, dict], str], optional): Title(s) \
+            for each version defined in `version_nums`. The string-interpolation-values \
+            available are: `version_num` and the values in the `hparams.yaml` file \
+            (eg. `"v{version_num}, loss={train_loss}"`). Or you can give a \
+            `Callable[[int, dict], str]` where the 1st arg is `version_num`, 2nd arg \
+            is the `hparam` dict. Defaults to `lambda v, hparams: f"(v{v}) {hparams['_logged_hparams']['notes']}"`.
+        epoch_range (tuple[int, int], optional): Min/max epoch to plot. Defaults to (0, 9999).
+        metric_col_names (list[str], optional): The column names in the `metrics.csv` \
+            to plot. Defaults to ["train_loss", "val_loss"].
+        metric_map (list[Callable[[list[float]], list[float]] | None] | None, optional): \
+            Function to map over the values of each metric defined in `metric_col_names`. \
             Defaults to None.
-        single_plot (bool, optional): Whether to plot everything in 1 plot. \
-            Defaults to False.
+        linestyles (list[str], optional): Linestyles for each metric line defined in \
+            `metric_col_names`. Defaults to ["solid", "dashed", "dotted", "dashdot"].
+        colors (list[tuple[float, float, float]], optional): Color palette to use
+            for each line. Defaults to sns.color_palette("deep").
+        figsize (tuple[int, int], optional): Plot size (ie. the `figsize` arg \
+            passed to `plt.subplots`). Defaults to (10, 5).
+        x_lim (tuple[float | None, float | None], optional): Limits of the plot's X-axis. \
+            Defaults to (None, None).
+        y_lim (tuple[float | None, float | None], optional): Limits of the plot's Y-axis. \
+            Defaults to (None, None).
+        points (list[tuple[float, float]]): X-Y coords of points to plot. Defaults to [].
+        point_annotations (list[str]): Annotations to write at each point defined \
+            in `points`. Defaults to [].
+        point_colors (list[Color]): Color palette to use for each point. \
+            Defaults to sns.color_palette("deep").
     """
-    if single_plot:
-        fig, ax = plt.subplots(figsize=(7, 5))
-        sns.set()
+    fig, ax = plt.subplots(figsize=figsize)
+    for i, version_num in enumerate(version_nums):
+        color = colors[i]
+        hparams, metrics_df = load_version_log(version_num)
 
-        for title, losses in losses_dicts.items():
-            if num_epoches:
-                sns.lineplot(x=range(1, num_epoches+1), y=losses[:num_epoches], label=f'{title}', ax=ax)
-            else:
-                sns.lineplot(x=range(1, len(losses)+1), y=losses, label=f'{title}', ax=ax)
-
-        ax.set_title("Combined Losses")
-        ax.set_xlabel("Epochs")
-        ax.set_ylabel("Loss")
-        ax.legend()
-        plt.tight_layout()
-        plt.show()
-        return
-
-
-    num_graphs = len(losses_dicts)
-    cols = 1 if num_graphs == 1 \
-        else 2 if num_graphs <= 4 \
-        else 3
-    rows = math.ceil(num_graphs / cols)
-    fig, axs = plt.subplots(rows, cols, figsize=(5 * cols, 3.5 * rows))
-    axs = axs.flatten()
-
-    for i, (title, losses) in enumerate(losses_dicts.items()):
-        ax = axs[i]
-        sns.set()
-
-        if num_epoches:
-            sns.lineplot(x=range(1, num_epoches+1), y=losses[:num_epoches], label=f'{title}', ax=ax)
+        # Handle getting of title.
+        if isinstance(titles, str):
+            title = titles
+            title = title.format(version_num=version_num, **hparams)
+        elif isinstance(titles, list):
+            title = titles[i]
+            title = title.format(version_num=version_num, **hparams)
         else:
-            sns.lineplot(x=range(1, len(losses)+1), y=losses, label=f'{title}', ax=ax)
-        ax.set_title(title)
-        ax.set_xlabel("Epochs")
-        ax.set_ylabel("Loss")
-        ax.legend()
+            title = titles(version_num, hparams)
 
-    # remove unused graphs
-    for i in range(num_graphs, cols * rows):
-        fig.delaxes(axs[i])
+        # Plot lines.
+        for j, metric_name in enumerate(metric_col_names):
+            loss = metrics_df[metric_name].dropna().tolist()[epoch_range[0]:epoch_range[1]]
+            if metric_map != None and metric_map[j] != None:
+                loss = metric_map[j](loss) # type: ignore
+            if j == 0:
+                sns.lineplot(x=range(len(loss)), y=loss, ax=ax, color=color, linestyle=linestyles[j], label=title)
+            else:
+                sns.lineplot(x=range(len(loss)), y=loss, ax=ax, color=color, linestyle=linestyles[j])
 
+    # Draw points.
+    if len(points) > 0:
+        X, Y = zip(*points)
+        plt.scatter(x=X, y=Y, c=point_colors[:len(points)], zorder=2)
+
+    # Draw points' annotations.
+    for i, (x, y) in enumerate(points):
+        if len(point_annotations) > i:
+            ax.annotate(point_annotations[i], (x, y), xytext=(10,10), textcoords="offset pixels")
+
+    ax.set_title(plot_title)
+    ax.set_xlabel(x_y_labels[0])
+    ax.set_ylabel(x_y_labels[1])
+    ax.legend()
+    if y_lim:
+        plt.ylim(y_lim)
+    if x_lim:
+        plt.xlim(x_lim)
     plt.tight_layout()
     plt.show()
-
 
 def get_least_utilized_and_allocated_gpu(monitor_duration: float = 3) -> torch.device:
     """
