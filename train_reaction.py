@@ -68,21 +68,19 @@ def main():
         logged_hparams['notes'] = args['notes']
 
     if args['pretrained_encoder_chkpt_path']:
-        checkpoint = torch.load(args['pretrained_encoder_chkpt_path'], map_location=device)
-        encoder_hparams = checkpoint['hyper_parameters']['_geognn_encoder_hparams']
-        encoder = GeoGNNModel(**encoder_hparams)
+        encoder_downstream = DownstreamModel.load_from_checkpoint(
+            args['pretrained_encoder_chkpt_path'],
+            map_location=device,
+        )
+        encoder = encoder_downstream.encoder
         assert encoder.embed_dim == args['embed_dim']
         assert encoder.dropout_rate == args['dropout_rate']
         assert encoder.num_of_layers == args['gnn_layers']
 
-        # Extract encoder state dict from that of `DownstreamModel`.
-        encoder_state_dict = {k.replace('encoder.', ''): v for k, v in checkpoint['state_dict'].items() if k.startswith('encoder.')}
-        encoder.load_state_dict(encoder_state_dict)
-
-        # Since we're only using the `state_dict` of the encoder (and not the
-        # checkpoint's head-model), removing reference to `checkpoint` will
-        # hopefully free memory used by the old head's `state_dict`.
-        del checkpoint
+        # Since we're only using the encoder in the checkpoint (and not the
+        # checkpoint's model's head), removing reference to `encoder_downstream`
+        # will hopefully free memory used by the old head.
+        del encoder_downstream
     else:
         encoder = GeoGNNModel(
             embed_dim = args['embed_dim'],
@@ -95,6 +93,7 @@ def main():
             args['pretrained_chkpt_path'],
             lr=args['lr'], # Allow lr to be changed.
             _logged_hparams = logged_hparams,
+            map_location=device,
         )
         assert model.encoder.embed_dim == args['embed_dim']
         assert model.encoder.dropout_rate == args['dropout_rate']

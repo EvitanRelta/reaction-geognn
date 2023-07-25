@@ -1,4 +1,4 @@
-from typing import Protocol, overload
+from typing import Any, Protocol, overload
 
 import torch
 from base_classes import GeoGNNLightningModule, LoggedHyperParams
@@ -90,8 +90,7 @@ class AggregationGNN(nn.Module):
 
 class HyperParams(Protocol):
     """Type hint for `self.hparams` in `ProtoModel`."""
-    embed_dim: int
-    gnn_layers: int
+    encoder_params: dict[str, Any]
     out_size: int
     dropout_rate: float
     lr: float
@@ -99,11 +98,11 @@ class HyperParams(Protocol):
 
 class ProtoModel(GeoGNNLightningModule):
     @overload
-    def __init__(self, *, embed_dim: int, gnn_layers: int, out_size: int, dropout_rate: float, lr: float = 1e-4, _logged_hparams: LoggedHyperParams = {}) -> None:
+    def __init__(self, *, encoder_params: dict[str, Any], out_size: int, dropout_rate: float, lr: float = 1e-4, _logged_hparams: LoggedHyperParams = {}) -> None:
         """
         Args:
-            embed_dim (int): Embedding dimension.
-            gnn_layers (int): Number of GNN message-passing layers.
+            encoder_params (dict[str, Any]): Params to init a new `GeoGNNModel` \
+                instance with.
             out_size (int): Output size (ie. number of predictions).
             dropout_rate (float): Rate for dropout layers.
             lr (float, optional): Learning rate. Defaults to 1e-4.
@@ -127,34 +126,28 @@ class ProtoModel(GeoGNNLightningModule):
         self,
         *,
         encoder: GeoGNNModel | None = None,
-        embed_dim: int | None = None,
-        gnn_layers: int | None = None,
+        encoder_params: dict[str, Any] | None = None,
         out_size: int,
         dropout_rate: float,
         lr: float = 1e-4,
         _logged_hparams: LoggedHyperParams = {},
     ) -> None:
         super().__init__(lr, _logged_hparams)
+        assert (encoder != None and encoder_params == None) \
+            or (encoder == None and encoder_params != None), \
+            'Either `encoder` or `encoder_params` must be given, but not both. ' \
+                + "I don't want to deal with the case where if both are given, " \
+                + "and `encoder_params` doesn't match the params in `encoder`"
 
-        if encoder:
-            self.encoder = encoder
-        else:
-            assert (embed_dim != None) and (gnn_layers != None)
-            self.encoder = GeoGNNModel(
-                embed_dim = embed_dim,
-                dropout_rate = dropout_rate,
-                num_of_layers = gnn_layers,
-            )
+        self.encoder = encoder or GeoGNNModel(**encoder_params) # type: ignore
+        encoder_params = {
+            'embed_dim': self.encoder.embed_dim,
+            'dropout_rate': self.encoder.dropout_rate,
+            'num_of_layers': self.encoder.num_of_layers,
+        }
 
         self.hparams: HyperParams
-        self.save_hyperparameters(ignore=['encoder', 'embed_dim', 'gnn_layers'])
-        self.save_hyperparameters({
-            '_geognn_encoder_hparams': {
-                'embed_dim': self.encoder.embed_dim,
-                'dropout_rate': self.encoder.dropout_rate,
-                'num_of_layers': self.encoder.num_of_layers,
-            }
-        })
+        self.save_hyperparameters(ignore=['encoder'])
 
         # Dimension after concatenating reactant and diff node repr.
         concat_embed_dim = 2 * self.encoder.embed_dim
