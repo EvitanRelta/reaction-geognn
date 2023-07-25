@@ -37,7 +37,7 @@ def load_version_log(version_num: int) -> tuple[HPARAM, METRIC_DF]:
     assert os.path.isfile(metrics_path), f'"{metrics_path}" file not found.'
 
     with open(hparams_path, "r") as hparams_file:
-        hparams = yaml.safe_load(hparams_file)
+        hparams = yaml.load(hparams_file, Loader=yaml.Loader)
 
     metrics_df = pd.read_csv(metrics_path)
     return hparams, metrics_df
