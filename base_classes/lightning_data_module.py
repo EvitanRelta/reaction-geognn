@@ -133,6 +133,13 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
         self.test_dataset = TransformDataset(self.raw_test_dataset, preprocess_data, transform_on_get=did_not_load_cache)
         self.val_dataset = TransformDataset(self.raw_val_dataset, preprocess_data, transform_on_get=did_not_load_cache)
 
+    def _get_graphs(self, smiles: str) -> GeoGNNGraphs:
+        """Gets cached graphs from SMILES, or compute them if they're not already cached."""
+        if smiles not in self._cached_graphs:
+            self._cached_graphs[smiles] \
+                = self.compute_graphs(smiles)
+        return self._cached_graphs[smiles]
+
 
     # ==========================================================================
     #                          Caching-related methods
@@ -229,10 +236,3 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
             *[dgl.batch(lst) for lst in graph_lists],
             torch.stack(labels_list),
         )
-
-    def _get_graphs(self, smiles: str) -> GeoGNNGraphs:
-        """Gets cached graphs from SMILES, or compute them if they're not already cached."""
-        if smiles not in self._cached_graphs:
-            self._cached_graphs[smiles] \
-                = self.compute_graphs(smiles)
-        return self._cached_graphs[smiles]

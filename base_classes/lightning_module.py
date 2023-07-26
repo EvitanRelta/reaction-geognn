@@ -91,6 +91,16 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
 
 
     # ==========================================================================
+    #                     Saving/Loading-related methods
+    # ==========================================================================
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        checkpoint['scaler'] = self.scaler
+
+    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        self.scaler = checkpoint['scaler']
+
+
+    # ==========================================================================
     #                        Training-related methods
     # ==========================================================================
     def configure_optimizers(self):
@@ -107,12 +117,6 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
             assert isinstance(self.scaler, StandardizeScaler)
             assert self.scaler.has_fitted, \
                 '`self.trainer.datamodule.scaler` has not been fitted to training dataset yet.'
-
-    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        checkpoint['scaler'] = self.scaler
-
-    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        self.scaler = checkpoint['scaler']
 
 
     def training_step(self, batch: GeoGNNBatch, batch_idx: int) -> Tensor:
