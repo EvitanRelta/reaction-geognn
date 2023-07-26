@@ -6,6 +6,7 @@ from torch import Tensor
 
 class StandardizeScaler:
     """Scaler to standardize Tensors against the mean/std of the fitted Tensor."""
+
     def __init__(self):
         self._fit_mean: Tensor | None = None
         self._fit_std: Tensor | None = None

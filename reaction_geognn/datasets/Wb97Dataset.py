@@ -9,9 +9,15 @@ from utils import abs_path
 
 
 class Wb97Dataset(Dataset[GeoGNNDataElement], Sized):
-    """
-    Computational activation energies of forward and reverse reactions at
-    the ωB97X-D3/def2-TZVP level of theory.
+    """Computational activation energies, and enthalpies of formation at the
+    ωB97X-D3/def2-TZVP level of theory.
+
+    Data/Labels are `tensor([activation_energy, enthalpy])`.
+
+    ## NOTE:
+    This does NOT include the reversed reactions (ie. `product -> reactant`
+    instead of `reactant -> product`) that's employed by the CGR paper -
+    `"Machine Learning of Reaction Properties via Learned Representations of the Condensed Graph of Reaction"`
 
     The `wb97xd3.csv` CSV file is downloadable at: \\
     https://zenodo.org/record/3715478.

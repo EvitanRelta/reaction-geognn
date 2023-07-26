@@ -23,17 +23,20 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
     """Abstract base class for PyTorch-Lightning data-modules for GeoGNN
     datasets/dataloaders.
 
-    Implements:
-    - Caching of atom-bond and bond-angle graphs.
+    ### Implements:
+    - Caching of all `DGLGraph` graphs.
     - Standardization of dataset labels using `StandardizeScaler` via `self.scaler`.
     - Converting SMILES strings to graphs via the abstract class-method
     `self.compute_graphs`, and collating them into batches of type `GeoGNNBatch`.
 
-    Requires the below 2 abstract methods to be implemented:
-
+    ### Requires the below abstract methods to be implemented:
     ```python
     @abstractmethod
-    def get_dataset_splits(self) -> tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]: ...
+    def get_dataset_splits(self) -> tuple[
+        Dataset[GeoGNNDataElement],
+        Dataset[GeoGNNDataElement],
+        Dataset[GeoGNNDataElement],
+    ]: ...
 
     @abstractmethod
     @classmethod
@@ -54,15 +57,16 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
     @classmethod
     @abstractmethod
     def compute_graphs(cls, smiles: str) -> GeoGNNGraphs:
-        """Compute GeoGNN's atom-bond graph and bond-angle graph from a
-        molecule's/reaction's SMILES/SMART string.
+        """Compute all `DGLGraph` instances of a molecule.
+        (eg. GeoGNN's atom-bond and bond-angle graphs, and the
+        superimposed atom-bond graph) from a molecule's/reaction's SMILES/SMART
+        string.
 
         Args:
             smiles (str): Molecule's/Reaction's SMILES/SMART string.
 
         Returns:
-            GeoGNNGraphs: Atom-bond and bond-angle graphs in the \
-                form `(atom_bond_graph, bond_angle_graph)`.
+            GeoGNNGraphs: All `DGLGraph` instances of the molecule/reaction.
         """
 
     def __init__(
@@ -99,6 +103,11 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
         self.cache_path = cache_path
         self.dataloader_num_workers = dataloader_num_workers
         self._cached_graphs: dict[str, GeoGNNGraphs] = {}
+        """A "cache" for the (pre)computed `DGLGraph` graphs. This is to prevent
+        recomputing of the graphs (which takes a lot of time). The keys are the
+        molecule's SMILES / reaction's SMART strings, and the values are tuples
+        of the (pre)computed `DGLGraph` instances.
+        """
 
         self.raw_train_dataset, self.raw_test_dataset, self.raw_val_dataset \
             = self.get_dataset_splits()

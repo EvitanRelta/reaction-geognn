@@ -18,28 +18,37 @@ class LoggedHyperParams(TypedDict):
     lightning-log's `hparams.yaml` file.
     """
     batch_size: NotRequired[int]
+    """Batch size"""
+
     dataset_size: NotRequired[int]
+    """(ONLY APPLICABLE when `overfit_batches` is used) Training dataset size."""
+
     notes: NotRequired[str]
+    """Developer notes regarding the model instance."""
+
 
 class GeoGNNLightningModule(ABC, pl.LightningModule):
     """Abstract base class for PyTorch-Lightning data-modules for GeoGNN
     downstream models.
 
     ### Implements:
+    - Unstandardizing losses against the training-split's mean/std for
+      `train_loss`, `val_loss` and `test_loss` metrics using `self.scaler`
+      (which is expected to be computed in/obtained from the datamodule).
     - `Adam` optimizer with `self.lr` specified by the constructor's `lr` arg.
     - MSE as training loss function.
     - RMSE as test/validation metric function.
     - Logging of the below losses/metrics to lightning-log's `metrics.csv` file"
-      - `"train_raw_std_mse_loss"` - Mean of all standardized training MSE batch
-        losses in an epoch.
-      - `"train_loss"` - Unstandardized training RMSE computed using all prediction
-        values (ie. not using the batch losses) at the end of an epoch.
-      - `"val_loss"` - Unstandardized validation RMSE computed using all prediction
-        values (ie. not using the batch losses) at the end of an epoch.
-      - `"test_loss"` - Unstandardized test RMSE computed using all prediction
-        values (ie. not using the batch losses) at the end of an epoch.
-    - Logging of hyper-params that isn't used in the model (eg. batch size,
-      developer notes) to lightning-log's `hparams.yaml` file.
+      - `"train_raw_std_mse_loss"` - Standardized training MSE.
+          Computed by getting the mean of all training batch-losses.
+      - `"train_loss"` - Unstandardized training RMSE.
+          Computed using all prediction values at the end of an epoch (ie. not using the batch-losses).
+      - `"val_loss"` - Unstandardized validation RMSE.
+          Computed using all prediction values at the end of an epoch (ie. not using the batch-losses).
+      - `"test_loss"` - Unstandardized test RMSE.
+          Computed using all prediction values at the end of an epoch (ie. not using the batch-losses).
+    - Logging of hyper-params that isn't used in the model (eg. batch size, developer notes)
+      to lightning-log's `hparams.yaml` file under the `_logged_hparams` hparam.
 
     ### Requires the below abstract methods to be implemented:
     ```python
@@ -72,12 +81,14 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
             lr (float): Learning rate.
             _logged_hparams (LoggedHyperParams, optional): Hyperparameters that's \
                 not used by the model, but is logged in the lightning-log's \
-                `hparams.yaml` file.. Defaults to {}.
+                `hparams.yaml` file. Defaults to {}.
         """
         super().__init__()
         self.save_hyperparameters('_logged_hparams')
 
         self.lr = lr
+
+        # For standardizing labels against training-split's mean/std.
         self.scaler: StandardizeScaler = StandardizeScaler()
 
         # Loss/Metric functions.
@@ -94,9 +105,11 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
     #                     Saving/Loading-related methods
     # ==========================================================================
     def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        # Store `self.scaler` object, as it's not saved in the model's state_dict.
         checkpoint['scaler'] = self.scaler
 
     def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        # Load `self.scaler` object, as it's not saved in the model's state_dict.
         self.scaler = checkpoint['scaler']
 
 
@@ -108,6 +121,9 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
 
     def setup(self, stage: Literal['fit', 'validate', 'test', 'predict']) -> None:
         if stage == 'fit':
+            # Extract `scaler` instance from datamodule. The scaler is in the
+            # datamodule because that's the only place (that I can think of)
+            # where the mean/std of the training-split can be computed.
             error_msg = "Attempted to extract scaler instance from " \
                 + "`self.trainer.datamodule.scaler`, but `{obj}` doesn't exist."
             assert hasattr(self.trainer, 'datamodule'), error_msg.format(obj="self.trainer.datamodule")

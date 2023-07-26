@@ -4,8 +4,16 @@ from utils import abs_path
 
 
 class Wb97SplitDataset(GeoGNNDataset):
-    """
-    Base dataset class for loading a wb97xd3 split CSV file.
+    """Dataset class for loading a SINGLE wB97X-D3 fold-split CSV file.
+
+    Computational activation energies (but lacking the enthalpy values found in
+    the original wB97X-D3 dataset) of forward and reversed reaction at the
+    ωB97X-D3/def2-TZVP level of theory.
+
+    Data/Labels are `tensor([activation_energy])`.
+
+    The fold-split is as defined in the paper -
+    `"Machine Learning of Reaction Properties via Learned Representations of the Condensed Graph of Reaction"`.
 
     Split CSV files are downloadable at: \\
     https://github.com/hesther/reactiondatabase/tree/main/data_splits

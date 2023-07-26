@@ -15,6 +15,7 @@ class TransformDataset(Dataset[OUTPUT_TYPE]):
     Setting `transform_on_get = True` in the constructor while data-loading with
     `num_workers > 0` might throw an error.
     """
+
     def __init__(
         self,
         dataset: Dataset[INPUT_TYPE],
