@@ -16,7 +16,7 @@ from rdkit.Chem import rdchem  # type: ignore
 from torch import Tensor
 
 from .base_feature_classes import Feature, FloatFeature, LabelEncodedFeature
-from .rdkit_types import Conformer, Mol
+from .rdkit_type_aliases import Conformer, Mol
 from .utils import _rdkit_enum_to_list
 
 bond_dir = LabelEncodedFeature.create_bond_feat(

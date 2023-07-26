@@ -5,9 +5,9 @@ import torch
 from dgl import DGLGraph
 from torch import FloatTensor, IntTensor, Tensor
 
-from mygnn.geognn.features.rdkit_types import Conformer, Mol
+from mygnn.geognn.features.rdkit_type_aliases import Conformer, Mol
 
-from .rdkit_types import Atom, Bond, Conformer, Mol
+from .rdkit_type_aliases import Atom, Bond, Conformer, Mol
 
 
 @dataclass

@@ -12,7 +12,7 @@ from torch import Tensor
 from .atom_features import FLOAT_ATOM_FEATURES, LABEL_ENCODED_ATOM_FEATURES, \
     atom_pos
 from .bond_features import FLOAT_BOND_FEATURES, LABEL_ENCODED_BOND_FEATURES
-from .rdkit_types import Conformer, Mol
+from .rdkit_type_aliases import Conformer, Mol
 
 FeatureCategory: TypeAlias = Literal['atom_feats', 'bond_feats']
 FeatureName: TypeAlias = str

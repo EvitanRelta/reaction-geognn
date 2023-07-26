@@ -1,4 +1,4 @@
-from .rdkit_types import RDKitEnum, RDKitEnumValue
+from .rdkit_type_aliases import RDKitEnum, RDKitEnumValue
 
 
 def _rdkit_enum_to_list(rdkit_enum: RDKitEnum) -> list[RDKitEnumValue]:
