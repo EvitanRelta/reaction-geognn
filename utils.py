@@ -14,9 +14,9 @@ def abs_path(relative_path: str, caller_file_path: str) -> str:
 
 LIGHTNING_LOGS_DIR = abs_path("lightning_logs", __file__)
 
-HPARAM: TypeAlias = dict
+HPARAMS_DICT: TypeAlias = dict
 METRIC_DF: TypeAlias = pd.DataFrame
-def load_version_log(version_num: int) -> tuple[HPARAM, METRIC_DF]:
+def load_version_log(version_num: int) -> tuple[HPARAMS_DICT, METRIC_DF]:
     """Loads the `hparams.yaml` and `metrics.csv` files from a version dir in
     the lightning-logs.
 
