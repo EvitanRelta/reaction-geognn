@@ -9,7 +9,7 @@ from typing_extensions import Unpack
 
 from .dataset import GeoGNNDataElement
 
-GeoGNNGraphs: TypeAlias = tuple[DGLGraph, DGLGraph, DGLGraph]
+GeoGNNGraphs: TypeAlias = tuple[DGLGraph, ...]
 GeoGNNBatch: TypeAlias = tuple[Unpack[GeoGNNGraphs], Tensor]
 """Batched input in the form `(atom_bond_batch_graph, bond_angle_batch_graph, labels)`
 of type `tuple[DGLGraph, DGLGraph, Tensor]`.
