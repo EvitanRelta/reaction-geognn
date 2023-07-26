@@ -64,12 +64,12 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
 
     def __init__(
         self,
-        lr: float = 1e-4,
+        lr: float,
         _logged_hparams: LoggedHyperParams = {},
     ) -> None:
         """
         Args:
-            lr (float, optional): Learning rate. Defaults to 1e-4.
+            lr (float): Learning rate.
             _logged_hparams (LoggedHyperParams, optional): Hyperparameters that's \
                 not used by the model, but is logged in the lightning-log's \
                 `hparams.yaml` file.. Defaults to {}.
