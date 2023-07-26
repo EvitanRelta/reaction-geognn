@@ -73,9 +73,18 @@ def main():
             map_location=device,
         )
         encoder = encoder_downstream.encoder
-        assert encoder.embed_dim == args['embed_dim']
-        assert encoder.dropout_rate == args['dropout_rate']
-        assert encoder.num_of_layers == args['gnn_layers']
+
+        assert_error_msg = "Encoder's `{encoder_hparam}={encoder_value}` doesn't match the arg `--{arg_hparam} {arg_value}`. \n" \
+            + "This is just a check to prevent unintentionally setting different hyper-params."
+        assert encoder.embed_dim == args['embed_dim'], \
+            assert_error_msg.format(encoder_hparam="embed_dim", encoder_value=encoder.embed_dim, arg_hparam="embed_dim", arg_value=args["embed_dim"])
+        assert encoder.num_of_layers == args['gnn_layers'], \
+            assert_error_msg.format(encoder_hparam="num_of_layers", encoder_value=encoder.num_of_layers, arg_hparam="gnn_layers", arg_value=args["gnn_layers"])
+
+        assert encoder.dropout_rate == args['dropout_rate'], \
+            assert_error_msg.format(encoder_hparam="dropout_rate", encoder_value=encoder.dropout_rate, arg_hparam="dropout_rate", arg_value=args["dropout_rate"]) \
+            + f" \nIf this was intentional (ie. u want to set `dropout_rate={args['dropout_rate']}` on the head " \
+            + f"while to the encoder has `dropout_rate={encoder.dropout_rate}`), simply comment out this assert."
 
         # Since we're only using the encoder in the checkpoint (and not the
         # checkpoint's model's head), removing reference to `encoder_downstream`
@@ -91,17 +100,30 @@ def main():
     if args['pretrained_chkpt_path']:
         model = ProtoModel.load_from_checkpoint(
             args['pretrained_chkpt_path'],
-            lr=args['lr'], # Allow lr to be changed.
-            _logged_hparams = logged_hparams,
-            map_location=device,
-        )
-        assert model.encoder.embed_dim == args['embed_dim']
-        assert model.encoder.dropout_rate == args['dropout_rate']
-        assert model.encoder.num_of_layers == args['gnn_layers']
+            map_location = device,
+            _logged_hparams = logged_hparams, # Update logged hyper-params dict.
 
+            # Allow head's hyper-params to be changed.
+            # (This does NOT change/affect encoder's hyper-params)
+            lr = args['lr'],
+            dropout_rate = args['dropout_rate'],
+        )
         assert model.hparams.dropout_rate == args['dropout_rate']
         assert model.hparams.lr == args['lr']
         assert model.hparams.out_size == 1
+
+        assert_error_msg = "Encoder's `{encoder_hparam}={encoder_value}` doesn't match the arg `--{arg_hparam} {arg_value}`. \n" \
+            + "This is just a check to prevent unintentionally setting different hyper-params."
+        assert model.encoder.embed_dim == args['embed_dim'], \
+            assert_error_msg.format(encoder_hparam="embed_dim", encoder_value=model.encoder.embed_dim, arg_hparam="embed_dim", arg_value=args["embed_dim"])
+        assert model.encoder.num_of_layers == args['gnn_layers'], \
+            assert_error_msg.format(encoder_hparam="num_of_layers", encoder_value=model.encoder.num_of_layers, arg_hparam="gnn_layers", arg_value=args["gnn_layers"])
+
+        assert model.encoder.dropout_rate == args['dropout_rate'], \
+            assert_error_msg.format(encoder_hparam="dropout_rate", encoder_value=model.encoder.dropout_rate, arg_hparam="dropout_rate", arg_value=args["dropout_rate"]) \
+            + f" \nIf this was intentional (ie. u want to set `dropout_rate={args['dropout_rate']}` on the head " \
+            + f"while to the encoder has `dropout_rate={model.encoder.dropout_rate}`), simply comment out this assert."
+
     else:
         model = ProtoModel(
             encoder = encoder,
