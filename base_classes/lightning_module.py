@@ -7,7 +7,7 @@ import torchmetrics
 from dgl import DGLGraph
 from torch import Tensor
 from torch.optim import Adam
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, Unpack
 
 from .dataloader import GeoGNNBatch, GeoGNNGraphs
 from .scaler import StandardizeScaler
@@ -49,13 +49,13 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
     """
 
     @abstractmethod
-    def forward(self, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph, superimposed_atom_graph: DGLGraph) -> Tensor:
+    def forward(self, *graphs: Unpack[GeoGNNGraphs]) -> Tensor:
         """
         Args:
-            batched_atom_bond_graph (DGLGraph): Graph (or batched graph) of \
-                molecules with atoms as nodes, bonds as edges.
-            batched_bond_angle_graph (DGLGraph): Graph (or batched graph) of \
-                molecules with bonds as nodes, bond-angles as edges.
+            *graphs (GeoGNNGraphs): The graphs in `GeoGNNBatch`. Can be either be \
+                `(batched_atom_bond_graph, batched_bond_angle_graph, labels)` or \
+                `(batched_atom_bond_graph, batched_bond_angle_graph, batched_superimposed_atom_bond_graph, labels)` \
+                depending on the dataset. The graphs are of type `DGLGraph`.
 
         Returns:
             Tensor: Predicted values with size `(num_tasks, )`, where `num_tasks` \
