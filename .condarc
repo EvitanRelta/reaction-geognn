@@ -1,0 +1,5 @@
+channel_priority: flexible
+channel_alias: https://conda.anaconda.org
+channel_names:
+  - pytorch
+  - conda-forge
