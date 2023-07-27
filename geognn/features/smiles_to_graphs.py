@@ -4,11 +4,11 @@ import dgl
 import numpy as np
 import torch
 from dgl import DGLGraph
-from dgl.transforms.functional import add_reverse_edges, to_simple
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolTransforms as rdmt  # type: ignore
 from torch import Tensor
 
+from ..graph_utils import to_bidirected_copy
 from .atom_features import FLOAT_ATOM_FEATURES, LABEL_ENCODED_ATOM_FEATURES, \
     atom_pos
 from .bond_features import FLOAT_BOND_FEATURES, LABEL_ENCODED_BOND_FEATURES
@@ -54,22 +54,6 @@ def smiles_to_graphs(
     if return_mol_conf:
         return atom_bond_graph, bond_angle_graph, mol, conf
     return atom_bond_graph, bond_angle_graph
-
-
-def _to_bidirected_copy(g: DGLGraph) -> DGLGraph:
-    """
-    Exactly the same as `dgl.to_bidirected`, but copies both node and edge
-    features.
-
-    Args:
-        g (DGLGraph): The input directed graph.
-
-    Returns:
-        DGLGraph: Graph `g` but bidirected and with copied node/edge features.
-    """
-    g = add_reverse_edges(g, copy_ndata=True, copy_edata=True)
-    g = to_simple(g, return_counts=None, copy_ndata=True, copy_edata=True)      # type: ignore
-    return g
 
 
 def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
@@ -121,7 +105,7 @@ def _get_atom_bond_graph(
     # Remove temporary feat used in computing other feats.
     del graph.ndata[atom_pos.name]
 
-    graph = _to_bidirected_copy(graph)   # Convert to undirected graph.
+    graph = to_bidirected_copy(graph)   # Convert to undirected graph.
     graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
     return graph
 
@@ -181,6 +165,6 @@ def _get_bond_angle_graph(
                 # Add an edge to the graph for this bond angle.
                 graph.add_edges(i, j, {'bond_angle': torch.tensor([angle])})
 
-    graph = _to_bidirected_copy(graph)   # Convert to undirected graph.
+    graph = to_bidirected_copy(graph)   # Convert to undirected graph.
     graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
     return graph

@@ -5,10 +5,11 @@ import dgl
 import numpy as np
 import torch
 from dgl import DGLGraph
-from dgl.transforms.functional import add_reverse_edges, to_simple
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdchem, rdMolTransforms as rdmt  # type: ignore
 from torch import Tensor
+
+from .graph_utils import to_bidirected_copy
 
 Atom: TypeAlias = rdchem.Atom
 Bond: TypeAlias = rdchem.Bond
@@ -66,51 +67,6 @@ class Feature:
         """
         value = self.get_value(x)
         return self.possible_values.index(value) + 1
-
-
-def _to_bidirected_copy(g: DGLGraph) -> DGLGraph:
-    """Make a bidirected copy of the uni-directed graph `g`, adding a new
-    opposing directed edge for each edge in `g` and copying that edge's
-    features.
-
-    The new opposing edges are interleaved with the original edges.
-    (eg. `[edge1, edge1_opp, edge2, edge2_opp, ...]`)
-
-    ### Warning:
-    Reuses node feat tensors of `g` (instead of copying them).
-
-    Args:
-        g (DGLGraph): The input directed graph.
-
-    Returns:
-        DGLGraph: Graph `g` but bidirected and with copied node/edge features.
-    """
-    # Get the current edges and their reverse.
-    src, dst = g.edges()
-    rev_src, rev_dst = dst, src
-
-    # Interleave the original and reversed edges.
-    interleaved_src = torch.empty(len(src) * 2).to(src)
-    interleaved_dst = torch.empty(len(dst) * 2).to(dst)
-    interleaved_src[::2] = src
-    interleaved_src[1::2] = rev_src
-    interleaved_dst[::2] = dst
-    interleaved_dst[1::2] = rev_dst
-
-    # Create a new graph with interleaved edges.
-    bidirected_g = dgl.graph((interleaved_src, interleaved_dst), num_nodes=g.num_nodes())
-
-    # Copy the node features.
-    for feat_name, feat_tensor in g.ndata.items():
-        assert isinstance(feat_name, str) and isinstance(feat_tensor, Tensor)
-        bidirected_g.ndata[feat_name] = feat_tensor
-
-    # Copy and interleave the edge features.
-    for feat_name, feat_tensor in g.edata.items():
-        assert isinstance(feat_name, str) and isinstance(feat_tensor, Tensor)
-        bidirected_g.edata[feat_name] = torch.repeat_interleave(feat_tensor, 2, dim=0)
-
-    return bidirected_g
 
 
 class Preprocessing:
@@ -315,7 +271,7 @@ class Preprocessing:
         # Remove temporary feats used in computing other feats.
         del graph.ndata['_atom_pos']
 
-        graph = _to_bidirected_copy(graph)   # Convert to undirected graph.
+        graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
         return graph
 
@@ -375,7 +331,7 @@ class Preprocessing:
                     # Add an edge to the graph for this bond angle.
                     graph.add_edges(i, j, {'bond_angle': torch.tensor([angle])})
 
-        graph = _to_bidirected_copy(graph)   # Convert to undirected graph.
+        graph = to_bidirected_copy(graph)   # Convert to undirected graph.
         graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
         return graph
 
