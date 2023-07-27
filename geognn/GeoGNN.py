@@ -4,14 +4,13 @@ This is an implementation of GeoGNN using PyTorch/PyTorch Geometric.
 
 from typing import Literal, overload
 
-import torch
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import AvgPooling
 from torch import Tensor, nn
 
+from .features import FLOAT_BOND_ANGLE_FEATURES, FLOAT_BOND_FEATURES, \
+    LABEL_ENCODED_ATOM_FEATURES, LABEL_ENCODED_BOND_FEATURES
 from .layers import FeaturesEmbedding, FeaturesRBF, SimpleGIN, SqrtGraphNorm
-from .Preprocessing import Feature, FeatureName, Preprocessing, RBFCenters, \
-    RBFGamma
 
 
 class InnerGNN(nn.Module):
@@ -90,10 +89,6 @@ class GeoGNNLayer(nn.Module):
         embed_dim: int,
         dropout_rate: float,
         has_last_act: bool,
-        atom_feat_dict: dict[FeatureName, Feature],
-        bond_feat_dict: dict[FeatureName, Feature],
-        bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]],
-        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] = Preprocessing.RBF_PARAMS['bond_angle'],
     ) -> None:
         """
         Args:
@@ -101,21 +96,15 @@ class GeoGNNLayer(nn.Module):
             dropout_rate (float): Dropout rate for the dropout layers.
             has_last_act (bool): Whether to pass the final output through an \
                 activation function (ie. ReLU).
-            atom_feat_dict (dict[FeatureName, Feature]): Details for the atom features.
-            bond_feat_dict (dict[FeatureName, Feature]): Details for the bond features.
-            bond_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]]): \
-                RBF-layer's params for the bonds.
-            bond_angle_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]]): \
-                RBF-layer's params for the bond-angles.
         """
         super().__init__()
 
         self.embed_dim = embed_dim
         self.dropout_rate = dropout_rate
 
-        self.bond_embedding = FeaturesEmbedding(bond_feat_dict, embed_dim)
-        self.bond_rbf = FeaturesRBF(bond_rbf_param_dict, embed_dim)
-        self.bond_angle_rbf = FeaturesRBF(bond_angle_rbf_param_dict, embed_dim)
+        self.bond_embedding = FeaturesEmbedding(LABEL_ENCODED_BOND_FEATURES, embed_dim)
+        self.bond_rbf = FeaturesRBF(FLOAT_BOND_FEATURES, embed_dim)
+        self.bond_angle_rbf = FeaturesRBF(FLOAT_BOND_ANGLE_FEATURES, embed_dim)
         self.atom_bond_gnn_block = InnerGNN(
             in_feat_size = embed_dim,
             hidden_size = embed_dim * 2,
@@ -192,14 +181,7 @@ class GeoGNNModel(nn.Module):
         # Pretraining's dropout rate is 0.2, based on `pretrain.sh` script:
         # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/scripts/pretrain.sh#L26
         dropout_rate: float = 0.5,
-
         num_of_layers: int = 8,
-        atom_feat_dict: dict[FeatureName, Feature] = Preprocessing.FEATURES['atom_feats'],
-        bond_feat_dict: dict[FeatureName, Feature] = Preprocessing.FEATURES['bond_feats'],
-        bond_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] \
-            = Preprocessing.RBF_PARAMS['bond'],
-        bond_angle_rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]] \
-            = Preprocessing.RBF_PARAMS['bond_angle'],
     ) -> None:
         """
         Default values for `embed_dim`, `dropout_rate` and `num_of_layers` and
@@ -219,14 +201,6 @@ class GeoGNNModel(nn.Module):
                 Defaults to 0.5.
             num_of_layers (int, optional): Number of `GeoGNNLayer` layers used. \
                 Defaults to 8.
-            atom_feat_dict (dict[FeatureName, Feature], optional): Details for \
-                the atom features. Defaults to Preprocessing.FEATURES['atom_feats'].
-            bond_feat_dict (dict[FeatureName, Feature], optional): Details for \
-                the bond features. Defaults to Preprocessing.FEATURES['bond_feats'].
-            bond_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]], optional): \
-                RBF-layer's params for the bonds. Defaults to Preprocessing.RBF_PARAMS['bond'].
-            bond_angle_rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]], optional): \
-                RBF-layer's params for the bond-angles. Defaults to Preprocessing.RBF_PARAMS['bond_angle'].
         """
         super().__init__()
 
@@ -234,14 +208,13 @@ class GeoGNNModel(nn.Module):
         self.dropout_rate = dropout_rate
         self.num_of_layers = num_of_layers
 
-        self.init_atom_embedding = FeaturesEmbedding(atom_feat_dict, embed_dim)
-        self.init_bond_embedding = FeaturesEmbedding(bond_feat_dict, embed_dim)
-        self.init_bond_rbf = FeaturesRBF(bond_rbf_param_dict, embed_dim)
+        self.init_atom_embedding = FeaturesEmbedding(LABEL_ENCODED_ATOM_FEATURES, embed_dim)
+        self.init_bond_embedding = FeaturesEmbedding(LABEL_ENCODED_BOND_FEATURES, embed_dim)
+        self.init_bond_rbf = FeaturesRBF(FLOAT_BOND_FEATURES, embed_dim)
 
         is_not_last_layer = lambda layer_idx: layer_idx != num_of_layers
-        dicts = (atom_feat_dict, bond_feat_dict, bond_rbf_param_dict, bond_angle_rbf_param_dict)
         self.gnn_layer_list = nn.ModuleList([
-            GeoGNNLayer(embed_dim, dropout_rate, is_not_last_layer(i), *dicts) \
+            GeoGNNLayer(embed_dim, dropout_rate, is_not_last_layer(i)) \
                 for i in range(num_of_layers)
         ])
 

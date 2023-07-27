@@ -3,7 +3,7 @@ from typing import Mapping, cast
 import torch
 from torch import Tensor, nn
 
-from ..Preprocessing import FeatureName, RBFCenters, RBFGamma
+from ..features import FloatFeature
 from .FixedRBF import FixedRBF
 
 
@@ -23,24 +23,23 @@ class FeaturesRBF(nn.Module):
 
     def __init__(
         self,
-        rbf_param_dict: dict[FeatureName, tuple[RBFCenters, RBFGamma]],
+        float_feat_list: list[FloatFeature],
         output_dim: int,
     ):
         """
         Args:
-            rbf_param_dict (dict[FeatureName, tuple[RBFCenters, RBFGamma]]): \
-                Dict containing the RBF parameters for every feature.
+            float_feat_list (list[FloatFeature]): Info on the float-features.
             output_dim (int): The output embedding dimension.
         """
         super().__init__()
         self.output_dim = output_dim
         self.module_dict = nn.ModuleDict()
-        for feat_name, (centers, gamma) in rbf_param_dict.items():
+        for feat in float_feat_list:
             layer = nn.Sequential(
-                FixedRBF(centers, gamma),
-                nn.Linear(len(centers), output_dim),
+                FixedRBF(feat.rbf_centers, feat.rbf_gamma),
+                nn.Linear(len(feat.rbf_centers), output_dim),
             )
-            self.module_dict[feat_name] = layer
+            self.module_dict[feat.name] = layer
 
     def reset_parameters(self) -> None:
         """
@@ -51,10 +50,10 @@ class FeaturesRBF(nn.Module):
             assert isinstance(sequential, nn.Sequential)
             cast(nn.Linear, sequential[1]).reset_parameters()
 
-    def forward(self, feat_tensor_map: Mapping[FeatureName, Tensor]) -> Tensor:
+    def forward(self, feat_tensor_map: Mapping[str, Tensor]) -> Tensor:
         """
         Args:
-            feat_tensor_map (Mapping[FeatureName, Tensor]): Mapping of \
+            feat_tensor_map (Mapping[str, Tensor]): Mapping of \
                 features, where the keys are the features' names and the values \
                 are the features' `Tensor` values (eg. from `DGLGraph.ndata`).
 

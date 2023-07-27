@@ -4,7 +4,8 @@ import torch
 from base_classes import GeoGNNLightningModule, LoggedHyperParams
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import GlobalAttentionPooling
-from geognn import GeoGNNModel, InnerGNN, Preprocessing
+from geognn import GeoGNNModel, InnerGNN
+from geognn.features import FLOAT_BOND_FEATURES, LABEL_ENCODED_BOND_FEATURES
 from geognn.layers import DropoutMLP, FeaturesEmbedding, FeaturesRBF
 from torch import Tensor, nn
 from typing_extensions import override
@@ -23,8 +24,8 @@ class AggregationGNN(nn.Module):
     ) -> None:
         super().__init__()
         # Embeddings.
-        self.bond_embedding = FeaturesEmbedding(Preprocessing.FEATURES['bond_feats'], unconcat_embed_dim)
-        self.bond_rbf = FeaturesRBF(Preprocessing.RBF_PARAMS['bond'], unconcat_embed_dim)
+        self.bond_embedding = FeaturesEmbedding(LABEL_ENCODED_BOND_FEATURES, unconcat_embed_dim)
+        self.bond_rbf = FeaturesRBF(FLOAT_BOND_FEATURES, unconcat_embed_dim)
 
         # GNN.
         concat_embed_dim = 2 * unconcat_embed_dim

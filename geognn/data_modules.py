@@ -7,14 +7,14 @@ from torch.utils.data import Dataset, random_split
 from typing_extensions import override
 
 from .datasets import QM9_TASK_COL_NAMES, QM9Dataset
-from .Preprocessing import Preprocessing
+from .preprocessing import smiles_to_graphs
 
 
 class _BaseDataModule(GeoGNNCacheDataModule, ABC):
     @override
     @classmethod
     def compute_graphs(cls, smiles: str) -> GeoGNNGraphs:
-        return Preprocessing.smiles_to_graphs(smiles, torch.device('cpu'))
+        return smiles_to_graphs(smiles, torch.device('cpu'))
 
 
 class QM9DataModule(_BaseDataModule):
