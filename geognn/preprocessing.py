@@ -8,8 +8,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolTransforms as rdmt  # type: ignore
 from torch import Tensor
 
-from .features.atom_features import FLOAT_ATOM_FEATURES, \
-    LABEL_ENCODED_ATOM_FEATURES, atom_pos
+from .features.atom_features import LABEL_ENCODED_ATOM_FEATURES, atom_pos
 from .features.bond_features import FLOAT_BOND_FEATURES, \
     LABEL_ENCODED_BOND_FEATURES
 from .features.rdkit_type_aliases import Conformer, Mol
@@ -117,7 +116,7 @@ def _get_atom_bond_graph(
     graph = dgl.graph(edges, num_nodes=mol.GetNumAtoms(), idtype=torch.int32)
 
     # Add node features.
-    for feat in LABEL_ENCODED_ATOM_FEATURES + FLOAT_ATOM_FEATURES:
+    for feat in LABEL_ENCODED_ATOM_FEATURES:
         graph.ndata[feat.name] = feat.get_feat_values(mol, conf, graph)
 
     # Temp feat used for generating bond lengths (edge feat).

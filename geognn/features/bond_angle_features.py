@@ -34,10 +34,12 @@ bond_angle = FloatFeature(
 
 
 
-LABEL_ENCODED_BOND_ANGLE_FEATURES: Final[list[LabelEncodedFeature]] = []
-"""
-All predefined label-encoded bond-angle features that'll be in the graphs.
-"""
+# # This is unused and thus the GNNs are not configured to use it.
+# # Hence, it's commented out to avoid confusing readers.
+# LABEL_ENCODED_BOND_ANGLE_FEATURES: Final[list[LabelEncodedFeature]] = []
+# """
+# All predefined label-encoded bond-angle features that'll be in the graphs.
+# """
 
 FLOAT_BOND_ANGLE_FEATURES: Final[list[FloatFeature]] = [
     bond_angle,

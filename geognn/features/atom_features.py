@@ -79,8 +79,10 @@ LABEL_ENCODED_ATOM_FEATURES: Final[list[LabelEncodedFeature]] = [
 All predefined label-encoded atom features that'll be in the graphs.
 """
 
-FLOAT_ATOM_FEATURES: Final[list[FloatFeature]] = []
-"""
-All predefined atom features that have feature values of datatype `float`
-that'll be in the graphs.
-"""
+# # This is unused and thus the GNNs are not configured to use it.
+# # Hence, it's commented out to avoid confusing readers.
+# FLOAT_ATOM_FEATURES: Final[list[FloatFeature]] = []
+# """
+# All predefined atom features that have feature values of datatype `float`
+# that'll be in the graphs.
+# """
