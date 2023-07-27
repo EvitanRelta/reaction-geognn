@@ -41,7 +41,7 @@ is_in_ring = LabelEncodedFeature.create_bond_feat(
 )
 
 
-def _bond_length_get_feat_values(self, mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None = None):
+def _bond_length_get_feat_values(mol: Mol, conf: Conformer, atom_bond_graph: DGLGraph | None):
     """`get_feat_values` Callable function for `bond_length` feature."""
     assert atom_bond_graph != None, 'Bond length feature requires `atom_bond_graph`.'
     assert '_atom_pos' in atom_bond_graph.ndata, \
