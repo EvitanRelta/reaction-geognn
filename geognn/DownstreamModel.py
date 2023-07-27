@@ -82,7 +82,7 @@ class DownstreamModel(GeoGNNLightningModule):
         lr: float = 1e-4,
         _logged_hparams: LoggedHyperParams = {},
     ):
-        super().__init__(lr, _logged_hparams)
+        super().__init__(out_size, lr, _logged_hparams)
         assert (encoder != None and encoder_params == None) \
             or (encoder == None and encoder_params != None), \
             'Either `encoder` or `encoder_params` must be given, but not both. ' \

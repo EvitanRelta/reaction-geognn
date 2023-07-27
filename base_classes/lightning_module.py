@@ -73,11 +73,13 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
 
     def __init__(
         self,
+        out_size: int,
         lr: float,
         _logged_hparams: LoggedHyperParams = {},
     ) -> None:
         """
         Args:
+            out_size (int): Size of model's output-tensor.
             lr (float): Learning rate.
             _logged_hparams (LoggedHyperParams, optional): Hyperparameters that's \
                 not used by the model, but is logged in the lightning-log's \
@@ -89,7 +91,7 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
         self.lr = lr
 
         # For standardizing labels against training-split's mean/std.
-        self.scaler: StandardizeScaler = StandardizeScaler()
+        self.scaler: StandardizeScaler = StandardizeScaler(size=out_size)
 
         # Loss/Metric functions.
         self.loss_fn = torchmetrics.MeanSquaredError() # MSE
@@ -99,18 +101,6 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
         self._train_step_values: list[tuple[Tensor, Tensor]] = [] # (pred, label) for each batch/step.
         self._test_step_values: list[tuple[Tensor, Tensor]] = [] # (pred, label) for each batch/step.
         self._val_step_values: list[tuple[Tensor, Tensor]] = [] # (pred, label) for each batch/step.
-
-
-    # ==========================================================================
-    #                     Saving/Loading-related methods
-    # ==========================================================================
-    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        # Store `self.scaler` object, as it's not saved in the model's state_dict.
-        checkpoint['scaler'] = self.scaler
-
-    def on_load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
-        # Load `self.scaler` object, as it's not saved in the model's state_dict.
-        self.scaler = checkpoint['scaler']
 
 
     # ==========================================================================
@@ -128,11 +118,12 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
                 + "`self.trainer.datamodule.scaler`, but `{obj}` doesn't exist."
             assert hasattr(self.trainer, 'datamodule'), error_msg.format(obj="self.trainer.datamodule")
             assert hasattr(self.trainer.datamodule, 'scaler'), error_msg.format(obj="self.trainer.datamodule.scaler") # type: ignore
-            self.scaler = self.trainer.datamodule.scaler # type: ignore
+            datamodule_scaler = self.trainer.datamodule.scaler # type: ignore
 
-            assert isinstance(self.scaler, StandardizeScaler)
-            assert self.scaler.has_fitted, \
+            assert isinstance(datamodule_scaler, StandardizeScaler)
+            assert datamodule_scaler.has_fitted, \
                 '`self.trainer.datamodule.scaler` has not been fitted to training dataset yet.'
+            self.scaler.load_state_dict(datamodule_scaler.state_dict())
 
 
     def training_step(self, batch: GeoGNNBatch, batch_idx: int) -> Tensor:

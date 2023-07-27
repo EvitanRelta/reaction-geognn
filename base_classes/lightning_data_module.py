@@ -113,7 +113,7 @@ class GeoGNNCacheDataModule(ABC, pl.LightningDataModule):
             = self.get_dataset_splits()
 
         train_labels = torch.stack([el['data'] for el in self.raw_train_dataset])
-        self.scaler = StandardizeScaler()
+        self.scaler = StandardizeScaler(size=train_labels.shape[1])
         """Scaler used to transform the labels for train/val/test dataloaders."""
         self.scaler.fit(train_labels)
 
