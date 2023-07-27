@@ -25,12 +25,13 @@ RBFGamma: TypeAlias = float
 
 
 @overload
-def smiles_to_graphs(smiles: str, device: torch.device, return_mol_conf: Literal[True]) ->  tuple[DGLGraph, DGLGraph, Mol, Conformer]: ...
+def smiles_to_graphs(smiles: str, device: torch.device = torch.device('cpu'), *, return_mol_conf: Literal[True]) -> tuple[DGLGraph, DGLGraph, Mol, Conformer]: ...
 @overload
-def smiles_to_graphs(smiles: str, device: torch.device, return_mol_conf: Literal[False] = False) -> tuple[DGLGraph, DGLGraph]: ...
+def smiles_to_graphs(smiles: str, device: torch.device = torch.device('cpu'), *, return_mol_conf: Literal[False] = False) -> tuple[DGLGraph, DGLGraph]: ...
 def smiles_to_graphs(
     smiles: str,
     device: torch.device = torch.device('cpu'),
+    *,
     return_mol_conf: bool = False,
 ) -> tuple[DGLGraph, DGLGraph] | tuple[DGLGraph, DGLGraph, Mol, Conformer]:
     """
@@ -40,11 +41,16 @@ def smiles_to_graphs(
 
     Args:
         smiles (str): A molecule's SMILES string.
-        device (torch.device): The CPU/GPU to set returned graphs to use.
+        device (torch.device, optional): The CPU/GPU to set returned graphs to use. \
+            Defaults to torch.device('cpu').
+        return_mol_conf (bool, optional): Whether to return the computed `Mol` and \
+            `Conformer` instances from rdkit. Defaults to False.
 
     Returns:
-        tuple[DGLGraph, DGLGraph]: 1st graph is the atom-bond graph, 2nd \
-            is the bond-angle graph.
+        tuple[DGLGraph, DGLGraph] | tuple[DGLGraph, DGLGraph, Mol, Conformer]: \
+            Computed graphs in the form `(atom_bond_graph, bond_angle_graph)`. \
+            If `return_mol_conf=True`, returns \
+            `(atom_bond_graph, bond_angle_graph, mol, conformer)`.
     """
     # Prevents `AllChem.MolFromSmiles` from removing the hydrogens explicitly
     # defined in the SMILES.
