@@ -27,6 +27,9 @@ def raise_not_implemented(*_: Any) -> Never:
 
 bond_angle = FloatFeature(
     name = 'bond_angle',
+
+    # Centers and gamma values as defined in GeoGNN's `BondAngleFloatRBF` layer:
+    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L168
     rbf_centers = torch.arange(0, torch.pi, 0.1),
     rbf_gamma = 10.0,
     get_feat_values = raise_not_implemented,

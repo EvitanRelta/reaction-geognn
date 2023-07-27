@@ -59,6 +59,9 @@ def _bond_length_get_feat_values(mol: Mol, conf: Conformer, atom_bond_graph: DGL
 
 bond_length = FloatFeature(
     name = 'bond_length',
+
+    # Centers and gamma values as defined in GeoGNN's `BondFloatRBF` layer:
+    # https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/pahelix/networks/compound_encoder.py#L131
     rbf_centers = torch.arange(0, 2, 0.1),
     rbf_gamma = 10.0,
     get_feat_values = _bond_length_get_feat_values,
