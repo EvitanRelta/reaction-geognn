@@ -21,40 +21,6 @@ class Feature:
     feature depends on another feature present in the graph, eg. temp feats.).
     """
 
-    @staticmethod
-    def create_atom_feat(
-        name: str,
-        get_value: Callable[[Atom, Mol, Conformer, DGLGraph | None], int | float],
-        dtype: torch.dtype,
-    ) -> 'Feature':
-        """Factory method for creating an atom feature from a function
-        (ie. `get_value`) that gets the feat's value from a single rdkit's `Atom`
-        instance.
-        """
-        return Feature(
-            name = name,
-            get_feat_values = lambda mol, conf, atom_bond_graph : torch.tensor([
-                get_value(atom, mol, conf, atom_bond_graph) for atom in mol.GetAtoms()
-            ], dtype=dtype),
-        )
-
-    @staticmethod
-    def create_bond_feat(
-        name: str,
-        get_value: Callable[[Bond, Mol, Conformer, DGLGraph | None], int | float],
-        dtype: torch.dtype
-    ) -> 'Feature':
-        """Factory method for creating a bond feature from a function
-        (ie. `get_value`) that gets the feat's value from a single rdkit's `Bond`
-        instance.
-        """
-        return Feature(
-            name = name,
-            get_feat_values = lambda mol, conf, atom_bond_graph : torch.tensor([
-                get_value(bond, mol, conf, atom_bond_graph) for bond in mol.GetBonds()
-            ], dtype=dtype),
-        )
-
 
 @dataclass
 class FloatFeature(Feature):
