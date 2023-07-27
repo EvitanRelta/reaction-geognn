@@ -154,21 +154,15 @@ class ReactionDownstreamModel(GeoGNNLightningModule):
         self.hparams: HyperParams
         self.save_hyperparameters(ignore=['encoder'])
 
-        # Dimension after concatenating reactant and diff node repr.
-        concat_embed_dim = 2 * self.encoder.embed_dim
-        self.norm = nn.LayerNorm(concat_embed_dim)
+        self.norm = nn.LayerNorm(self.encoder.embed_dim)
         self.mlp = DropoutMLP(
             num_of_layers = 2,
-            in_size = concat_embed_dim,
+            in_size = self.encoder.embed_dim,
             hidden_size = self.encoder.embed_dim * 4,
             out_size = out_size,
             activation = nn.LeakyReLU(),
             dropout_rate = dropout_rate,
         )
-
-        # For aggregating node-repr with initial edge-feats, b4 pooling.
-        self.aggregate_gnn = AggregationGNN(self.encoder.embed_dim, dropout_rate)
-        self.graph_pool = GlobalAttentionPooling(nn.Linear(concat_embed_dim, 1))
 
     @override
     def forward(self, batched_atom_bond_graph: DGLGraph, batched_bond_angle_graph: DGLGraph, batched_superimposed_atom_graph: DGLGraph) -> Tensor:
@@ -186,28 +180,21 @@ class ReactionDownstreamModel(GeoGNNLightningModule):
             = self.encoder.forward(batched_atom_bond_graph, batched_bond_angle_graph, pool_graph=False)
 
         pred_list: list[Tensor] = []
-        for atom_bond_graph, bond_angle_graph, superimposed_atom_graph, node_repr in split_batched_data(
+        for atom_bond_graph, bond_angle_graph, node_repr in split_batched_data(
             batched_atom_bond_graph = batched_atom_bond_graph,
             batched_bond_angle_graph = batched_bond_angle_graph,
-            batched_superimposed_atom_graph = batched_superimposed_atom_graph,
             batched_node_repr = batched_node_repr,
         ):
             assert isinstance(atom_bond_graph, DGLGraph) \
                 and isinstance(bond_angle_graph, DGLGraph) \
-                and isinstance(superimposed_atom_graph, DGLGraph) \
                 and isinstance(node_repr, Tensor)
             reactant_node_repr, product_node_repr \
                 = split_reactant_product_node_feat(node_repr, atom_bond_graph)
 
             diff_node_repr = product_node_repr - reactant_node_repr # shape (num_nodes, embed_dim)
-            concat_reactant_diff = torch.cat((reactant_node_repr, diff_node_repr), dim=1) # shape (num_nodes, 2 * embed_dim)
 
-            assert concat_reactant_diff.shape[0] == superimposed_atom_graph.num_nodes()
-
-            node_repr = self.aggregate_gnn.forward(superimposed_atom_graph, concat_reactant_diff)
-            graph_repr = self.graph_pool.forward(superimposed_atom_graph, node_repr) # shape (1, 2 * embed_dim)
-            assert isinstance(graph_repr, Tensor)
-            graph_repr = graph_repr.squeeze(0) # shape (2 * embed_dim, )
+            # Sum over the node dimension
+            graph_repr = diff_node_repr.sum(dim=0)  # shape is now (embed_dim, )
 
             graph_repr = self.norm.forward(graph_repr)
             pred = self.mlp.forward(graph_repr)
