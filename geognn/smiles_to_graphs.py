@@ -8,11 +8,12 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolTransforms as rdmt  # type: ignore
 from torch import Tensor
 
-from ..graph_utils import to_bidirected_copy
-from .atom_features import FLOAT_ATOM_FEATURES, LABEL_ENCODED_ATOM_FEATURES, \
-    atom_pos
-from .bond_features import FLOAT_BOND_FEATURES, LABEL_ENCODED_BOND_FEATURES
-from .rdkit_type_aliases import Conformer, Mol
+from .features.atom_features import FLOAT_ATOM_FEATURES, \
+    LABEL_ENCODED_ATOM_FEATURES, atom_pos
+from .features.bond_features import FLOAT_BOND_FEATURES, \
+    LABEL_ENCODED_BOND_FEATURES
+from .features.rdkit_type_aliases import Conformer, Mol
+from .graph_utils import to_bidirected_copy
 
 FeatureCategory: TypeAlias = Literal['atom_feats', 'bond_feats']
 FeatureName: TypeAlias = str
