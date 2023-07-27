@@ -46,29 +46,46 @@ def smiles_to_graphs(
         tuple[DGLGraph, DGLGraph]: 1st graph is the atom-bond graph, 2nd \
             is the bond-angle graph.
     """
-    mol = AllChem.MolFromSmiles(smiles)                                         # type: ignore
-    mol, conf = _generate_conformer(mol)
+    # Prevents `AllChem.MolFromSmiles` from removing the hydrogens explicitly
+    # defined in the SMILES.
+    # (but this won't add hydrogens if the SMILES doesn't have it)
+    # Based on: https://github.com/rdkit/rdkit/discussions/4703#discussioncomment-1656372
+    smiles_parser = Chem.SmilesParserParams() # type: ignore
+    smiles_parser.removeHs = False
+    mol = AllChem.MolFromSmiles(smiles, smiles_parser) # type: ignore
 
-    atom_bond_graph = _get_atom_bond_graph(mol, conf, device)
-    bond_angle_graph = _get_bond_angle_graph(mol, conf, device)
+    has_atom_mapping = mol.GetAtomWithIdx(0).GetAtomMapNum() != 0
+    mol, conf = _generate_conformer(mol, add_rm_hydrogens=not has_atom_mapping)
+
+    atom_bond_graph = _get_atom_bond_graph(mol, conf, sort_by_atom_mapping=has_atom_mapping, device=device)
+    bond_angle_graph = _get_bond_angle_graph(mol, conf, device=device)
     if return_mol_conf:
         return atom_bond_graph, bond_angle_graph, mol, conf
     return atom_bond_graph, bond_angle_graph
 
 
-def _generate_conformer(mol: Mol, numConfs: int = 10) -> tuple[Mol, Conformer]:
-    new_mol = Chem.AddHs(mol)                                                   # type: ignore
-    res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs)                # type: ignore
-    res = AllChem.MMFFOptimizeMoleculeConfs(new_mol)                            # type: ignore
-    new_mol = Chem.RemoveHs(new_mol)                                            # type: ignore
-    index = np.argmin([x[1] for x in res])
-    conf = new_mol.GetConformer(id=int(index))
+def _generate_conformer(mol: Mol, numConfs: int = 10, add_rm_hydrogens: bool = True) -> tuple[Mol, Conformer]:
+    try:
+        new_mol = mol
+        if add_rm_hydrogens:
+            new_mol = Chem.AddHs(mol) # type: ignore
+        res = AllChem.EmbedMultipleConfs(new_mol, numConfs=numConfs) # type: ignore
+        res = AllChem.MMFFOptimizeMoleculeConfs(new_mol) # type: ignore
+        if add_rm_hydrogens:
+            new_mol = Chem.RemoveHs(new_mol) # type: ignore
+        index = np.argmin([x[1] for x in res])
+        conf = new_mol.GetConformer(id=int(index))
+    except:
+        new_mol = mol
+        AllChem.Compute2DCoords(new_mol) # type: ignore
+        conf = new_mol.GetConformer()
     return new_mol, conf
 
 
 def _get_atom_bond_graph(
     mol: Mol,
     conf: Conformer,
+    sort_by_atom_mapping: bool = False,
     device: torch.device = torch.device('cpu'),
 ) -> DGLGraph:
     """
@@ -86,9 +103,16 @@ def _get_atom_bond_graph(
     # Create an undirected DGL graph with all the molecule's nodes and edges.
     num_bonds = mol.GetNumBonds()
     edges = torch.zeros(num_bonds, dtype=torch.int32), torch.zeros(num_bonds, dtype=torch.int32)
-    for i, bond in enumerate(mol.GetBonds()):
-        edges[0][i] = bond.GetBeginAtomIdx()
-        edges[1][i] = bond.GetEndAtomIdx()
+
+    if sort_by_atom_mapping:
+        for i, bond in enumerate(mol.GetBonds()):
+            edges[0][i] = bond.GetBeginAtom().GetAtomMapNum() - 1
+            edges[1][i] = bond.GetEndAtom().GetAtomMapNum() - 1
+    else:
+        for i, bond in enumerate(mol.GetBonds()):
+            edges[0][i] = bond.GetBeginAtomIdx()
+            edges[1][i] = bond.GetEndAtomIdx()
+
     graph = dgl.graph(edges, num_nodes=mol.GetNumAtoms(), idtype=torch.int32)
 
     # Add node features.
@@ -132,10 +156,10 @@ def _get_bond_angle_graph(
 
     # Initialize graph with 1 node per bond.
     graph = dgl.graph(([], []), num_nodes=num_of_bonds)
+    graph.edata['bond_angle'] = torch.tensor([])
 
     # For the edge case where there's no bonds.
     if num_of_bonds == 0:
-        graph.edata['bond_angle'] = torch.tensor([])
         graph = graph.to(device)    # Move graph to CPU/GPU depending on `device`.
         return graph
 
