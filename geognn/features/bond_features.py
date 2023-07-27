@@ -37,7 +37,6 @@ is_in_ring = LabelEncodedFeature.create_bond_feat(
     name = 'is_in_ring',
     possible_values = [0, 1],
     get_raw_value = lambda x, *_ : int(x.IsInRing()),
-    dtype = torch.bool,
 )
 
 

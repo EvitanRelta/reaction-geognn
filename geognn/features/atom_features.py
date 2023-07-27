@@ -50,7 +50,6 @@ is_aromatic = LabelEncodedFeature.create_atom_feat(
     name = 'is_aromatic',
     possible_values = [0, 1],
     get_raw_value = lambda x, *_ : x.GetIsAromatic(),
-    dtype = torch.bool,
 )
 
 total_numHs = LabelEncodedFeature.create_atom_feat(

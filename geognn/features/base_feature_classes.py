@@ -97,7 +97,7 @@ class LabelEncodedFeature(Feature):
         name: str,
         possible_values: list[Any],
         get_raw_value: Callable[[Atom, Mol, Conformer, DGLGraph | None], Any],
-        dtype: torch.dtype = torch.uint8,
+        dtype: torch.dtype = torch.int64,
     ) -> 'LabelEncodedFeature':
         return LabelEncodedFeature(
             name = name,
@@ -115,7 +115,7 @@ class LabelEncodedFeature(Feature):
         name: str,
         possible_values: list[Any],
         get_raw_value: Callable[[Bond, Mol, Conformer, DGLGraph | None], Any],
-        dtype: torch.dtype = torch.uint8,
+        dtype: torch.dtype = torch.int64,
     ) -> 'LabelEncodedFeature':
         return LabelEncodedFeature(
             name = name,
