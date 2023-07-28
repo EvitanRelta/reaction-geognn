@@ -2,7 +2,7 @@ import torch
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
 from reaction_geognn.data_modules import Wb97DataModule
-from reaction_geognn.model import ProtoModel
+from reaction_geognn.model import ReactionDownstreamModel
 from utils import abs_path, get_least_utilized_and_allocated_gpu
 
 GPU: torch.device | None = None
@@ -29,7 +29,7 @@ def main():
     assert torch.cuda.device_count() > 1, "Only 1 GPU (expected multiple GPUs)."
     device = GPU or get_least_utilized_and_allocated_gpu()
 
-    model = ProtoModel.load_from_checkpoint(
+    model = ReactionDownstreamModel.load_from_checkpoint(
         CHECKPOINT_PATH,
         lr = LR,
         _logged_hparams = {

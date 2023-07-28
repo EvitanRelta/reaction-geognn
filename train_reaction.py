@@ -9,7 +9,7 @@ from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import Callback, EarlyStopping, \
     ModelCheckpoint
 from reaction_geognn.data_modules import B97DataModule, Wb97DataModule
-from reaction_geognn.model import ProtoModel
+from reaction_geognn.model import ReactionDownstreamModel
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
@@ -98,7 +98,7 @@ def main():
         )
 
     if args['pretrained_chkpt_path']:
-        model = ProtoModel.load_from_checkpoint(
+        model = ReactionDownstreamModel.load_from_checkpoint(
             args['pretrained_chkpt_path'],
             map_location = device,
             _logged_hparams = logged_hparams, # Update logged hyper-params dict.
@@ -125,7 +125,7 @@ def main():
             + f"while to the encoder has `dropout_rate={model.encoder.dropout_rate}`), simply comment out this assert."
 
     else:
-        model = ProtoModel(
+        model = ReactionDownstreamModel(
             encoder = encoder,
             dropout_rate = args['dropout_rate'],
             out_size = 1,

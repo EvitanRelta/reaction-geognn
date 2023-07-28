@@ -91,14 +91,14 @@ class AggregationGNN(nn.Module):
 
 
 class HyperParams(Protocol):
-    """Type hint for `self.hparams` in `ProtoModel`."""
+    """Type hint for `self.hparams` in `ReactionDownstreamModel`."""
     encoder_params: dict[str, Any]
     out_size: int
     dropout_rate: float
     lr: float
     _logged_hparams: LoggedHyperParams
 
-class ProtoModel(GeoGNNLightningModule):
+class ReactionDownstreamModel(GeoGNNLightningModule):
     @overload
     def __init__(self, *, encoder_params: dict[str, Any], out_size: int, dropout_rate: float, lr: float = 1e-4, _logged_hparams: LoggedHyperParams = {}) -> None:
         """
