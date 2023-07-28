@@ -23,8 +23,7 @@ QM9_TASK_COL_NAMES: TypeAlias = Literal[
 ]
 
 class QM9Dataset(GeoGNNDataset):
-    """
-    Geometric, energetic, electronic and thermodynamic properties of
+    """Geometric, energetic, electronic and thermodynamic properties of
     DFT-modelled small molecules.
 
     The `data` Tensor in each element contains the label-values for all the
@@ -47,6 +46,8 @@ class QM9Dataset(GeoGNNDataset):
     ) -> None:
         """
         Args:
+            task_column_name (list[QM9_TASK_COL_NAMES]): List of all the column \
+                names of the desired tasks.
             csv_path (str, optional): Path to the dataset's `.csv` file. \
                 (relative paths will be relative to the file `QM9Dataset` is defined in) \
                 Defaults to './chemrl_downstream_datasets/qm9/raw/qm9.csv'.

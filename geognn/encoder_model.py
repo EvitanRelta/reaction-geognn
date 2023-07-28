@@ -14,8 +14,7 @@ from .layers import FeaturesEmbedding, FeaturesRBF, SimpleGIN, SqrtGraphNorm
 
 
 class InnerGNN(nn.Module):
-    """
-    The GNN used inside of `GeoGNNModel`.
+    """The GNN used inside of `GeoGNNModel`.
 
     This is the "GNN" part of GeoGNN, including normalisation layers but
     excluding feature embedding layers.
@@ -80,9 +79,7 @@ class InnerGNN(nn.Module):
 
 
 class GeoGNNLayer(nn.Module):
-    """
-    A single GeoGNN layer.
-    """
+    """A single GeoGNN layer."""
 
     def __init__(
         self,
@@ -170,9 +167,7 @@ class GeoGNNLayer(nn.Module):
 
 
 class GeoGNNModel(nn.Module):
-    """
-    The GeoGNN Model used in GEM.
-    """
+    """The GeoGNN Model used in GEM."""
 
     def __init__(
         self,
@@ -245,8 +240,9 @@ class GeoGNNModel(nn.Module):
                 nodes, bonds as edges.
             bond_angle_graph (DGLGraph): Graph of a molecule, with bonds as \
                 nodes, bond-angles as edges.
-            pool_graph (bool): Whether to pool and return the graph representation. \
-                Defaults to True.
+            pool_graph (bool, optional): Whether to average-pool and return the \
+                graph representation (this is here for backwards compatibility. \
+                idw to break any old model checkpoints). Defaults to True.
 
         Returns:
             tuple[Tensor, Tensor, Tensor] | tuple[Tensor, Tensor]: The node, \

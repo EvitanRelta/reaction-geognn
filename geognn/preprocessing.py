@@ -101,7 +101,8 @@ def _get_atom_bond_graph(
     Args:
         mol (Mol): The `rdchem.Mol` of the molecule.
         conf (Conformer): The `rdchem.Conformer` of the molecule.
-        device (torch.device): The CPU/GPU to set returned graphs to use.
+        device (torch.device, optional): The CPU/GPU to set returned graphs to use. \
+            Default to torch.device('cpu').
 
     Returns:
         DGLGraph: Graph with atoms as nodes, bonds as edges.
@@ -152,7 +153,8 @@ def _get_bond_angle_graph(
     Args:
         mol (Mol): The `rdchem.Mol` of the molecule.
         conf (Conformer): The `rdchem.Conformer` of the molecule.
-        device (torch.device): The CPU/GPU to set returned graphs to use.
+        device (torch.device, optional): The CPU/GPU to set returned graphs to use. \
+            Default to torch.device('cpu').
 
     Returns:
         DGLGraph: Graph with bonds as nodes, bond-angles as edges.

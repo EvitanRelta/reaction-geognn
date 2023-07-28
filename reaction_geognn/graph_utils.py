@@ -15,7 +15,6 @@ def split_batched_data(
     batched_node_repr: Tensor | None = None,
     batched_edge_repr: Tensor | None = None,
 ) -> list[tuple[DGLGraph | Tensor, ...]]:
-
     """Split batched graph(s) and/or node/edge-representation tensors into
     individual graphs and tensors.
 

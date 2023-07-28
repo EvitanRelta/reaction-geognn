@@ -10,9 +10,10 @@ from .layers import DropoutMLP
 
 
 class DownstreamModel(GeoGNNLightningModule):
-    """
-    Model that uses the graph-representation output from
-    `self.encoder: GeoGNNModel` to make `out_size` number of predictions.
+    """Downstream model for molecular-property prediction.
+
+    Uses the graph-representation output from `self.encoder: GeoGNNModel` to
+    make `out_size` number of predictions.
 
     This is a PyTorch + DGL equivalent of GeoGNN's `DownstreamModel`:
     https://github.com/PaddlePaddle/PaddleHelix/blob/e93c3e9/apps/pretrained_compound/ChemRL/GEM/src/model.py#L27-L61

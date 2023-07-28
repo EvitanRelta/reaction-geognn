@@ -16,7 +16,8 @@ from .graph_utils import split_batched_data, split_reactant_product_node_feat
 
 class AggregationGNN(nn.Module):
     """Layer that aggregates the encoder's output node-representation with the
-    initial features to give a new node-representation."""
+    initial bond-features to give a new node-representation.
+    """
 
     def __init__(
         self,
@@ -45,10 +46,6 @@ class AggregationGNN(nn.Module):
     ) -> Tensor:
         """
         Args:
-            atom_bond_graph (DGLGraph): Graph of a molecule, with atoms as \
-                nodes, bonds as edges.
-            bond_angle_graph (DGLGraph): Graph of a molecule, with bonds as \
-                nodes, bond-angles as edges.
             superimposed_atom_graph (DGLGraph): Atom-bond graph where reactant's \
                 and product's bond-edges are superimposed in the same graph.
             superimposed_atom_repr (Tensor): The input atom representation for \
@@ -99,6 +96,12 @@ class HyperParams(Protocol):
     _logged_hparams: LoggedHyperParams
 
 class ReactionDownstreamModel(GeoGNNLightningModule):
+    """Downstream model for reaction-property prediction.
+
+    Uses the node-representation output from `self.encoder: GeoGNNModel` to make
+    `out_size` number of predictions.
+    """
+
     @overload
     def __init__(self, *, encoder_params: dict[str, Any], out_size: int, dropout_rate: float, lr: float = 1e-4, _logged_hparams: LoggedHyperParams = {}) -> None:
         """

@@ -10,6 +10,26 @@ from .preprocessing import reaction_smart_to_graph
 
 
 class Wb97DataModule(GeoGNNCacheDataModule):
+    """`LightningDataModule` class for wB97X-D3 fold-split.
+
+    The fold-split is as defined in the paper -
+    `"Machine Learning of Reaction Properties via Learned Representations of the Condensed Graph of Reaction"`.
+
+    Contains computational activation energies (but lacking the enthalpy values
+    found in the original wB97X-D3 dataset) of forward AND reversed reaction at the
+    ωB97X-D3/def2-TZVP level of theory.
+
+    Data/Labels are `tensor([activation_energy])`.
+
+    Split CSV files are downloadable at: \\
+    https://github.com/hesther/reactiondatabase/tree/main/data_splits
+
+    Which were split and used by: \\
+    "Machine Learning of Reaction Properties via Learned Representations of
+    the Condensed Graph of Reaction"
+    https://pubs.acs.org/doi/pdf/10.1021/acs.jcim.1c00975
+    """
+
     @override
     def get_dataset_splits(self) -> tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]:
         return get_wb97_fold_dataset(self.fold_num)
@@ -36,6 +56,26 @@ class Wb97DataModule(GeoGNNCacheDataModule):
 
 
 class B97DataModule(Wb97DataModule):
+    """`LightningDataModule` class for B97-D3 fold-split.
+
+    The fold-split is as defined in the paper -
+    `"Machine Learning of Reaction Properties via Learned Representations of the Condensed Graph of Reaction"`.
+
+    Contains computational activation energies (but lacking the enthalpy values 
+    found in the original wB97X-D3 dataset) of forward AND reversed reaction at the
+    B97-D3/def2-mSVP level of theory.
+
+    Labels are `tensor([activation_energy])`.
+
+    Split CSV files are downloadable at: \\
+    https://github.com/hesther/reactiondatabase/tree/main/data_splits
+
+    Which were split and used by: \\
+    "Machine Learning of Reaction Properties via Learned Representations of
+    the Condensed Graph of Reaction"
+    https://pubs.acs.org/doi/pdf/10.1021/acs.jcim.1c00975
+    """
+
     @override
     def get_dataset_splits(self) -> tuple[GeoGNNDataset, GeoGNNDataset, GeoGNNDataset]:
         wb97, b97 = get_wb97_fold_dataset(self.fold_num, include_pretrain=True)
