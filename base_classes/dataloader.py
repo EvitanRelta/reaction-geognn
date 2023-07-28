@@ -12,14 +12,16 @@ from .dataset import GeoGNNDataElement
 GeoGNNGraphs: TypeAlias = tuple[DGLGraph, ...]
 """The graphs in `GeoGNNBatch`. Can be either be `(atom_bond_graph, bond_angle_graph)`
 or `(atom_bond_graph, bond_angle_graph, superimposed_atom_bond_graph)` depending
-on the dataset. The graphs are of type `DGLGraph`.
+on whether the dataset is for single molecules or reactions.
+
+The graphs are of type `DGLGraph`.
 """
 
 GeoGNNBatch: TypeAlias = tuple[Unpack[GeoGNNGraphs], Tensor]
 """Batched (or unbatched, since both are of the same type) data in the form
 `(batched_atom_bond_graph, batched_bond_angle_graph, labels)`, or
 `(batched_atom_bond_graph, batched_bond_angle_graph, batched_superimposed_atom_bond_graph, labels)`
-depending on the dataset.
+depending on whether the dataset is for single molecules or reactions.
 
 The graphs are of type `DGLGraph`, while `labels` is of type `Tensor`.
 """

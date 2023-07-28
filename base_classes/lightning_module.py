@@ -64,7 +64,8 @@ class GeoGNNLightningModule(ABC, pl.LightningModule):
             *graphs (GeoGNNGraphs): The graphs in `GeoGNNBatch`. Can be either be \
                 `(batched_atom_bond_graph, batched_bond_angle_graph, labels)` or \
                 `(batched_atom_bond_graph, batched_bond_angle_graph, batched_superimposed_atom_bond_graph, labels)` \
-                depending on the dataset. The graphs are of type `DGLGraph`.
+                depending on whether the dataset is for single molecules or reactions. \
+                The graphs are of type `DGLGraph`.
 
         Returns:
             Tensor: Predicted values with size `(num_tasks, )`, where `num_tasks` \
