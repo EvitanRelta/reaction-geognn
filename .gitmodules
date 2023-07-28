@@ -1,0 +1,3 @@
+[submodule "lightning_logs"]
+	path = lightning_logs
+	url = https://github.com/EvitanRelta/reaction-geognn-lightning-logs
