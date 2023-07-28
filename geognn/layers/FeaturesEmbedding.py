@@ -3,7 +3,7 @@ from typing import Mapping
 import torch
 from torch import Tensor, nn
 
-from ..Preprocessing import Feature, FeatureName
+from ..features import LabelEncodedFeature
 
 
 class FeaturesEmbedding(nn.Module):
@@ -24,14 +24,13 @@ class FeaturesEmbedding(nn.Module):
 
     def __init__(
         self,
-        feat_dict: dict[FeatureName, Feature],
+        feat_list: list[LabelEncodedFeature],
         embed_dim: int,
         feat_padding: int = 5,
     ):
         """
         Args:
-            feat_dict (dict[FeatureName, Feature]): Dict containing \
-                the info for every feature.
+            feat_list (list[LabelEncodedFeature]): Info on the features.
             embed_dim (int): The output embedding dimension.
             feat_padding (int): The extra num of embeddings added to \
                 `num_embeddings` in `nn.Embedding` to act as padding.
@@ -39,9 +38,9 @@ class FeaturesEmbedding(nn.Module):
         super().__init__()
         self.embed_dim = embed_dim
         self.embed_dict = nn.ModuleDict()
-        for feat_name, feat in feat_dict.items():
+        for feat in feat_list:
             input_dim = len(feat.possible_values) + feat_padding
-            self.embed_dict[feat_name] = nn.Embedding(input_dim, embed_dim)
+            self.embed_dict[feat.name] = nn.Embedding(input_dim, embed_dim)
 
         self.reset_parameters()
 
@@ -54,10 +53,10 @@ class FeaturesEmbedding(nn.Module):
             assert isinstance(embedding, nn.Embedding)
             nn.init.xavier_uniform_(embedding.weight)
 
-    def forward(self, feat_tensor_map: Mapping[FeatureName, Tensor]) -> Tensor:
+    def forward(self, feat_tensor_map: Mapping[str, Tensor]) -> Tensor:
         """
         Args:
-            feat_tensor_map (Mapping[FeatureName, Tensor]): Mapping of \
+            feat_tensor_map (Mapping[str, Tensor]): Mapping of \
                 features, where the keys are the features' names and the values \
                 are the features' `Tensor` values (eg. from `DGLGraph.ndata`).
 

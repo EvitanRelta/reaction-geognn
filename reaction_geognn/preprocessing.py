@@ -4,7 +4,7 @@ Data-preprocesing related stuff.
 
 import torch
 from dgl import DGLGraph
-from geognn import Preprocessing
+from geognn import smiles_to_graphs
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
@@ -43,9 +43,9 @@ def reaction_smart_to_graph(
 
     # Create individual graphs for each molecule and then batch them together
     reactant_atom_bond_graph, reactant_bond_angle_graph \
-        = Preprocessing.smiles_to_graphs(reactant_smiles, device=device)
+        = smiles_to_graphs(reactant_smiles, device=device)
     product_atom_bond_graph, product_bond_angle_graph \
-        = Preprocessing.smiles_to_graphs(product_smiles, device=device)
+        = smiles_to_graphs(product_smiles, device=device)
 
     # `.ndata["_is_reactant"]` is used for splitting reactants features from
     # products in the downstream model.
