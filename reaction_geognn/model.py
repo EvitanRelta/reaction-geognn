@@ -4,7 +4,8 @@ import torch
 from base_classes import GeoGNNLightningModule, LoggedHyperParams
 from dgl import DGLGraph
 from dgl.nn.pytorch.glob import GlobalAttentionPooling
-from geognn import GeoGNNModel, InnerGNN
+from geognn import GeoGNNModel
+from geognn.encoder_model import InnerGNN
 from geognn.features import FLOAT_BOND_FEATURES, LABEL_ENCODED_BOND_FEATURES
 from geognn.layers import DropoutMLP, FeaturesEmbedding, FeaturesRBF
 from torch import Tensor, nn
