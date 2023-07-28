@@ -1,7 +1,7 @@
 import torch
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import ModelCheckpoint
-from reaction_geognn.data_module import Wb97DataModule
+from reaction_geognn.data_modules import Wb97DataModule
 from reaction_geognn.model import ProtoModel
 from utils import abs_path, get_least_utilized_and_allocated_gpu
 
