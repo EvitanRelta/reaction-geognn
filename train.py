@@ -4,8 +4,7 @@ from typing import TypedDict
 
 import torch
 from base_classes import LoggedHyperParams
-from geognn import DownstreamModel, GeoGNNModel
-from geognn.data_modules import QM9DataModule
+from geognn import DownstreamModel, GeoGNNModel, QM9DataModule
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import Callback, EarlyStopping, \
     ModelCheckpoint
