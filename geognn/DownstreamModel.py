@@ -5,7 +5,7 @@ from dgl import DGLGraph
 from torch import Tensor, nn
 from typing_extensions import override
 
-from .GeoGNN import GeoGNNModel
+from .encoder_model import GeoGNNModel
 from .layers import DropoutMLP
 
 
