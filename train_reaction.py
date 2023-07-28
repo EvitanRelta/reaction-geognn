@@ -21,8 +21,13 @@ GRAPH_CACHE_PATHS: dict[DatasetNames, str] = {
     'b97d3': abs_path('cached_graphs/cached_b97_superimposed.bin', __file__),
 }
 
+
 def main():
     args = _parse_script_args()
+    run_training(args)
+
+
+def run_training(args: 'Arguments'):
     _validate_args(args)
 
     # To ensure deterministic

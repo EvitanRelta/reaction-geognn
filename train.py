@@ -14,8 +14,13 @@ from utils import LIGHTNING_LOGS_DIR, abs_path, \
 SEED = 0
 GRAPH_CACHE_PATH = abs_path('cached_graphs/cached_qm9.bin', __file__)
 
+
 def main():
     args = _parse_script_args()
+    run_training(args)
+
+
+def run_training(args: 'Arguments'):
     _validate_args(args)
 
     # To ensure deterministic
