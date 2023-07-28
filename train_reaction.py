@@ -8,8 +8,8 @@ from geognn import DownstreamModel, GeoGNNModel
 from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import Callback, EarlyStopping, \
     ModelCheckpoint
-from reaction_geognn.data_modules import B97DataModule, Wb97DataModule
-from reaction_geognn.model import ReactionDownstreamModel
+from reaction_geognn import B97DataModule, ReactionDownstreamModel, \
+    Wb97DataModule
 from utils import LIGHTNING_LOGS_DIR, abs_path, \
     get_least_utilized_and_allocated_gpu
 
