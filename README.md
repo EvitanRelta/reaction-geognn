@@ -360,6 +360,8 @@ The branch `reaction-sum-pool` implements this older head architecture, which yo
 
   Currently, it's re-embedding the initial bond/bond-angle features instead of propagating, which was what the GeoGNN's code did.
 
+  > This has been coded out at the `propagate-bond-repr` branch
+
   These 2 architectures are shown below:
 
   ![](assets/proposed_geognn_architecture.svg)
